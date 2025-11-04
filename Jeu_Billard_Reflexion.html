@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minigolf Réflexion Optique - Solution 2</title>
+    <style>
+        /* Styles Généraux du Corps */
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background-color: #f8f8f8;
+            color: #333;
+            padding: 20px;
+        }
+        h1 { color: #1a237e; margin-bottom: 10px; }
+        p { max-width: 800px; text-align: center; margin-bottom: 25px; line-height: 1.5; }
+        #game-world-container { position: relative; width: 800px; height: 600px; background-color: #f0f0f0; border: 2px solid #ccc; overflow: hidden; margin-bottom: 20px; }
+        #minigolfCanvas { position: absolute; top: 0; left: 0; }
+        #game-container-ref { position: absolute; top: calc(50% - 100px); left: calc(50% + 100px); transform: translate(-50%, -50%); width: 350px; height: 200px; border: 5px solid #386641; box-sizing: border-box; z-index: 5; opacity: 0; pointer-events: none; }
+        .game-object { position: absolute; border-radius: 50%; z-index: 10; }
+        #ball { width: 20px; height: 20px; background-color: white; border: 1px solid #666; cursor: default; }
+        #hole { width: 30px; height: 30px; background-color: black; border: 2px solid #222; }
+        .virtual-image { position: absolute; border: 2px dashed; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: white; cursor: grab; user-select: none; z-index: 15; text-align: center; line-height: 1.1; box-sizing: border-box; }
+        #image1 { background-color: rgba(255, 100, 100, 0.7); border-color: rgba(200, 0, 0, 0.9); }
+        #image2 { background-color: rgba(100, 100, 255, 0.7); border-color: rgba(0, 0, 200, 0.9); }
+        .virtual-image.valid-placement { background-color: rgba(0, 200, 0, 0.7) !important; border-color: rgba(0, 150, 0, 0.9) !important; }
+        .virtual-image.invalid-placement { background-color: rgba(255, 0, 0, 0.7) !important; border-color: rgba(200, 0, 0, 0.9) !important; }
+        #message { margin-top: 15px; font-size: 1.1em; font-weight: bold; min-height: 2em; color: #007bff; }
+        #controls { display: flex; gap: 15px; margin-top: 20px; }
+        button { padding: 10px 20px; font-size: 1em; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; transition: background-color 0.3s ease; }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Minigolf Optique : Double Réflexion Plane</h1>
+    <p>
+        Votre objectif est de faire tomber la balle dans le trou en utilisant <strong>deux réflexions</strong> sur les murs du terrain.
+        <br>Placez d'abord l'<strong>Image Primaire (I1)</strong> et l'<strong>Image Secondaire (I2)</strong> à leur position correcte.
+        <br>Une fois les images placées, <strong>déplacez la balle</strong> à une position de départ, visez I2 et tirez ! Si votre position est bonne, la balle réussira le parcours.
+    </p>
+
+    <div id="game-world-container">
+        <canvas id="minigolfCanvas" width="800" height="600"></canvas>
+        <div id="game-container-ref"></div>
+        <div id="ball" class="game-object"></div>
+        <div id="hole" class="game-object"></div>
+    </div>
+
+    <div id="message"></div>
+    <div id="controls">
+        <button id="resetButton">Réinitialiser le terrain</button>
+        <button id="shootButton" disabled>Tirer la balle</button>
+        <button id="redoShotButton" disabled>Refaire le tir</button>
+    </div>
+
+    <script>
+        // Références et configuration (inchangées)
+        const gameWorldContainer = document.getElementById('game-world-container');
+        const minigolfCanvas = document.getElementById('minigolfCanvas');
+        const ctx = minigolfCanvas.getContext('2d');
+        const gameContainerRef = document.getElementById('game-container-ref'); 
+        const ballElement = document.getElementById('ball');
+        const holeElement = document.getElementById('hole');
+        const messageElement = document.getElementById('message');
+        const resetButton = document.getElementById('resetButton');
+        const shootButton = document.getElementById('shootButton');
+        const redoShotButton = document.getElementById('redoShotButton');
+        const WORLD_WIDTH = 800, WORLD_HEIGHT = 600, GAME_WIDTH_CSS = 350, GAME_HEIGHT_CSS = 200;
+        let ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y, GRID_ORIGIN;
+        let walls = []; 
+
+        // Variables d'état
+        let ball = { radius: 10 }, hole = { radius: 15 }, holeCenterWorld = {};
+        let image1 = { radius: 15, label: 'I1', type: 'primary' }, image2 = { radius: 15, label: 'I2', type: 'secondary' };
+        let currentDraggingImage = null, dragOffsetX, dragOffsetY;
+        let gameState = 'placing_i1';
+        let shotTrajectory = [], firstReflectionPoint = null, secondReflectionPoint = null;
+        let animationFrameId = null, reflectionsCount = 0;
+        
+        // --- Fonctions de géométrie et de dessin (inchangées) ---
+        function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+        function reflectPoint(point, wall) { const p1 = wall.p1, p2 = wall.p2; const wallVecX = p2.x - p1.x, wallVecY = p2.y - p1.y; const normalX = -wallVecY, normalY = wallVecX; const normalMag = Math.sqrt(normalX * normalX + normalY * normalY); const normalUnitX = normalMag === 0 ? 0 : normalX / normalMag; const normalUnitY = normalMag === 0 ? 0 : normalY / normalMag; const px = point.x - p1.x, py = point.y - p1.y; const projection = px * normalUnitX + py * normalUnitY; return { x: point.x - 2 * projection * normalUnitX, y: point.y - 2 * projection * normalUnitY }; }
+        function reflectVector(velocity, normal) { const dot = velocity.x * normal.x + velocity.y * normal.y; return { x: velocity.x - 2 * dot * normal.x, y: velocity.y - 2 * dot * normal.y }; }
+        function getLineSegmentIntersectionPoint(ls, le, w1, w2) { const d = ((ls.x - le.x) * (w1.y - w2.y)) - ((ls.y - le.y) * (w1.x - w2.x)); if (d === 0) return null; const t = ((ls.x - w1.x) * (w1.y - w2.y) - (ls.y - w1.y) * (w1.x - w2.x)) / d; const u = -((ls.x - le.x) * (ls.y - w1.y) - (ls.y - le.y) * (ls.x - w1.x)) / d; if (t >= -0.001 && t <= 1.001 && u >= -0.001 && u <= 1.001) return { point: { x: ls.x + t * (le.x - ls.x), y: ls.y + t * (le.y - ls.y) } }; return null; }
+        function updateElementPosition(element, centerX, centerY, radius) { element.style.left = (centerX - radius) + 'px'; element.style.top = (centerY - radius) + 'px'; }
+        function drawGame() { ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT); drawGrid(); drawGameTerrainOnCanvas(); drawTrajectory(); drawSightLines(); }
+        function drawSightLines() { if (!firstReflectionPoint) return; ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 0, 0.7)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(firstReflectionPoint.x, firstReflectionPoint.y); ctx.lineTo(image2.targetPoint.x, image2.targetPoint.y); ctx.stroke(); if (secondReflectionPoint) { ctx.beginPath(); ctx.moveTo(secondReflectionPoint.x, secondReflectionPoint.y); ctx.lineTo(image1.targetPoint.x, image1.targetPoint.y); ctx.stroke(); } ctx.restore(); }
+        function drawTrajectory() { if (shotTrajectory.length < 2) return; ctx.beginPath(); ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; ctx.lineWidth = 2; ctx.moveTo(shotTrajectory[0].x, shotTrajectory[0].y); for (let i = 1; i < shotTrajectory.length; i++) { ctx.lineTo(shotTrajectory[i].x, shotTrajectory[i].y); } ctx.stroke(); }
+        function drawGameTerrainOnCanvas() { ctx.fillStyle = '#6ab04c'; ctx.fillRect(ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y, GAME_WIDTH_CSS, GAME_HEIGHT_CSS); ctx.strokeStyle = '#386641'; ctx.lineWidth = 5; ctx.strokeRect(ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y, GAME_WIDTH_CSS, GAME_HEIGHT_CSS); const wall1Refl = walls[3]; ctx.beginPath(); ctx.moveTo(wall1Refl.p1.x, wall1Refl.p1.y); ctx.lineTo(wall1Refl.p2.x, wall1Refl.p2.y); ctx.strokeStyle = '#1a237e'; ctx.lineWidth = 8; ctx.stroke(); const wall2Refl = walls[2]; ctx.beginPath(); ctx.moveTo(wall2Refl.p1.x, wall2Refl.p1.y); ctx.lineTo(wall2Refl.p2.x, wall2Refl.p2.y); ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 8; ctx.stroke(); }
+        function drawGrid() { const S=50, SO=15; ctx.strokeStyle = '#c0c0c0'; ctx.lineWidth = 0.5; ctx.font = '10px Arial'; ctx.fillStyle = '#666'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; for (let y = GRID_ORIGIN.y; y >= 0; y -= S) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_WIDTH, y); ctx.stroke(); ctx.fillText(((y - GRID_ORIGIN.y) / S).toFixed(0), GRID_ORIGIN.x - SO, y - 5); } for (let y = GRID_ORIGIN.y; y <= WORLD_HEIGHT; y += S) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_WIDTH, y); ctx.stroke(); ctx.fillText(((y - GRID_ORIGIN.y) / S).toFixed(0), GRID_ORIGIN.x - SO, y - 5); } for (let x = GRID_ORIGIN.x; x >= 0; x -= S) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_HEIGHT); ctx.stroke(); ctx.fillText(((x - GRID_ORIGIN.x) / S).toFixed(0), x + 5, GRID_ORIGIN.y + SO); } for (let x = GRID_ORIGIN.x; x <= WORLD_WIDTH; x += S) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_HEIGHT); ctx.stroke(); ctx.fillText(((x - GRID_ORIGIN.x) / S).toFixed(0), x + 5, GRID_ORIGIN.y + SO); } ctx.beginPath(); ctx.arc(GRID_ORIGIN.x, GRID_ORIGIN.y, 5, 0, Math.PI * 2); ctx.fillStyle = 'red'; ctx.fill(); }
+        
+        // --- GESTION DES ÉVÉNEMENTS (SOLUTION 2) ---
+
+        // Gestionnaires pour le glissement des IMAGES
+        function handleImageMouseDown(e, imgObj) {
+            if (!((gameState === 'placing_i1' && imgObj.type === 'primary') || (gameState === 'placing_i2' && imgObj.type === 'secondary'))) return;
+            currentDraggingImage = imgObj;
+            const rect = imgObj.element.getBoundingClientRect();
+            dragOffsetX = e.clientX - (rect.left + imgObj.radius);
+            dragOffsetY = e.clientY - (rect.top + imgObj.radius);
+            document.addEventListener('mousemove', handleImageMouseMove);
+            document.addEventListener('mouseup', handleImageMouseUp);
+        }
+
+        function handleImageMouseMove(e) {
+            if (!currentDraggingImage) return;
+            const worldRect = gameWorldContainer.getBoundingClientRect();
+            let newX = e.clientX - worldRect.left - dragOffsetX;
+            let newY = e.clientY - worldRect.top - dragOffsetY;
+            let expectedPos = currentDraggingImage.targetPoint;
+            
+            if (expectedPos && distance({x: newX, y: newY}, expectedPos) < 25) {
+                currentDraggingImage.x = expectedPos.x; currentDraggingImage.y = expectedPos.y;
+                currentDraggingImage.element.classList.add('valid-placement');
+                currentDraggingImage.isPlacedCorrectly = true;
+            } else {
+                currentDraggingImage.x = newX; currentDraggingImage.y = newY;
+                currentDraggingImage.element.classList.remove('valid-placement');
+                currentDraggingImage.isPlacedCorrectly = false;
+            }
+            updateElementPosition(currentDraggingImage.element, currentDraggingImage.x, currentDraggingImage.y, currentDraggingImage.radius);
+        }
+
+        function handleImageMouseUp() {
+            if (!currentDraggingImage) return;
+            document.removeEventListener('mousemove', handleImageMouseMove);
+            document.removeEventListener('mouseup', handleImageMouseUp);
+
+            if (currentDraggingImage.type === 'primary' && currentDraggingImage.isPlacedCorrectly) {
+                gameState = 'placing_i2';
+                messageElement.textContent = "Étape 2: Placez l'Image Secondaire (I2).";
+            } else if (currentDraggingImage.type === 'secondary' && currentDraggingImage.isPlacedCorrectly) {
+                gameState = 'aiming';
+                messageElement.textContent = "Étape 3: Placez la balle sur le terrain, puis tirez !";
+                shootButton.disabled = false;
+                activateBallDragging(); // Activer le glissement de la balle
+            }
+            currentDraggingImage = null;
+        }
+
+        // Gestionnaires pour le glissement de la BALLE
+        function handleBallMouseDown(e) {
+            dragOffsetX = e.clientX - (ball.x);
+            dragOffsetY = e.clientY - (ball.y);
+            ballElement.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', handleBallMouseMove);
+            document.addEventListener('mouseup', handleBallMouseUp);
+        }
+
+        function handleBallMouseMove(e) {
+            let newX = e.clientX - dragOffsetX;
+            let newY = e.clientY - dragOffsetY;
+            ball.x = Math.max(ACTUAL_GAME_OFFSET_X + ball.radius, Math.min(newX, ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS - ball.radius));
+            ball.y = Math.max(ACTUAL_GAME_OFFSET_Y + ball.radius, Math.min(newY, ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS - ball.radius));
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+        }
+
+        function handleBallMouseUp() {
+            ballElement.style.cursor = 'grab';
+            document.removeEventListener('mousemove', handleBallMouseMove);
+            document.removeEventListener('mouseup', handleBallMouseUp);
+        }
+
+        function activateBallDragging() {
+            ballElement.style.cursor = 'grab';
+            ballElement.addEventListener('mousedown', handleBallMouseDown);
+        }
+        function deactivateBallDragging() {
+            ballElement.style.cursor = 'default';
+            ballElement.removeEventListener('mousedown', handleBallMouseDown);
+        }
+        
+        // --- Boucle de jeu principale ---
+        function gameLoop() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            const dt = 1; const speed = 7; const friction = 0.99;
+            let currentBallCenter = { x: ball.x, y: ball.y }; let currentBallVelocity = { x: ball.vx, y: ball.vy };
+            let nextBallCenter = { x: currentBallCenter.x + currentBallVelocity.x * dt, y: currentBallCenter.y + currentBallVelocity.y * dt };
+            let collidedThisFrame = false; let collisionPoint = null; let collisionWall = null; let minT = Infinity;
+            for (let i = 0; i < walls.length; i++) {
+                const wall = walls[i]; const intersectionInfo = getLineSegmentIntersectionPoint(currentBallCenter, nextBallCenter, wall.p1, wall.p2);
+                if (intersectionInfo) { if (reflectVector(currentBallVelocity, wall.normal).x * currentBallVelocity.x < 0 || reflectVector(currentBallVelocity, wall.normal).y * currentBallVelocity.y < 0) { if (distance(currentBallCenter, intersectionInfo.point) < minT) { minT = distance(currentBallCenter, intersectionInfo.point); collisionPoint = intersectionInfo.point; collisionWall = wall; collidedThisFrame = true; } } }
+            }
+            if (collidedThisFrame) {
+                ball.x = collisionPoint.x; ball.y = collisionPoint.y;
+                let isValidReflection = false;
+                if (reflectionsCount === 0 && collisionWall.name === walls[2].name) { 
+                    reflectionsCount = 1; isValidReflection = true; firstReflectionPoint = collisionPoint;
+                } else if (reflectionsCount === 1 && collisionWall.name === walls[3].name) { 
+                    reflectionsCount = 2; isValidReflection = true; secondReflectionPoint = collisionPoint;
+                }
+                if (!isValidReflection) { messageElement.textContent = "Mauvais rebond !"; stopShot(false); return; }
+                const reflectedVelocity = reflectVector(currentBallVelocity, collisionWall.normal);
+                ball.vx = reflectedVelocity.x; ball.vy = reflectedVelocity.y;
+                ball.x += ball.vx * (dt * (1 - minT/speed)); ball.y += ball.vy * (dt * (1-minT/speed));
+            } else { ball.x = nextBallCenter.x; ball.y = nextBallCenter.y; }
+            ball.vx *= friction; ball.vy *= friction;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            shotTrajectory.push({ x: ball.x, y: ball.y });
+            const distToHole = distance({ x: ball.x, y: ball.y }, holeCenterWorld);
+            if (distToHole < hole.radius + ball.radius / 2 && reflectionsCount === 2) { messageElement.textContent = "GAGNÉ !"; stopShot(true); return; }
+            if (ball.x < ACTUAL_GAME_OFFSET_X || ball.x > ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS || ball.y < ACTUAL_GAME_OFFSET_Y || ball.y > ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS) { messageElement.textContent = "Balle hors du terrain."; stopShot(false); return; }
+            if (Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy) < 0.5) { messageElement.textContent = "Balle arrêtée."; stopShot(false); return; }
+            animationFrameId = requestAnimationFrame(gameLoop);
+            drawGame();
+        }
+
+        function stopShot(isWon) {
+            cancelAnimationFrame(animationFrameId);
+            ball.vx = 0; ball.vy = 0;
+            shootButton.disabled = true;
+            redoShotButton.disabled = false;
+            deactivateBallDragging();
+            if (isWon) { ball.x = hole.x; ball.y = hole.y; updateElementPosition(ballElement, ball.x, ball.y, ball.radius);}
+            drawGame();
+        }
+
+        // --- Initialisation et boutons ---
+        function initGame() {
+            //Calcul des positions
+            const worldContainerRect = gameWorldContainer.getBoundingClientRect();
+            gameContainerRef.style.left = `calc(50% + 100px)`; gameContainerRef.style.top = `calc(50% - 100px)`;
+            ACTUAL_GAME_OFFSET_X = gameContainerRef.getBoundingClientRect().left - worldContainerRect.left;
+            ACTUAL_GAME_OFFSET_Y = gameContainerRef.getBoundingClientRect().top - worldContainerRect.top;
+            walls = [ { p1: { x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y }, p2: { x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y }, name: 'top', normal: {x: 0, y: 1} }, { p1: { x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y }, p2: { x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS }, name: 'right', normal: {x: -1, y: 0} }, { p1: { x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS }, p2: { x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS }, name: 'bottom', normal: {x: 0, y: -1} }, { p1: { x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS }, p2: { x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y }, name: 'left', normal: {x: 1, y: 0} }];
+            GRID_ORIGIN = { x: walls[3].p1.x, y: walls[2].p2.y };
+            
+            // Placement des objets
+            hole.x = ACTUAL_GAME_OFFSET_X + hole.radius + Math.random() * (GAME_WIDTH_CSS - 2 * hole.radius);
+            hole.y = ACTUAL_GAME_OFFSET_Y + hole.radius + Math.random() * (GAME_HEIGHT_CSS - 2 * hole.radius);
+            holeCenterWorld = { x: hole.x, y: hole.y };
+            updateElementPosition(holeElement, hole.x, hole.y, hole.radius);
+            ball.x = ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS / 2;
+            ball.y = ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS / 2;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            if (!image1.element) { image1.element = document.createElement('div'); image1.element.id = 'image1'; image1.element.classList.add('virtual-image'); gameWorldContainer.appendChild(image1.element); }
+            if (!image2.element) { image2.element = document.createElement('div'); image2.element.id = 'image2'; image2.element.classList.add('virtual-image'); gameWorldContainer.appendChild(image2.element); }
+            image1.targetPoint = reflectPoint(holeCenterWorld, walls[3]);
+            image2.targetPoint = reflectPoint(image1.targetPoint, walls[2]);
+            image1.x = GRID_ORIGIN.x - 50; image1.y = GRID_ORIGIN.y - 150;
+            image2.x = GRID_ORIGIN.x + 250; image2.y = GRID_ORIGIN.y + 150;
+            updateElementPosition(image1.element, image1.x, image1.y, image1.radius);
+            updateElementPosition(image2.element, image2.x, image2.y, image2.radius);
+
+            // Réinitialisation de l'état
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameState = 'placing_i1';
+            shotTrajectory = []; firstReflectionPoint = null; secondReflectionPoint = null; reflectionsCount = 0;
+            shootButton.disabled = true; redoShotButton.disabled = true;
+            messageElement.textContent = "Étape 1: Placez l'Image Primaire (I1).";
+            
+            // Attacher les écouteurs d'événements initiaux
+            image1.element.addEventListener('mousedown', (e) => handleImageMouseDown(e, image1));
+            image2.element.addEventListener('mousedown', (e) => handleImageMouseDown(e, image2));
+            deactivateBallDragging();
+            
+            drawGame();
+        }
+
+        shootButton.addEventListener('click', () => {
+            if (gameState !== 'aiming') return;
+            deactivateBallDragging();
+            reflectionsCount = 0; shotTrajectory = [{x: ball.x, y: ball.y}];
+            firstReflectionPoint = null; secondReflectionPoint = null;
+            const image2ExactCenter = image2.targetPoint; 
+            const dx = image2ExactCenter.x - ball.x, dy = image2ExactCenter.y - ball.y;
+            const angle = Math.atan2(dy, dx), speed = 7;
+            ball.vx = Math.cos(angle) * speed; ball.vy = Math.sin(angle) * speed;
+            gameState = 'shooting';
+            shootButton.disabled = true;
+            animationFrameId = requestAnimationFrame(gameLoop);
+        });
+
+        redoShotButton.addEventListener('click', () => {
+            stopShot(false); 
+            shotTrajectory = []; firstReflectionPoint = null; secondReflectionPoint = null;
+            ball.x = ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS / 2;
+            ball.y = ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS / 2;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            gameState = 'aiming';
+            redoShotButton.disabled = true; shootButton.disabled = false;
+            messageElement.textContent = "Placez la balle et tirez !";
+            activateBallDragging();
+            drawGame();
+        });
+
+        resetButton.addEventListener('click', initGame);
+        window.addEventListener('load', initGame);
+    </script>
+</body>
+</html>
