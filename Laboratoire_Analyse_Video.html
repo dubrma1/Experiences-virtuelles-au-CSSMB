@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outil d'Analyse Vidéo pour la Physique</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #videoCanvas {
+            border: 2px dashed #4b5563;
+            cursor: crosshair;
+            background-color: #f0f0f0; /* Couleur de fond initiale */
+        }
+        .point-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            transform: translate(-5px, -5px);
+            pointer-events: none;
+        }
+        .data-table {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .frame-controls {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            padding: 10px;
+        }
+        #pointMarkers {
+            position: absolute; /* Positionné par rapport à son parent relatif */
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Permet aux clics de passer à travers vers le canevas */
+        }
+        /* Style pour le conteneur parent du canvas et des marqueurs */
+        .video-container {
+            position: relative; /* Nécessaire pour le positionnement absolu de #pointMarkers */
+            width: 100%; /* Ou une largeur spécifique si besoin */
+            /* La hauteur s'ajustera avec le canvas */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-indigo-700 mb-2">Outil d'Analyse Vidéo pour la Physique</h1>
+            <p class="text-gray-600">Analysez le mouvement image par image et exportez les données de coordonnées</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Analyse Vidéo</h2>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Télécharger une autre vidéo</label>
+                    <input type="file" id="videoUpload" accept="video/*" class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-50 file:text-indigo-700
+                            hover:file:bg-indigo-100">
+                </div>
+                <div class="video-container mb-4">
+                    <canvas id="videoCanvas" class="w-full h-auto"></canvas>
+                    <div id="pointMarkers"></div>
+                </div>
+                <div class="frame-controls flex justify-center items-center space-x-4 mb-4">
+                    <button id="prevFrame" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button id="playPause" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-full">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button id="nextFrame" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                </div>
+                <div class="flex justify-between items-center mb-2">
+                    <span id="frameInfo" class="text-sm text-gray-600">Image : 0/0</span>
+                    <span id="timeInfo" class="text-sm text-gray-600">Temps : 0.00s</span>
+                </div>
+                <input type="range" id="frameSlider" min="0" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Collecte de Données</h2>
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">Points Enregistrés</span>
+                        <button id="clearData" class="text-red-500 hover:text-red-700 text-sm font-medium">
+                            <i class="fas fa-trash-alt mr-1"></i> Effacer Tout
+                        </button>
+                    </div>
+                    <div class="data-table bg-gray-50 rounded-lg p-2">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temps (s)</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">X</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Y</th>
+                                    <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200 text-sm">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button id="exportCSV" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-file-csv mr-2"></i> Exporter les Données en CSV
+                    </button>
+                </div>
+                <div class="mt-4 p-4 bg-indigo-50 rounded-lg">
+                    <h3 class="text-sm font-medium text-indigo-800 mb-2">Instructions :</h3>
+                    <ol class="list-decimal list-inside text-xs text-gray-700 space-y-1">
+                        <li>La vidéo par défaut est chargée. Vous pouvez en <label for="videoUpload" class="text-indigo-600 hover:text-indigo-800 cursor-pointer underline">télécharger une autre</label> si besoin.</li>
+                        <li>Utiliser les contrôles pour naviguer image par image</li>
+                        <li>Cliquer sur la vidéo pour marquer la position de l'objet</li>
+                        <li>Passer à l'image suivante et répéter</li>
+                        <li>Exporter les données une fois terminé</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videoUpload = document.getElementById('videoUpload');
+            const videoCanvas = document.getElementById('videoCanvas');
+            const ctx = videoCanvas.getContext('2d');
+            const pointMarkers = document.getElementById('pointMarkers');
+            const prevFrameBtn = document.getElementById('prevFrame');
+            const nextFrameBtn = document.getElementById('nextFrame');
+            const playPauseBtn = document.getElementById('playPause');
+            const frameSlider = document.getElementById('frameSlider');
+            const frameInfo = document.getElementById('frameInfo');
+            const timeInfo = document.getElementById('timeInfo');
+            const dataTableBody = document.getElementById('dataTableBody');
+            const clearDataBtn = document.getElementById('clearData');
+            const exportCSVBtn = document.getElementById('exportCSV');
+
+            let video = document.createElement('video'); // Élément vidéo global
+            let videoFrames = [];
+            let currentFrame = 0;
+            let isPlaying = false;
+            let playInterval;
+            let frameRate = 30; // Taux de rafraîchissement par défaut
+            let collectedData = [];
+
+            function initCanvas() {
+                videoCanvas.width = video.videoWidth;
+                videoCanvas.height = video.videoHeight;
+                // Ajuster la taille de pointMarkers pour qu'il corresponde au canvas
+                pointMarkers.style.width = `${videoCanvas.width}px`;
+                pointMarkers.style.height = `${videoCanvas.height}px`;
+            }
+
+            function extractFrames() {
+                videoFrames = [];
+                const duration = video.duration;
+
+                if (!isFinite(duration) || duration <= 0) {
+                    console.error("Durée de la vidéo non valide ou nulle:", duration);
+                    alert("Impossible d'extraire les images : durée de la vidéo non valide. Assurez-vous que le serveur vidéo (GitHub) envoie les en-têtes CORS appropriés.");
+                    frameInfo.textContent = "Erreur vidéo (durée)";
+                    return;
+                }
+
+                const totalFrames = Math.floor(duration * frameRate);
+                if (totalFrames <= 0 || !isFinite(totalFrames)) {
+                    console.warn(`Nombre total d'images calculé non valide (${totalFrames}). Durée: ${duration}, FrameRate: ${frameRate}`);
+                    alert(`Impossible d'extraire les images. (Total frames: ${totalFrames})`);
+                    frameInfo.textContent = "Erreur images (calcul)";
+                    return;
+                }
+
+                let framesLoaded = 0;
+                frameInfo.textContent = `Chargement des images... 0/${totalFrames}`;
+
+                function processFrame(frameNumber) {
+                    if (frameNumber >= totalFrames) {
+                        frameSlider.max = videoFrames.length > 0 ? videoFrames.length - 1 : 0;
+                        currentFrame = 0;
+                        if (videoFrames.length > 0) {
+                            showFrame(currentFrame);
+                        } else if (totalFrames > 0) {
+                            alert("Aucune image n'a pu être extraite. Veuillez essayer une autre vidéo ou vérifier le format et les en-têtes CORS.");
+                            frameInfo.textContent = "Erreur extraction";
+                        }
+                        updateFrameInfo();
+                        return;
+                    }
+
+                    const time = frameNumber / frameRate;
+                    video.currentTime = time;
+
+                    new Promise((resolve, reject) => {
+                        const onSeeked = () => {
+                            video.removeEventListener('error', onError);
+                            resolve();
+                        };
+                        const onError = (err) => {
+                            video.removeEventListener('seeked', onSeeked);
+                            reject(err);
+                        };
+                        video.addEventListener('seeked', onSeeked, { once: true });
+                        video.addEventListener('error', onError, { once: true });
+                    }).then(() => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        if (canvas.width === 0 || canvas.height === 0) {
+                             // Si les dimensions sont nulles ici, c'est probablement un problème de décodage ou CORS
+                            console.warn(`Image ${frameNumber} a des dimensions nulles.`);
+                            processFrame(frameNumber + 1); // Passer à la suivante
+                            return;
+                        }
+                        const tempCtx = canvas.getContext('2d');
+                        tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        videoFrames.push(canvas);
+                        framesLoaded++;
+                        frameInfo.textContent = `Chargement des images... ${framesLoaded}/${totalFrames}`;
+                        requestAnimationFrame(() => processFrame(frameNumber + 1)); // Utiliser requestAnimationFrame pour éviter de bloquer le thread UI
+                    }).catch(error => {
+                        console.error(`Erreur lors de la recherche ou du dessin de l'image ${frameNumber}:`, error);
+                        requestAnimationFrame(() => processFrame(frameNumber + 1)); // Essayer de continuer avec la suivante
+                    });
+                }
+                
+                // Commencer le traitement si la vidéo a suffisamment de données
+                if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+                     processFrame(0);
+                } else {
+                    video.addEventListener('canplay', () => processFrame(0), { once: true });
+                }
+            }
+
+            function showFrame(frameIndex) {
+                if (frameIndex >= 0 && frameIndex < videoFrames.length && videoFrames[frameIndex]) {
+                    ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+                    ctx.drawImage(videoFrames[frameIndex], 0, 0, videoCanvas.width, videoCanvas.height);
+                    pointMarkers.innerHTML = ''; // Effacer les anciens marqueurs
+                    const frameData = collectedData.find(d => d.frame === frameIndex);
+                    if (frameData) {
+                        createMarker(frameData.x, frameData.y);
+                    }
+                }
+                updateDataTable(); // Mettre à jour pour surligner la ligne active
+            }
+
+            function updateFrameInfo() {
+                if (videoFrames.length > 0) {
+                    frameInfo.textContent = `Image : ${currentFrame + 1}/${videoFrames.length}`;
+                    timeInfo.textContent = `Temps : ${(currentFrame / frameRate).toFixed(2)}s`;
+                    frameSlider.value = currentFrame;
+                    frameSlider.max = videoFrames.length > 0 ? videoFrames.length - 1 : 0;
+                } else {
+                    frameInfo.textContent = `Image : 0/0`;
+                    timeInfo.textContent = `Temps : 0.00s`;
+                    frameSlider.value = 0;
+                    frameSlider.max = 0;
+                }
+            }
+
+            function createMarker(x, y) {
+                pointMarkers.innerHTML = ''; // S'assurer qu'il n'y a qu'un marqueur visible à la fois
+                const marker = document.createElement('div');
+                marker.className = 'point-marker';
+                // Coordonnées relatives au conteneur pointMarkers (qui est superposé au canvas)
+                marker.style.left = `${x}px`;
+                marker.style.top = `${y}px`;
+                pointMarkers.appendChild(marker);
+            }
+
+            function addDataPoint(x, y) {
+                const time = currentFrame / frameRate;
+                const existingIndex = collectedData.findIndex(d => d.frame === currentFrame);
+                if (existingIndex >= 0) {
+                    collectedData[existingIndex] = { frame: currentFrame, time, x, y };
+                } else {
+                    collectedData.push({ frame: currentFrame, time, x, y });
+                }
+                collectedData.sort((a, b) => a.frame - b.frame);
+                updateDataTable();
+                createMarker(x, y);
+            }
+
+            function updateDataTable() {
+                dataTableBody.innerHTML = '';
+                collectedData.forEach(data => {
+                    const row = document.createElement('tr');
+                    row.className = data.frame === currentFrame ? 'bg-indigo-50' : '';
+                    row.innerHTML = `
+                        <td class="px-2 py-1 whitespace-nowrap">${data.frame + 1}</td>
+                        <td class="px-2 py-1 whitespace-nowrap">${data.time.toFixed(2)}</td>
+                        <td class="px-2 py-1 whitespace-nowrap">${Math.round(data.x)}</td>
+                        <td class="px-2 py-1 whitespace-nowrap">${Math.round(data.y)}</td>
+                        <td class="px-2 py-1 whitespace-nowrap text-right">
+                            <button class="delete-btn text-red-500 hover:text-red-700" data-frame="${data.frame}">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        </td>
+                    `;
+                    dataTableBody.appendChild(row);
+                });
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const frameToDelete = parseInt(this.getAttribute('data-frame'));
+                        collectedData = collectedData.filter(d => d.frame !== frameToDelete);
+                        updateDataTable();
+                        if (frameToDelete === currentFrame) {
+                            pointMarkers.innerHTML = ''; // Effacer le marqueur si le point de l'image actuelle est supprimé
+                        }
+                    });
+                });
+            }
+
+            function exportToCSV() {
+                if (collectedData.length === 0) {
+                    alert('Aucune donnée à exporter !');
+                    return;
+                }
+                let csv = 'Image,Temps (s),X,Y\n';
+                collectedData.forEach(data => {
+                    csv += `${data.frame + 1},${data.time.toFixed(2)},${Math.round(data.x)},${Math.round(data.y)}\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'donnees_mouvement.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            
+            function loadVideoFromURL(videoURL) {
+                // Réinitialiser l'état pour une nouvelle vidéo
+                videoFrames = [];
+                collectedData = [];
+                currentFrame = 0;
+                isPlaying = false;
+                if(playInterval) clearInterval(playInterval);
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                pointMarkers.innerHTML = '';
+                ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height); // Effacer le canvas précédent
+                // Afficher un message de chargement sur le canvas
+                videoCanvas.width = videoCanvas.offsetWidth; // Utiliser la largeur actuelle du style
+                videoCanvas.height = videoCanvas.offsetWidth * (9/16); // Maintenir un ratio 16:9 ou ajuster
+                ctx.fillStyle = "#e0e0e0";
+                ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+                ctx.fillStyle = "#333333";
+                ctx.textAlign = "center";
+                ctx.font = "16px Arial";
+                ctx.fillText("Chargement de la vidéo...", videoCanvas.width / 2, videoCanvas.height / 2);
+
+                updateDataTable();
+                updateFrameInfo();
+
+                video = document.createElement('video'); // Créer un nouvel élément vidéo
+                video.crossOrigin = "anonymous"; // Essentiel pour charger des vidéos inter-domaines sur canvas
+                video.src = videoURL;
+                // video.muted = true; // Peut aider avec l'autoplay sur certains navigateurs, bien qu'on ne fasse pas d'autoplay ici
+                // video.preload = "auto"; // Suggérer au navigateur de charger la vidéo
+
+                video.onloadedmetadata = function() {
+                    if (!video.videoWidth || !video.videoHeight) {
+                        console.error("Les dimensions de la vidéo (videoWidth/videoHeight) ne sont pas disponibles après loadedmetadata. Cela peut indiquer un problème de CORS ou un format vidéo non supporté pour l'extraction d'images sur canvas.");
+                        alert("Erreur: Impossible d'obtenir les dimensions de la vidéo. Assurez-vous que la vidéo est accessible et que les permissions CORS sont correctes.");
+                        frameInfo.textContent = "Erreur métadonnées";
+                        ctx.fillStyle = "#ffeeee";
+                        ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+                        ctx.fillStyle = "#cc0000";
+                        ctx.fillText("Erreur chargement métadonnées", videoCanvas.width / 2, videoCanvas.height / 2);
+                        return;
+                    }
+                    initCanvas(); // Initialise les dimensions du canvas basé sur la vidéo
+                    
+                    // Le frameRate pourrait être détecté, mais c'est complexe et pas toujours fiable.
+                    // Pour l'instant, on garde la valeur fixe.
+                    // Tenter de lire video.getVideoPlaybackQuality().totalVideoFrames / video.duration; (expérimental)
+                    frameRate = 30; // Réinitialiser au cas où
+                    
+                    extractFrames();
+                };
+
+                video.onerror = function(e) {
+                    console.error("Erreur de chargement vidéo:", video.error, e);
+                    let errorMsg = "Erreur lors du chargement de la vidéo. ";
+                    if (video.error) {
+                        switch (video.error.code) {
+                            case video.error.MEDIA_ERR_ABORTED: errorMsg += "Le chargement a été annulé."; break;
+                            case video.error.MEDIA_ERR_NETWORK: errorMsg += "Une erreur réseau est survenue."; break;
+                            case video.error.MEDIA_ERR_DECODE:  errorMsg += "Erreur de décodage vidéo."; break;
+                            case video.error.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMsg += "Format vidéo non supporté ou source inaccessible (vérifiez CORS)."; break;
+                            default: errorMsg += "Une erreur inconnue est survenue.";
+                        }
+                    } else {
+                        errorMsg += "Vérifiez la console pour les détails. Assurez-vous que le serveur vidéo autorise l'accès (CORS).";
+                    }
+                    alert(errorMsg);
+                    frameInfo.textContent = "Erreur vidéo";
+                    ctx.fillStyle = "#ffeeee";
+                    ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+                    ctx.fillStyle = "#cc0000";
+                    ctx.fillText("Erreur chargement vidéo", videoCanvas.width / 2, videoCanvas.height / 2);
+                };
+                 video.onstalled = function() {
+                    console.warn("Chargement de la vidéo interrompu (stalled). Cela peut arriver avec des flux lents ou des problèmes de CORS.");
+                    frameInfo.textContent = "Chargement interrompu";
+                };
+                video.load(); // Démarre le chargement de la vidéo
+            }
+
+            // --- Écouteurs d'événements ---
+            videoUpload.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    const videoURL = URL.createObjectURL(file);
+                    loadVideoFromURL(videoURL);
+                }
+            });
+
+            videoCanvas.addEventListener('click', function(e) {
+                if (videoFrames.length === 0 || !videoCanvas.width || !videoCanvas.height) return;
+                const rect = videoCanvas.getBoundingClientRect();
+                // S'assurer que les coordonnées sont relatives au canvas lui-même.
+                // rect.left et rect.top sont par rapport au viewport.
+                // e.clientX et e.clientY sont par rapport au viewport.
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Vérifier si le clic est dans les limites du canvas effectif (si padding/border)
+                // Pour un canvas simple, clientLeft/Top sont souvent 0.
+                const clickX = x - videoCanvas.clientLeft;
+                const clickY = y - videoCanvas.clientTop;
+
+                if (clickX >= 0 && clickX <= videoCanvas.width && clickY >= 0 && clickY <= videoCanvas.height) {
+                    addDataPoint(clickX, clickY);
+                }
+            });
+
+            prevFrameBtn.addEventListener('click', function() {
+                if (currentFrame > 0) {
+                    currentFrame--;
+                    showFrame(currentFrame);
+                    updateFrameInfo();
+                }
+            });
+
+            nextFrameBtn.addEventListener('click', function() {
+                if (videoFrames.length > 0 && currentFrame < videoFrames.length - 1) {
+                    currentFrame++;
+                    showFrame(currentFrame);
+                    updateFrameInfo();
+                }
+            });
+
+            playPauseBtn.addEventListener('click', function() {
+                if (videoFrames.length === 0) return;
+                if (isPlaying) {
+                    clearInterval(playInterval);
+                    isPlaying = false;
+                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                } else {
+                    isPlaying = true;
+                    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    playInterval = setInterval(function() {
+                        if (currentFrame < videoFrames.length - 1) {
+                            currentFrame++;
+                            showFrame(currentFrame);
+                            updateFrameInfo();
+                        } else {
+                            clearInterval(playInterval);
+                            isPlaying = false;
+                            playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                        }
+                    }, 1000 / frameRate);
+                }
+            });
+
+            frameSlider.addEventListener('input', function() {
+                if (videoFrames.length > 0) {
+                    currentFrame = parseInt(this.value);
+                    showFrame(currentFrame);
+                    updateFrameInfo();
+                }
+            });
+
+            clearDataBtn.addEventListener('click', function() {
+                if (confirm('Êtes-vous sûr de vouloir effacer toutes les données collectées ?')) {
+                    collectedData = [];
+                    updateDataTable();
+                    pointMarkers.innerHTML = ''; // Effacer le marqueur actuel sur le canvas
+                }
+            });
+
+            exportCSVBtn.addEventListener('click', exportToCSV);
+
+            // --- Chargement initial de la vidéo ---
+            const defaultVideoURL = "https://dubrma1.github.io/Analyse_video/video/Projectile.mp4";
+            loadVideoFromURL(defaultVideoURL);
+
+        });
+    </script>
+</body>
+</html>
