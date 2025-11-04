@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modèle de Pied à Coulisse</title>
+    <style>
+	/* Fichier : style.css (Version 8 - Contrôle de la taille amélioré) */
+:root {
+    --couleur-fond: #f0f0f0;
+    --couleur-echelle-principale: #505050;
+    --couleur-echelle-vernier: #E4D00A;
+    --couleur-bordure: #333;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: sans-serif;
+    background-color: var(--couleur-fond);
+    font-size: 16px;
+    overflow: hidden;
+}
+
+#simulation-container {
+    display: flex;
+    flex-direction: column;
+    /* NOUVEAU : Définit la hauteur à 80% de la hauteur de la fenêtre */
+    height: 80vh; 
+    width: 90%;
+    max-width: 1000px; /* Augmentation de la limite */
+    margin: auto; /* Centre le conteneur */
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+#drawing-panel {
+    /* NOUVEAU : Utilise Flexbox pour remplir l'espace disponible */
+    flex-grow: 1; 
+    width: 100%;
+    min-height: 0; /* Correction pour flexbox */
+    margin-bottom: 10px;
+}
+
+#controls {
+    display: flex;
+    justify-content: center; /* Centre le bouton */
+    gap: 10px;
+    margin-bottom: 5px;
+    flex-shrink: 0; /* Empêche de rétrécir */
+}
+
+#lecture-affichee {
+    text-align: center;
+    padding: 8px;
+    background-color: #444;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 1.2em;
+    font-weight: bold;
+    width: 100%;
+    flex-shrink: 0; /* Empêche de rétrécir */
+}
+
+/* Styles SVG */
+.corps-echelle-principale, .corps-vernier {
+    stroke: var(--couleur-bordure);
+    stroke-width: 0.5;
+}
+
+.corps-echelle-principale {
+    fill: var(--couleur-echelle-principale);
+}
+
+.corps-vernier {
+    fill: var(--couleur-echelle-vernier);
+    fill-opacity: 0.95;
+}
+
+.graduation {
+    stroke: white;
+    stroke-width: 0.2; /* Lignes plus fines */
+}
+
+.graduation-vernier {
+    stroke: #333;
+    stroke-width: 0.3; /* Lignes plus fines */
+}
+
+.etiquette-echelle {
+    font-size: 5px; /* Taille ajustée pour la nouvelle vue */
+    font-family: 'Arial', sans-serif;
+    fill: white;
+    text-anchor: middle;
+}
+
+.etiquette-vernier {
+    fill: #333;
+    font-size: 4px; /* Taille ajustée */
+}
+
+.groupe-vernier-deplacable { cursor: grab; }
+.groupe-vernier-deplacable.dragging { cursor: grabbing; }
+	</style>
+</head>
+<body>
+
+<div id="simulation-container">
+    <div id="drawing-panel"></div>
+    <div id="controls">
+        <button id="btn-reset">Réinitialiser</button>
+    </div>
+    <div id="lecture-affichee">d = 0.00 mm</div>
+</div>
+
+<script>
+// Fichier : pied-a-coulisse.js (Version 7 - Ajustements d'espacement et d'interface)
+
+class PiedACoulisse {
+    constructor(conteneurId) {
+        this.conteneur = document.getElementById(conteneurId);
+        if (!this.conteneur) {
+            console.error("Le conteneur de la simulation n'a pas été trouvé !");
+            return;
+        }
+
+        this.ZERO_OFFSET = -75; // Ajustement de l'offset avec la règle réduite
+
+        this.etat = {
+            positionX: 0,
+            unite: 0.1,
+            isDragging: false,
+            dragStartX: 0,
+            initialPositionX: 0,
+        };
+
+        this.afficheurLecture = document.getElementById('lecture-affichee');
+
+        this.creerInterface();
+        this.initialiserDessinSVG();
+        this.lierEvenements();
+        this.mettreAJour();
+    }
+
+    creerInterface() {
+        const controlesDiv = this.conteneur.querySelector('#controls');
+        // REQ 1 : Suppression du menu "Précision"
+        controlesDiv.innerHTML = `
+            <button id="btn-reset">Réinitialiser</button>
+        `;
+    }
+
+// ... (début de la classe PiedACoulisse) ...
+
+    initialiserDessinSVG() {
+        this.zoneDessin = document.querySelector('#drawing-panel');
+        this.zoneDessin.innerHTML = '';
+
+        this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this.svg.setAttribute('width', '100%');
+        this.svg.setAttribute('height', '100%');
+        
+        // NOUVEAU : viewBox ajusté pour "zoomer" et rendre le dessin plus grand et lisible
+        // On regarde une zone plus petite, ce qui agrandit tout ce qui est à l'intérieur.
+        this.svg.setAttribute('viewBox', '-110 -40 160 80');
+        this.zoneDessin.appendChild(this.svg);
+
+        const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+        mask.setAttribute('id', 'fenetre-masque');
+
+        const maskBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        maskBg.setAttribute('x', -120); maskBg.setAttribute('y', -30); 
+        maskBg.setAttribute('width', '100%'); maskBg.setAttribute('height', '100%');
+        maskBg.setAttribute('fill', 'white');
+        mask.appendChild(maskBg);
+
+        const fenetre = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        fenetre.setAttribute('x', this.ZERO_OFFSET);
+		//fenetre.setAttribute('x', 0);
+        fenetre.setAttribute('y', -1);
+        fenetre.setAttribute('width', 20);
+        fenetre.setAttribute('height', 5);
+        fenetre.setAttribute('fill', 'black');
+        mask.appendChild(fenetre);
+
+        defs.appendChild(mask);
+        this.svg.appendChild(defs);
+
+        this.groupeEchellePrincipale = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        this.groupeEchelleVernier = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        this.groupeEchelleVernier.classList.add('groupe-vernier-deplacable');
+
+        this.svg.appendChild(this.groupeEchellePrincipale);
+        this.svg.appendChild(this.groupeEchelleVernier);
+    }
+
+    dessinerEchellePrincipale() {
+        this.groupeEchellePrincipale.innerHTML = '';
+        const coinArrondi = 2;
+
+        const machoireFixe = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        machoireFixe.setAttribute('x', this.ZERO_OFFSET - 10); // Ajustement pour la règle réduite
+        machoireFixe.setAttribute('y', 0);
+        machoireFixe.setAttribute('width', 10);
+        machoireFixe.setAttribute('height', 30);
+        machoireFixe.setAttribute('rx', coinArrondi);
+        machoireFixe.classList.add('corps-echelle-principale');
+        this.groupeEchellePrincipale.appendChild(machoireFixe);
+
+        const corpsRegle = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        corpsRegle.setAttribute('x', this.ZERO_OFFSET);
+        corpsRegle.setAttribute('y', 0);
+        // REQ 3 : Règle réduite à 10 cm (100 mm)
+        corpsRegle.setAttribute('width', 110);
+        corpsRegle.setAttribute('height', 15);
+        corpsRegle.setAttribute('rx', coinArrondi);
+        corpsRegle.classList.add('corps-echelle-principale');
+        this.groupeEchellePrincipale.appendChild(corpsRegle);
+
+        // Graduations  espacées sur une règle de 100 mm
+        for (let i = 0; i <= 100; i += 2) { // Espacement de 2 pour l'exemple
+            const pos = this.ZERO_OFFSET + i;
+            const ligne = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            ligne.setAttribute('x1', pos); ligne.setAttribute('x2', pos);
+            ligne.setAttribute('y1', 0);
+            let h = 3;
+            if (i % 10 === 0) {
+                h = 7;
+                const texte = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                texte.setAttribute('x', pos); texte.setAttribute('y', 12);
+                texte.textContent = i / 10;
+                texte.classList.add('etiquette-echelle');
+                this.groupeEchellePrincipale.appendChild(texte);
+            } else if (i % 5 === 0) { h = 5; }
+            ligne.setAttribute('y2', h);
+            ligne.classList.add('graduation');
+            this.groupeEchellePrincipale.appendChild(ligne);
+        }
+    }
+
+    dessinerEchelleVernier() {
+        this.groupeEchelleVernier.innerHTML = '';
+        const coinArrondi = 2;
+        const xBase = this.ZERO_OFFSET;
+
+        const largeurVernier = 20;
+        const corpsVernier = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        corpsVernier.setAttribute('d', `
+            M ${xBase},${-10 + coinArrondi}
+            A ${coinArrondi},${coinArrondi} 0 0 1 ${xBase + coinArrondi},-10
+            L ${xBase + largeurVernier - coinArrondi},-10
+            A ${coinArrondi},${coinArrondi} 0 0 1 ${xBase + largeurVernier},-8
+            L ${xBase + largeurVernier},15
+            L ${xBase + 5},30
+            L ${xBase + 5},30
+            L ${xBase},30
+            Z`);
+        corpsVernier.classList.add('corps-vernier');
+        corpsVernier.setAttribute('mask', 'url(#fenetre-masque)');
+        this.groupeEchelleVernier.appendChild(corpsVernier);
+
+        // REQ 2 : Espacement des graduations du vernier adapté à l'échelle principale
+        for (let i = 0; i <= 10; i++) {
+            // L'échelle principale a maintenant un espacement de 2 unités (artificiellement)
+            // Donc le vernier doit s'étaler sur 9 * 2 = 18 unités
+            const positionX = xBase + (i * 1.8);
+            const ligne = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            ligne.setAttribute('x1', positionX);
+            ligne.setAttribute('x2', positionX);
+            ligne.setAttribute('y1', 0);
+            ligne.setAttribute('y2', -3);
+            ligne.classList.add('graduation', 'graduation-vernier');
+            this.groupeEchelleVernier.appendChild(ligne);
+
+        if (i % 2 === 0) {
+            const texte = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            texte.setAttribute('x', positionX);
+            texte.setAttribute('y', -5);
+            texte.textContent = i;
+            texte.classList.add('etiquette-echelle', 'etiquette-vernier');
+            
+            // On ajuste la taille de la police directement ici
+            texte.style.fontSize = "3px"; 
+
+            this.groupeEchelleVernier.appendChild(texte);
+			}
+        }
+    }
+
+    lierEvenements() {
+        document.getElementById('btn-reset').addEventListener('click', () => this.reinitialiser());
+        this.groupeEchelleVernier.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        this.zoneDessin.addEventListener('pointermove', (e) => this.onPointerMove(e));
+        this.zoneDessin.addEventListener('pointerup', (e) => this.onPointerUp(e));
+        this.zoneDessin.addEventListener('pointerleave', (e) => this.onPointerUp(e));
+    }
+
+    onPointerDown(event) {
+        event.preventDefault();
+        this.etat.isDragging = true;
+        this.groupeEchelleVernier.classList.add('dragging');
+        this.etat.dragStartX = event.clientX;
+        this.etat.initialPositionX = this.etat.positionX;
+    }
+
+    onPointerMove(event) {
+        if (!this.etat.isDragging) return;
+        event.preventDefault();
+        const deltaPixel = event.clientX - this.etat.dragStartX;
+        const ctm = this.svg.getScreenCTM();
+        if (!ctm) return;
+        const deltaSVG = deltaPixel / ctm.a;
+        let nouvellePositionX = this.etat.initialPositionX + deltaSVG;
+        if (nouvellePositionX < 0) nouvellePositionX = 0;
+        if (nouvellePositionX > 90) nouvellePositionX = 90; // Ajustement pour la règle réduite
+        this.etat.positionX = nouvellePositionX;
+        this.mettreAJour();
+    }
+
+    onPointerUp(event) {
+        if (!this.etat.isDragging) return;
+        event.preventDefault();
+        this.etat.isDragging = false;
+        this.groupeEchelleVernier.classList.remove('dragging');
+    }
+
+    reinitialiser() {
+        this.etat.positionX = 0;
+        this.mettreAJour();
+    }
+
+    calculerEtAfficherLecture() {
+        const position = this.etat.positionX / 2; // Correction pour l'espacement doublé
+        const precision = this.etat.unite;
+        const lecturePrincipale = Math.floor(position);
+        const partieDecimale = position - lecturePrincipale;
+        const indexAlignement = Math.round(partieDecimale / precision);
+        const lectureVernier = indexAlignement * precision;
+        const lectureFinale = lecturePrincipale + lectureVernier;
+        this.afficheurLecture.textContent = `d = ${lectureFinale.toFixed(2)} mm`;
+    }
+
+    mettreAJour() {
+        if (!this.svgDrawn) {
+            this.dessinerEchellePrincipale();
+            this.dessinerEchelleVernier();
+            this.svgDrawn = true;
+        }
+
+        this.groupeEchelleVernier.setAttribute('transform', `translate(${this.etat.positionX}, 0)`);
+        this.calculerEtAfficherLecture();
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    new PiedACoulisse('simulation-container');
+});
+</script>
+
+</body>
+</html>
