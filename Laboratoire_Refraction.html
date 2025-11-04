@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Laboratoire : Loi de la Réfraction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        #simulation-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 450px;
+            cursor: crosshair;
+        }
+        #simulation-container.locked {
+            cursor: default;
+        }
+        #simulation-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .laser-beam {
+            stroke: #ef4444;
+            stroke-width: 2;
+            fill: none;
+        }
+        .lucite-block {
+            fill: #3b82f6;
+            fill-opacity: 0.3;
+            stroke: #1e3a8a;
+            stroke-width: 1;
+        }
+        .protractor-line {
+            stroke: #9ca3af; /* gray-400 */
+            stroke-width: 1;
+        }
+        .protractor-line-minor {
+            stroke: #d1d5db; /* gray-300 */
+            stroke-width: 0.5;
+        }
+        .protractor-text {
+            font-size: 10px;
+            fill: #4b5563; /* gray-600 */
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+        .normal-line {
+            stroke: black;
+            stroke-width: 1;
+            stroke-dasharray: 4;
+        }
+        .angle-text {
+            font-family: 'Times New Roman', serif;
+            font-size: 14px;
+            font-style: italic;
+            fill: #1e3a8a;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Simulateur de Laboratoire : Loi de la Réfraction</h1>
+            <p class="text-gray-600">Exploration de la loi de Snell-Descartes</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Banc d'Optique</h2>
+                <div class="flex-grow flex items-center justify-center">
+                    <div id="simulation-container">
+                        <svg id="simulation-svg" viewBox="0 0 500 500">
+                            <defs>
+                                <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                                    <polygon points="0 0, 6 2, 0 4" fill="#ef4444" />
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+                 <div class="mt-4 flex justify-around font-mono text-center">
+                    <div>
+                        <p class="text-sm text-gray-500">Angle d'Incidence (θ₁)</p>
+                        <p id="incidence-angle-display" class="text-lg font-semibold text-red-600">0.0°</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Angle de Réfraction (θ₂)</p>
+                        <p id="refraction-angle-display" class="text-lg font-semibold text-red-600">0.0°</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                
+                <div class="bg-green-50 p-4 rounded-lg mb-6">
+                    <h3 class="font-medium text-green-800 mb-2">Collecte de Données</h3>
+                    <button id="recordData" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center w-full justify-center">
+                        <i data-feather="camera" class="mr-2"></i> Capturer les Données
+                    </button>
+                </div>
+
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Données Collectées</h2>
+                <div class="overflow-y-auto" style="max-height: 250px;">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 sticky top-0">
+                                <th class="py-2 px-4 border">Essai</th>
+                                <th class="py-2 px-4 border">Incidence (θ₁)</th>
+                                <th class="py-2 px-4 border">Réfraction (θ₂)</th>
+                                <th class="py-2 px-4 border">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTable"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button id="clearData" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="trash-2" class="mr-2"></i> Effacer
+                    </button>
+                    <button id="exportCSV" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="download" class="mr-2"></i> Exporter en CSV
+                    </button>
+                    <button id="exportXLS" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="download" class="mr-2"></i> Exporter en Excel
+                    </button>
+                </div>
+
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="font-medium text-yellow-800 mb-2">Instructions</h3>
+                    <ol class="list-decimal pl-5 text-sm text-gray-700 space-y-1">
+                        <li>**Cliquez dans la zone de simulation** pour verrouiller/déverrouiller le rayon laser.</li>
+                        <li>Déplacez la souris pour ajuster l'angle du laser (quand il est déverrouillé).</li>
+                        <li>Cliquez sur "Capturer les Données" pour enregistrer les angles.</li>
+                        <li>Exportez vos données pour analyse.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            
+            const n_air = 1.0;
+            const n_lucite = 1.50;
+            let currentIncidence = 0;
+            let currentRefraction = 0;
+            let trialCount = 0;
+            let dataPoints = [];
+            let isLocked = false;
+
+            const simulationContainer = document.getElementById('simulation-container');
+            const svg = document.getElementById('simulation-svg');
+            const incidenceDisplay = document.getElementById('incidence-angle-display');
+            const refractionDisplay = document.getElementById('refraction-angle-display');
+            const dataTableElement = document.getElementById('dataTable');
+            const recordDataButton = document.getElementById('recordData');
+            const clearDataButton = document.getElementById('clearData');
+            const exportCSVButton = document.getElementById('exportCSV');
+            const exportXLSButton = document.getElementById('exportXLS');
+
+            const centerX = 250;
+            const centerY = 250;
+            const radius = 200;
+            const laserLength = 250;
+            const labelRadius = 35;
+
+            const toRadians = (deg) => deg * Math.PI / 180;
+            const toDegrees = (rad) => rad * 180 / Math.PI;
+
+            function drawStaticElements() {
+                let svgContent = `
+                    <defs>
+                        <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                            <polygon points="0 0, 6 2, 0 4" fill="#ef4444" />
+                        </marker>
+                    </defs>
+                `;
+                for (let i = 0; i < 360; i++) {
+                    const angleRad = toRadians(i);
+                    let lineLength;
+                    let lineClass;
+                    if (i % 15 === 0) {
+                        lineLength = 20;
+                        lineClass = 'protractor-line';
+                    } else if (i % 5 === 0) {
+                        lineLength = 10;
+                        lineClass = 'protractor-line';
+                    } else {
+                        lineLength = 5;
+                        lineClass = 'protractor-line-minor';
+                    }
+                    const x1 = centerX + (radius - lineLength) * Math.cos(angleRad);
+                    const y1 = centerY + (radius - lineLength) * Math.sin(angleRad);
+                    const x2 = centerX + radius * Math.cos(angleRad);
+                    const y2 = centerY + radius * Math.sin(angleRad);
+                    svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${lineClass}" />`;
+                    if (i % 15 === 0) {
+                        const tx = centerX + (radius + 15) * Math.cos(angleRad);
+                        const ty = centerY + (radius + 15) * Math.sin(angleRad);
+                        let displayAngle;
+                        if (i <= 90) displayAngle = 90 - i;
+                        else if (i <= 180) displayAngle = i - 90;
+                        else if (i <= 270) displayAngle = 270 - i;
+                        else displayAngle = i - 270;
+                        svgContent += `<text x="${tx}" y="${ty}" class="protractor-text">${displayAngle}°</text>`;
+                    }
+                }
+                svgContent += `<path d="M ${centerX - radius} ${centerY} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY} Z" class="lucite-block" />`;
+                svgContent += `<line x1="${centerX}" y1="0" x2="${centerX}" y2="${centerY + radius}" class="normal-line" />`;
+                svgContent += `<line id="incident-ray" class="laser-beam" marker-end="url(#arrowhead)" />`;
+                svgContent += `<line id="refracted-ray" class="laser-beam" marker-end="url(#arrowhead)" />`;
+                svgContent += `<text id="incidence-arc-label" class="angle-text"></text>`;
+                svgContent += `<text id="refraction-arc-label" class="angle-text"></text>`;
+                svg.innerHTML = svgContent;
+            }
+
+            function updateSimulation(event) {
+                if (isLocked) return;
+                const rect = simulationContainer.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+
+                const dx = mouseX - centerX;
+                const dy = mouseY - centerY;
+                
+                let absoluteAngleRad = Math.atan2(dy, dx);
+                let incidenceAngleRad = absoluteAngleRad - toRadians(-90);
+
+                if (incidenceAngleRad > Math.PI) incidenceAngleRad -= 2 * Math.PI;
+                if (incidenceAngleRad < -Math.PI) incidenceAngleRad += 2 * Math.PI;
+
+                if (mouseY > centerY) {
+                    incidenceAngleRad = (mouseX > centerX) ? Math.PI / 2 : -Math.PI / 2;
+                }
+                
+                currentIncidence = toDegrees(incidenceAngleRad);
+
+                const sinTheta2 = (n_air / n_lucite) * Math.sin(incidenceAngleRad);
+                const refractionAngleRad = Math.asin(sinTheta2);
+                currentRefraction = toDegrees(refractionAngleRad);
+
+                // --- CORRECTION DE LA LOGIQUE DE DESSIN ---
+
+                // 1. Rayon incident
+                // L'angle absolu est recalculé à partir de l'angle d'incidence validé.
+                const correctedAbsoluteAngleRad = incidenceAngleRad + toRadians(-90);
+                const laserSourceX = centerX + laserLength * Math.cos(correctedAbsoluteAngleRad);
+                const laserSourceY = centerY + laserLength * Math.sin(correctedAbsoluteAngleRad);
+                document.getElementById('incident-ray').setAttribute('x1', laserSourceX);
+                document.getElementById('incident-ray').setAttribute('y1', laserSourceY);
+                document.getElementById('incident-ray').setAttribute('x2', centerX);
+                document.getElementById('incident-ray').setAttribute('y2', centerY);
+
+                // 2. Rayon réfracté
+                // L'angle absolu du rayon réfracté est l'angle de la normale (vers le bas) + l'angle de réfraction.
+                const absoluteRefractedAngleRad = toRadians(90) + refractionAngleRad;
+                const refractedEndX = centerX + laserLength * Math.cos(absoluteRefractedAngleRad);
+                const refractedEndY = centerY + laserLength * Math.sin(absoluteRefractedAngleRad);
+                document.getElementById('refracted-ray').setAttribute('x1', centerX);
+                document.getElementById('refracted-ray').setAttribute('y1', centerY);
+                document.getElementById('refracted-ray').setAttribute('x2', refractedEndX);
+                document.getElementById('refracted-ray').setAttribute('y2', refractedEndY);
+                
+                const incidenceArcLabel = document.getElementById('incidence-arc-label');
+                const refractionArcLabel = document.getElementById('refraction-arc-label');
+
+                const midAngleIncRad = correctedAbsoluteAngleRad - (incidenceAngleRad / 2);
+                incidenceArcLabel.setAttribute('x', centerX + labelRadius * Math.cos(midAngleIncRad));
+                incidenceArcLabel.setAttribute('y', centerY + labelRadius * Math.sin(midAngleIncRad));
+                incidenceArcLabel.innerHTML = '&#952;₁';
+
+                const midAngleRefRad = (toRadians(90) + absoluteRefractedAngleRad) / 2;
+                refractionArcLabel.setAttribute('x', centerX + labelRadius * Math.cos(midAngleRefRad));
+                refractionArcLabel.setAttribute('y', centerY + labelRadius * Math.sin(midAngleRefRad));
+                refractionArcLabel.innerHTML = '&#952;₂';
+
+                incidenceDisplay.textContent = `${currentIncidence.toFixed(1)}°`;
+                refractionDisplay.textContent = `${currentRefraction.toFixed(1)}°`;
+            }
+            
+            function toggleLock() {
+                isLocked = !isLocked;
+                simulationContainer.classList.toggle('locked', isLocked);
+            }
+
+            function recordData() {
+                trialCount++;
+                dataPoints.push({
+                    trial: trialCount,
+                    incidence: parseFloat(currentIncidence.toFixed(1)),
+                    refraction: parseFloat(currentRefraction.toFixed(1))
+                });
+                updateDataTable();
+            }
+
+            function updateDataTable() {
+                dataTableElement.innerHTML = '';
+                dataPoints.forEach(point => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="py-2 px-4 border text-center">${point.trial}</td>
+                        <td class="py-2 px-4 border text-center">${Math.abs(point.incidence)}°</td>
+						<td class="py-2 px-4 border text-center">${Math.abs(point.refraction)}°</td>
+                        <td class="py-2 px-4 border text-center">
+                            <button class="text-red-500 hover:text-red-700 delete-btn" data-trial="${point.trial}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    dataTableElement.appendChild(row);
+                });
+                feather.replace();
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const trialToDelete = parseInt(this.getAttribute('data-trial'));
+                        dataPoints = dataPoints.filter(point => point.trial !== trialToDelete);
+                        updateDataTable();
+                    });
+                });
+            }
+
+            function clearData() {
+                if (confirm('Êtes-vous sûr de vouloir effacer toutes les données ?')) {
+                    dataPoints = [];
+                    trialCount = 0;
+                    updateDataTable();
+                }
+            }
+
+            function exportCSV() {
+                if (dataPoints.length === 0) { alert('Aucune donnée à exporter'); return; }
+                const csv = Papa.unparse({
+                    fields: ["Essai", "Angle d'incidence (theta_1)", "Angle de réfraction (theta_2)"],
+                    data: dataPoints.map(p => [p.trial, p.incidence, p.refraction])
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'refraction_data.csv');
+                link.click();
+            }
+
+            function exportXLS() {
+                if (dataPoints.length === 0) { alert('Aucune donnée à exporter'); return; }
+                const worksheet = XLSX.utils.json_to_sheet(dataPoints.map(p => ({
+                    'Essai': p.trial,
+                    "Angle d'incidence (theta_1)": p.incidence,
+                    "Angle de réfraction (theta_2)": p.refraction
+                })));
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Données Réfraction");
+                XLSX.writeFile(workbook, "refraction_data.xlsx");
+            }
+
+            drawStaticElements();
+            simulationContainer.addEventListener('mousemove', updateSimulation);
+            simulationContainer.addEventListener('click', toggleLock);
+            recordDataButton.addEventListener('click', recordData);
+            clearDataButton.addEventListener('click', clearData);
+            exportCSVButton.addEventListener('click', exportCSV);
+            exportXLSButton.addEventListener('click', exportXLS);
+
+            const initialEvent = new MouseEvent('mousemove', {
+                clientX: simulationContainer.getBoundingClientRect().left + centerX + 50,
+                clientY: simulationContainer.getBoundingClientRect().top + centerY - 150
+            });
+            updateSimulation(initialEvent);
+        });
+    </script>
+</body>
+</html>
