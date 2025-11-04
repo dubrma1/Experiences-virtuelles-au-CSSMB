@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu du Modèle Atomique de Rutherford-Bohr</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f0f4f8;
+        }
+        #atom-canvas {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            padding-top: 100%; 
+        }
+        #atom-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .nucleus {
+            transition: all 0.3s ease;
+        }
+        .electron-shell {
+            fill: none;
+            stroke: #94a3b8;
+            stroke-width: 2px;
+            transition: all 0.3s ease;
+        }
+        .electron {
+            fill: #3b82f6;
+            stroke: #1e3a8a;
+            stroke-width: 1.5px;
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+        .control-button {
+            width: 36px;
+            height: 36px;
+        }
+        #periodic-table-container {
+            display: grid;
+            grid-template-columns: repeat(18, minmax(0, 1fr));
+            gap: 2px;
+            width: 100%;
+        }
+        .pt-header {
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            color: #4b5563;
+        }
+        .pt-cell {
+            aspect-ratio: 1 / 1;
+            border: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            border-radius: 4px;
+            position: relative;
+            font-family: monospace;
+            font-size: clamp(6px, 1.5vw, 10px);
+        }
+        .pt-cell.active {
+            background-color: #e0f2fe;
+            border: 2px solid #7dd3fc;
+            display: flex;
+            flex-direction: column;
+            padding: 2px;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .pt-atomic-number { font-weight: bold; }
+        .pt-symbol { font-size: 1.5em; font-weight: 800; text-align: center; margin: auto 0; }
+        .pt-name { text-align: center; font-size: 0.8em; line-height: 1; }
+
+    </style>
+</head>
+<body class="py-8 px-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Le Modèle Atomique de Rutherford-Bohr</h1>
+            <p class="text-gray-600 text-lg">Construis l'atome en te basant sur sa position dans le tableau périodique.</p>
+        </header>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex flex-col items-center gap-8">
+                <!-- Section principale: Tableau et Atome côte à côte -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full items-center">
+                    <!-- Colonne de Gauche: Tableau Périodique -->
+                    <div class="w-full flex justify-center">
+                        <div id="periodic-table-container">
+                            <!-- Le tableau sera généré par JS -->
+                        </div>
+                    </div>
+                    <!-- Colonne de Droite: Visualisation de l'atome -->
+                    <div id="atom-canvas" class="mx-auto">
+                        <svg id="atom-svg" viewBox="0 0 200 200"></svg>
+                    </div>
+                </div>
+                
+                <!-- Section des contrôles -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 w-full">
+                     <div class="flex flex-col md:flex-row justify-center items-center gap-8">
+                        <div class="control-group">
+                            <label class="block text-center font-semibold text-gray-700 mb-2">Couches électroniques (Période)</label>
+                            <div class="flex items-center justify-center gap-4">
+                                <button id="shells-down" class="control-button rounded-full bg-gray-200 hover:bg-gray-300 text-lg font-bold">-</button>
+                                <span id="shells-value" class="text-xl font-bold w-12 text-center">1</span>
+                                <button id="shells-up" class="control-button rounded-full bg-gray-200 hover:bg-gray-300 text-lg font-bold">+</button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label class="block text-center font-semibold text-gray-700 mb-2">Électrons de valence (Famille)</label>
+                            <div class="flex items-center justify-center gap-4">
+                                <button id="electrons-down" class="control-button rounded-full bg-gray-200 hover:bg-gray-300 text-lg font-bold">-</button>
+                                <span id="electrons-value" class="text-xl font-bold w-12 text-center">1</span>
+                                <button id="electrons-up" class="control-button rounded-full bg-gray-200 hover:bg-gray-300 text-lg font-bold">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boutons de validation -->
+                <div class="flex flex-col space-y-2 w-full max-w-md">
+                     <button id="validate-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105">
+                        <i class="fas fa-check-circle mr-2"></i>Valider mon modèle
+                    </button>
+                     <button id="next-btn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg hidden">
+                        Élément Suivant <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg p-8 max-w-sm w-full shadow-2xl text-center transform transition-all scale-95">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h3 id="modal-title" class="text-2xl font-bold mb-2"></h3>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button id="modal-close-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Fermer</button>
+        </div>
+    </div>
+    <script>
+        const periodicTableData = [
+            null, 
+            { name: "Hydrogène", symbol: "H", atomicNumber: 1, period: 1, group: 1 },
+            { name: "Hélium", symbol: "He", atomicNumber: 2, period: 1, group: 18 },
+            { name: "Lithium", symbol: "Li", atomicNumber: 3, period: 2, group: 1 },
+            { name: "Béryllium", symbol: "Be", atomicNumber: 4, period: 2, group: 2 },
+            { name: "Bore", symbol: "B", atomicNumber: 5, period: 2, group: 13 },
+            { name: "Carbone", symbol: "C", atomicNumber: 6, period: 2, group: 14 },
+            { name: "Azote", symbol: "N", atomicNumber: 7, period: 2, group: 15 },
+            { name: "Oxygène", symbol: "O", atomicNumber: 8, period: 2, group: 16 },
+            { name: "Fluor", symbol: "F", atomicNumber: 9, period: 2, group: 17 },
+            { name: "Néon", symbol: "Ne", atomicNumber: 10, period: 2, group: 18 },
+            { name: "Sodium", symbol: "Na", atomicNumber: 11, period: 3, group: 1 },
+            { name: "Magnésium", symbol: "Mg", atomicNumber: 12, period: 3, group: 2 },
+            { name: "Aluminium", symbol: "Al", atomicNumber: 13, period: 3, group: 13 },
+            { name: "Silicium", symbol: "Si", atomicNumber: 14, period: 3, group: 14 },
+            { name: "Phosphore", symbol: "P", atomicNumber: 15, period: 3, group: 15 },
+            { name: "Soufre", symbol: "S", atomicNumber: 16, period: 3, group: 16 },
+            { name: "Chlore", symbol: "Cl", atomicNumber: 17, period: 3, group: 17 },
+            { name: "Argon", symbol: "Ar", atomicNumber: 18, period: 3, group: 18 },
+            { name: "Potassium", symbol: "K", atomicNumber: 19, period: 4, group: 1 },
+            { name: "Calcium", symbol: "Ca", atomicNumber: 20, period: 4, group: 2 },
+        ];
+
+        const gameState = {
+            currentElement: null,
+            userShells: 1,
+            userValenceElectrons: 1,
+        };
+
+        const svg = document.getElementById('atom-svg');
+        const shellsValue = document.getElementById('shells-value');
+        const electronsValue = document.getElementById('electrons-value');
+        const periodicTableContainer = document.getElementById('periodic-table-container');
+        
+        function getValenceElectronsFromGroup(group) {
+            if (group <= 2) return group;
+            if (group >= 13) return group - 10;
+            return 0;
+        }
+
+        function drawAtom() {
+            svg.innerHTML = ''; 
+            const protonCount = gameState.currentElement.atomicNumber;
+            const shellCount = gameState.userShells;
+            const valenceElectrons = gameState.userValenceElectrons;
+
+            const config = [];
+            let remainingElectrons = protonCount;
+            for(let i = 0; i < shellCount - 1; i++) {
+                const capacity = i === 0 ? 2 : 8;
+                const electronsOnThisShell = Math.min(capacity, remainingElectrons);
+                config.push(electronsOnThisShell);
+                remainingElectrons -= electronsOnThisShell;
+            }
+            if (shellCount > 0) {
+                 config.push(valenceElectrons);
+            }
+            
+            const nucleus = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            nucleus.setAttribute('cx', 100);
+            nucleus.setAttribute('cy', 100);
+            nucleus.setAttribute('r', 20);
+            nucleus.setAttribute('class', 'nucleus');
+            nucleus.setAttribute('fill', '#4ade80');
+            svg.appendChild(nucleus);
+
+            const nucleusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            nucleusText.setAttribute('x', 100);
+            nucleusText.setAttribute('y', 100);
+            nucleusText.setAttribute('dy', '0.35em');
+            nucleusText.setAttribute('text-anchor', 'middle');
+            nucleusText.setAttribute('fill', 'white');
+            nucleusText.setAttribute('font-weight', 'bold');
+            nucleusText.textContent = `${protonCount}p⁺`;
+            svg.appendChild(nucleusText);
+
+            for (let i = 0; i < shellCount; i++) {
+                const radius = 35 + i * 20;
+                const shell = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                shell.setAttribute('cx', 100);
+                shell.setAttribute('cy', 100);
+                shell.setAttribute('r', radius);
+                shell.setAttribute('class', 'electron-shell');
+                svg.appendChild(shell);
+
+                const electronsOnShell = config[i] || 0;
+
+                for (let j = 0; j < electronsOnShell; j++) {
+                    const angle = (2 * Math.PI / electronsOnShell) * j - (Math.PI/2);
+                    const cx = 100 + radius * Math.cos(angle);
+                    const cy = 100 + radius * Math.sin(angle);
+                    const electron = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    electron.setAttribute('cx', cx);
+                    electron.setAttribute('cy', cy);
+                    electron.setAttribute('r', 5);
+                    electron.setAttribute('class', 'electron');
+                    svg.appendChild(electron);
+                }
+            }
+        }
+
+        function setupPeriodicTable() {
+            periodicTableContainer.innerHTML = '';
+            const groupsA = { 1: '1A', 2: '2A', 13: '3A', 14: '4A', 15: '5A', 16: '6A', 17: '7A', 18: '8A' };
+            
+            for (let col = 1; col <= 18; col++) {
+                const header = document.createElement('div');
+                header.className = 'pt-header';
+                if (groupsA[col]) {
+                    header.textContent = groupsA[col];
+                }
+                periodicTableContainer.appendChild(header);
+            }
+            
+            for (let row = 1; row <= 4; row++) {
+                for (let col = 1; col <= 18; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'pt-cell';
+                    if ((row === 2 || row === 3) && (col > 2 && col < 13)) {
+                       cell.style.visibility = 'hidden';
+                    }
+                     if (row === 1 && (col > 1 && col < 18)) {
+                       cell.style.visibility = 'hidden';
+                    }
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    periodicTableContainer.appendChild(cell);
+                }
+            }
+        }
+        
+        function loadNewElement() {
+            const oldActive = document.querySelector('.pt-cell.active');
+            if(oldActive) {
+                oldActive.classList.remove('active');
+                oldActive.innerHTML = '';
+            }
+
+            const elementIndex = Math.floor(Math.random() * (periodicTableData.length -1)) + 1;
+            gameState.currentElement = periodicTableData[elementIndex];
+            
+            const newActiveCell = document.querySelector(`.pt-cell[data-row='${gameState.currentElement.period}'][data-col='${gameState.currentElement.group}']`);
+            if(newActiveCell) {
+                 newActiveCell.classList.add('active');
+                 newActiveCell.innerHTML = `
+                    <div class="pt-symbol">${gameState.currentElement.symbol}</div>
+                 `;
+            }
+            
+            gameState.userShells = 1;
+            gameState.userValenceElectrons = 1;
+            shellsValue.textContent = 1;
+            electronsValue.textContent = 1;
+            
+            drawAtom();
+        }
+
+        function validateAnswer() {
+            const correctShells = gameState.currentElement.period;
+            const correctValence = getValenceElectronsFromGroup(gameState.currentElement.group);
+            
+            let isCorrect = true;
+            let message = "";
+
+            if (gameState.userShells !== correctShells) {
+                isCorrect = false;
+                message += `Le nombre de couches est incorrect (attendu: ${correctShells}). `;
+            }
+
+            if(gameState.userValenceElectrons !== correctValence) {
+                isCorrect = false;
+                message += `Le nombre d'électrons de valence est incorrect (attendu: ${correctValence}).`;
+            }
+            
+            if(isCorrect) {
+                 showModal('success', 'Excellent!', `Le modèle pour le ${gameState.currentElement.name} est correct!`);
+                 document.getElementById('next-btn').classList.remove('hidden');
+            } else {
+                 showModal('error', 'Presque!', message);
+            }
+        }
+        
+        function showModal(type, title, message) {
+            const modal = document.getElementById('modal');
+            const icons = {
+                success: '<i class="fas fa-check-circle text-green-500"></i>',
+                error: '<i class="fas fa-times-circle text-red-500"></i>'
+            };
+            document.getElementById('modal-icon').innerHTML = icons[type];
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            modal.classList.remove('hidden');
+        }
+
+        document.getElementById('shells-up').addEventListener('click', () => {
+            gameState.userShells = Math.min(4, gameState.userShells + 1);
+            shellsValue.textContent = gameState.userShells;
+            drawAtom();
+        });
+        document.getElementById('shells-down').addEventListener('click', () => {
+            gameState.userShells = Math.max(1, gameState.userShells - 1);
+            shellsValue.textContent = gameState.userShells;
+            drawAtom();
+        });
+        document.getElementById('electrons-up').addEventListener('click', () => {
+            gameState.userValenceElectrons = Math.min(8, gameState.userValenceElectrons + 1);
+            electronsValue.textContent = gameState.userValenceElectrons;
+            drawAtom();
+        });
+        document.getElementById('electrons-down').addEventListener('click', () => {
+            gameState.userValenceElectrons = Math.max(1, gameState.userValenceElectrons - 1);
+            electronsValue.textContent = gameState.userValenceElectrons;
+            drawAtom();
+        });
+
+        document.getElementById('validate-btn').addEventListener('click', validateAnswer);
+        document.getElementById('modal-close-btn').addEventListener('click', () => document.getElementById('modal').classList.add('hidden'));
+        document.getElementById('next-btn').addEventListener('click', () => {
+             document.getElementById('modal').classList.add('hidden');
+             document.getElementById('next-btn').classList.add('hidden');
+             loadNewElement();
+        });
+
+        setupPeriodicTable();
+        loadNewElement();
+    </script>
+</body>
+</html>
