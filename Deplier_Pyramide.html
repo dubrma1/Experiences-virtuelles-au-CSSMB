@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Plan de Pyramide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:8px;background:#d1d5db;border-radius:9999px;outline:none;opacity:0.7;transition:opacity .2s}
+        input[type="range"]:hover{opacity:1}
+        input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#2563eb;cursor:pointer;border-radius:50%}
+        input[type="range"]::-moz-range-thumb{width:20px;height:20px;background:#2563eb;cursor:pointer;border-radius:50%}
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 m-4">
+        <div class="grid md:grid-cols-2 gap-8 md:gap-12">
+            
+            <div>
+                <h1 class="text-3xl font-bold mb-2 text-gray-900">Déplier une pyramide à base carrée</h1>
+                <p class="text-gray-600 mb-6">Ajustez les dimensions et choisissez un patron de pliage pour générer un plan qui pourra être imprimé sur une feuille de format lettre.</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <label for="sizeSlider" class="block text-sm font-medium text-gray-700 mb-1">Longueur de l'arête de la base (C)</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="sizeSlider" min="20" max="90" value="40" class="w-full">
+                            <span id="sizeValue" class="font-bold text-gray-700 text-lg w-12 text-right">40</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="edgeSlider" class="block text-sm font-medium text-gray-700 mb-1">Longueur de l'arête latérale (A)</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="edgeSlider" min="20" max="90" value="40" class="w-full">
+                            <span id="edgeValue" class="font-bold text-gray-700 text-lg w-12 text-right">40</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Type de patron</label>
+                        <div class="flex items-center space-x-6 bg-gray-50 p-2 rounded-lg">
+                            <label for="patternCross" class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" id="patternCross" name="patternType" value="cross" class="form-radio text-blue-600" checked>
+                                <span class="text-gray-800">En Croix</span>
+                            </label>
+                            <label for="patternRibbon" class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" id="patternRibbon" name="patternType" value="ribbon" class="form-radio text-blue-600">
+                                <span class="text-gray-800">En Ruban</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="generateBtn" class="w-full mt-8 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">
+                    Générer le plan SVG
+                </button>
+
+                <div id="error-message" class="mt-4 text-red-600 font-medium text-center h-5"></div>
+            </div>
+
+            <div class="flex items-center justify-center bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <svg viewBox="0 0 350 300" class="w-full h-full">
+                    <title>Illustration d'une pyramide</title>
+                    <polygon points="50,200 250,200 300,250 100,250" class="fill-blue-100 stroke-blue-400" stroke-width="1.5"/>
+                    <line x1="175" y1="50" x2="250" y2="200" class="stroke-blue-500" stroke-width="1.5"/>
+                    <line x1="175" y1="50" x2="300" y2="250" class="stroke-blue-500" stroke-width="1.5"/>
+                    <line x1="175" y1="50" x2="100" y2="250" class="stroke-blue-400" stroke-width="1.5" stroke-dasharray="4"/>
+                    <line x1="175" y1="50" x2="50" y2="200" class="stroke-blue-500" stroke-width="1.5"/>
+                    <text x="160" y="265" class="fill-gray-800 font-sans font-medium">Côté (C)</text>
+                    <text x="140" y="170" class="fill-gray-800 font-sans font-medium">Arête (A)</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const sizeSlider = document.getElementById('sizeSlider');
+    const edgeSlider = document.getElementById('edgeSlider');
+    const sizeValueDisplay = document.getElementById('sizeValue');
+    const edgeValueDisplay = document.getElementById('edgeValue');
+    const generateBtn = document.getElementById('generateBtn');
+    const errorMessage = document.getElementById('error-message');
+
+    function updateDisplayValues() {
+        sizeValueDisplay.textContent = sizeSlider.value;
+        edgeValueDisplay.textContent = edgeSlider.value;
+    }
+    sizeSlider.addEventListener('input', updateDisplayValues);
+    edgeSlider.addEventListener('input', updateDisplayValues);
+    
+    const PAGE_MARGIN = 15;
+    const PAGE = { letter: { w: 215.9, h: 279.4 } };
+    
+    function generateCrossSVG(c, a) {
+        const h = Math.sqrt(a*a - (c/2)*(c/2)); // apothème
+        const netWidth = c + 2 * h;
+        const netHeight = c + 2 * h;
+
+        if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+            errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+            return null;
+        }
+
+        const p_base_tl = { x: h, y: h }, p_base_tr = { x: h + c, y: h }, p_base_br = { x: h + c, y: h + c }, p_base_bl = { x: h, y: h + c };
+        const apex_top = { x: h + c / 2, y: 0 }, apex_bottom = { x: h + c / 2, y: netHeight }, apex_left = { x: 0, y: h + c / 2 }, apex_right = { x: netWidth, y: h + c / 2 };
+        
+        const cutPath = `M ${apex_top.x},${apex_top.y} L ${p_base_tr.x},${p_base_tr.y} L ${apex_right.x},${apex_right.y} L ${p_base_br.x},${p_base_br.y} L ${apex_bottom.x},${apex_bottom.y} L ${p_base_bl.x},${p_base_bl.y} L ${apex_left.x},${apex_left.y} L ${p_base_tl.x},${p_base_tl.y} Z`;
+        const foldPath = `M ${p_base_tl.x},${p_base_tl.y} L ${p_base_tr.x},${p_base_tr.y} L ${p_base_br.x},${p_base_br.y} L ${p_base_bl.x},${p_base_bl.y} Z`;
+        
+        const pageW = PAGE.letter.h, pageH = PAGE.letter.w;
+        const offsetX = (pageW - netWidth) / 2, offsetY = (pageH - netHeight) / 2;
+        const transform = `translate(${offsetX}, ${offsetY})`;
+
+        return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg"><title>Plan de pyramide - Croix</title><g transform="${transform}"><path d="${cutPath}" stroke="black" stroke-width="0.5" fill="none" /><path d="${foldPath}" stroke="black" stroke-width="0.5" stroke-dasharray="2,2" fill="none" /></g></svg>`;
+    }
+    
+    function findIntersectionPoints(p1, r1, p2, r2) {
+        let d2 = Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2);
+        let d = Math.sqrt(d2);
+        if (d > r1 + r2 || d < Math.abs(r1 - r2) || d === 0 || isNaN(d)) return null;
+        let a_val = (r1*r1 - r2*r2 + d2) / (2*d);
+        let h_val = Math.sqrt(Math.abs(r1*r1 - a_val*a_val));
+        let x2 = p1[0] + a_val * (p2[0] - p1[0]) / d;
+        let y2 = p1[1] + a_val * (p2[1] - p1[1]) / d;
+        let int_p1 = [x2 + h_val * (p2[1] - p1[1]) / d, y2 - h_val * (p2[0] - p1[0]) / d];
+        let int_p2 = [x2 - h_val * (p2[1] - p1[1]) / d, y2 + h_val * (p2[0] - p1[0]) / d];
+        return [int_p1, int_p2];
+    }
+
+    function generateRibbonSVG(c, a) {
+        const h = Math.sqrt(Math.pow(a, 2) - Math.pow(c / 2, 2));
+
+        const p_sq_bl = [0, 0], p_sq_br = [c, 0], p_sq_tr = [c, c], p_sq_tl = [0, c];
+        const Square = [p_sq_bl, p_sq_br, p_sq_tr, p_sq_tl];
+        const apex_T1 = [c/2, c + h];
+        const T1 = [p_sq_tl, p_sq_tr, apex_T1];
+
+        const chooseOuterPoint = (intersections, lineP1, lineP2, refPoint) => {
+            const side = (p) => Math.sign((lineP2[0] - lineP1[0]) * (p[1] - lineP1[1]) - (lineP2[1] - lineP1[1]) * (p[0] - lineP1[0]));
+            const refSide = side(refPoint);
+            if (refSide === 0) return intersections[0];
+            return side(intersections[0]) !== refSide ? intersections[0] : intersections[1];
+        };
+
+        let intersections_t2 = findIntersectionPoints(p_sq_tl, c, apex_T1, a);
+        if (!intersections_t2) return null;
+        let apex_T2 = chooseOuterPoint(intersections_t2, p_sq_tl, apex_T1, p_sq_tr);
+        const T2 = [p_sq_tl, apex_T1, apex_T2];
+
+        let intersections_t3 = findIntersectionPoints(apex_T1, a, apex_T2, c);
+        if (!intersections_t3) return null;
+        let apex_T3 = chooseOuterPoint(intersections_t3, apex_T1, apex_T2, p_sq_tl);
+        const T3 = [apex_T1, apex_T2, apex_T3];
+
+        let intersections_t4 = findIntersectionPoints(p_sq_tr, c, apex_T1, a);
+        if (!intersections_t4) return null;
+        let apex_T4 = chooseOuterPoint(intersections_t4, p_sq_tr, apex_T1, p_sq_tl);
+        const T4 = [p_sq_tr, apex_T1, apex_T4];
+        
+        const shapes = [Square, T1, T2, T3, T4];
+        
+        // --- String building part ---
+        const edgeData = new Map();
+        const getEdgeKey = (p1, p2) => JSON.stringify([p1, p2].sort((ptA, ptB) => ptA[0] - ptB[0] || ptA[1] - ptB[1]));
+        shapes.forEach(shape => {
+            for (let i = 0; i < shape.length; i++) {
+                const p1 = shape[i], p2 = shape[(i + 1) % shape.length];
+                const key = getEdgeKey(p1, p2);
+                edgeData.has(key) ? edgeData.get(key).count++ : edgeData.set(key, { points: [p1, p2], count: 1 });
+            }
+        });
+        
+        const allPoints = shapes.flat();
+        const minX = Math.min(...allPoints.map(p=>p[0])), maxX = Math.max(...allPoints.map(p=>p[0]));
+        const minY = Math.min(...allPoints.map(p=>p[1])), maxY = Math.max(...allPoints.map(p=>p[1]));
+        const netWidth = maxX - minX, netHeight = maxY - minY;
+
+        if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+             errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+             return null;
+        }
+
+        const pageW = PAGE.letter.h, pageH = PAGE.letter.w;
+        const offsetX = (pageW - netWidth) / 2 - minX;
+        const offsetY = (pageH - netHeight) / 2 - minY;
+        const transform = `translate(${offsetX}, ${offsetY})`;
+        
+        let paths = '';
+        edgeData.forEach(data => {
+            const [p1, p2] = data.points;
+            const isShared = data.count > 1;
+            paths += `<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="black" stroke-width="0.5" ${isShared ? 'stroke-dasharray="5,5"' : ''} />\n`;
+        });
+
+        return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg"><title>Plan de pyramide - Ruban</title><g transform="${transform}">${paths}</g></svg>`;
+    }
+
+    generateBtn.addEventListener('click', () => {
+        errorMessage.textContent = '';
+        const baseSize = parseFloat(sizeSlider.value);
+        const slantEdge = parseFloat(edgeSlider.value);
+        
+        if (slantEdge <= baseSize / 2) {
+            errorMessage.textContent = "L'arête (A) doit être plus grande que la moitié de la base (C/2).";
+            return;
+        }
+
+        const selectedPattern = document.querySelector('input[name="patternType"]:checked').value;
+        let svgContent = null;
+        
+        if (selectedPattern === 'cross') {
+            svgContent = generateCrossSVG(baseSize, slantEdge);
+        } else {
+            svgContent = generateRibbonSVG(baseSize, slantEdge);
+        }
+
+        if (svgContent) {
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            const newWindow = window.open(url, '_blank');
+            if(!newWindow) {
+                errorMessage.textContent = 'Veuillez autoriser les pop-ups pour voir le SVG.';
+            }
+        }
+    });
+
+    updateDisplayValues();
+</script>
+</body>
+</html>
