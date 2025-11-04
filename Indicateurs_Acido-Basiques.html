@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu des Indicateurs Acido-Basiques v3.4</title>
+    <style>
+        :root {
+            --scale-bg: #f0f0f0;
+            --border-color: #ccc;
+            --text-color: #333;
+            --handle-color: #007bff;
+            --handle-correct-color: #28a745;
+            --main-font: 'Segoe UI', Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--main-font);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background-color: #f8f9fa;
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #343a40;
+        }
+
+        .indicator-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .indicator-table th, .indicator-table td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .indicator-table th { background-color: #e9ecef; }
+        .indicator-table tr:nth-child(even) { background-color: #f8f9fa; }
+        .indicator-table input[type="checkbox"] { margin-right: 10px; transform: scale(1.2); }
+        .indicator-info { font-size: 0.9em; color: #6c757d; display: block; margin-top: 4px; }
+
+        #ph-scale-container {
+            position: relative;
+            width: 100%;
+            height: 45px;
+            margin-top: 20px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .ph-scale-visual {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background-color: var(--scale-bg);
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            transition: background 0.3s ease;
+        }
+
+        .ph-scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        
+        .ph-scale-labels span { position: relative; width: 0; text-align: center; }
+        #user-handles-container { position: absolute; top: 0; left: 10px; right: 10px; height: 30px; }
+
+        .drag-handle {
+            position: absolute;
+            top: -5px;
+            width: 12px;
+            height: 40px;
+            background-color: var(--handle-color);
+            border: 2px solid white;
+            border-radius: 6px;
+            cursor: ew-resize;
+            transform: translateX(-50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .drag-handle.correct {
+            background-color: var(--handle-correct-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Jeu des Indicateurs Acido-Basiques</h1>
+        <p>
+            1. Cochez un ou plusieurs indicateurs dans le tableau ci-dessous.
+            <br>
+            2. Pour chaque indicateur, deux poignées bleues apparaîtront sur l'échelle de pH.
+            <br>
+            3. Faites glisser ces poignées pour encadrer la "zone de virage" de l'indicateur.
+            <br>
+            4. Si votre placement est correct, le fond de l'échelle simulera le mélange des couleurs !
+        </p>
+    </div>
+    
+    <div class="container">
+        <h2>Échelle de pH</h2>
+        <div id="ph-scale-container">
+            <div class="ph-scale-visual" id="ph-scale-visual">
+                <div id="user-handles-container"></div>
+            </div>
+            <div class="ph-scale-labels" id="ph-labels"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Sélectionnez vos indicateurs</h2>
+        <table class="indicator-table" id="indicator-selector-table">
+            <thead>
+                <tr>
+                    <th>Sélectionner</th>
+                    <th>Nom de l'indicateur</th>
+                    <th>Informations</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const colorTranslations = {
+        yellow: 'jaune', blue: 'bleu', red: 'rouge', orange: 'orangé',
+        purple: 'violet', transparent: 'incolore', deeppink: 'rose'
+    };
+
+    const colorRGB = {
+        yellow: [255, 255, 0], blue: [0, 0, 255], red: [255, 0, 0],
+        purple: [128, 0, 128], transparent: null, deeppink: [255, 20, 147]
+    };
+
+    const indicateurs = [
+        { id: 'violet_methyle', nom: 'Violet de méthyle', plage: [0.0, 1.6], couleurAcide: 'yellow', couleurBase: 'blue' },
+        { id: 'bleu_thymol_acide', nom: 'Bleu de thymol (zone acide)', plage: [1.2, 2.8], couleurAcide: 'red', couleurBase: 'yellow' },
+        { id: 'jaune_methyle', nom: 'Jaune de méthyle', plage: [2.9, 4.0], couleurAcide: 'red', couleurBase: 'yellow' },
+        { id: 'methylorange', nom: 'Méthylorange (Hélianthine)', plage: [3.1, 4.4], couleurAcide: 'red', couleurBase: 'yellow' },
+        { id: 'vert_bromocresol', nom: 'Vert de bromocrésol', plage: [3.8, 5.4], couleurAcide: 'yellow', couleurBase: 'blue' },
+        { id: 'rouge_methyle', nom: 'Rouge de méthyle', plage: [4.2, 6.2], couleurAcide: 'red', couleurBase: 'yellow' },
+        { id: 'rouge_chlorophenol', nom: 'Rouge de chlorophénol', plage: [4.8, 6.4], couleurAcide: 'yellow', couleurBase: 'red' },
+        { id: 'bleu_bromothymol', nom: 'Bleu de bromothymol', plage: [6.0, 7.6], couleurAcide: 'yellow', couleurBase: 'blue' },
+        { id: 'rouge_phenol', nom: 'Rouge de phénol', plage: [6.4, 8.0], couleurAcide: 'yellow', couleurBase: 'red' },
+        { id: 'violet_cresol', nom: 'Violet de crésol', plage: [7.4, 9.0], couleurAcide: 'yellow', couleurBase: 'purple' },
+        { id: 'bleu_thymol_base', nom: 'Bleu de thymol (zone basique)', plage: [8.0, 9.6], couleurAcide: 'yellow', couleurBase: 'blue' },
+        { id: 'phenophtaleine', nom: 'Phénolphtaléine', plage: [8.2, 9.8], couleurAcide: 'transparent', couleurBase: 'deeppink' },
+        { id: 'thymolphtaleine', nom: 'Thymolphtaléine', plage: [9.3, 10.5], couleurAcide: 'transparent', couleurBase: 'blue' },
+        { id: 'jaune_alizarine', nom: 'Jaune d\'alizarine R', plage: [10.1, 12.0], couleurAcide: 'yellow', couleurBase: 'red' },
+        { id: 'carmin_indigo', nom: 'Carmin d\'indigo', plage: [11.4, 13.0], couleurAcide: 'blue', couleurBase: 'yellow' },
+    ];
+
+    const tableBody = document.querySelector("#indicator-selector-table tbody");
+    const handlesContainer = document.getElementById('user-handles-container');
+    const scaleVisual = document.getElementById('ph-scale-visual');
+    const labelsContainer = document.getElementById('ph-labels');
+
+    const state = {}; 
+
+    function init() {
+        indicateurs.forEach(ind => {
+            const row = tableBody.insertRow();
+            row.innerHTML = `
+                <td><input type="checkbox" data-indicator-id="${ind.id}"></td>
+                <td>${ind.nom}</td>
+                <td id="info-${ind.id}"></td>
+            `;
+            row.querySelector('input').addEventListener('change', (e) => handleIndicatorSelection(ind, e.target.checked));
+        });
+
+        for (let i = 0; i <= 14; i++) {
+            labelsContainer.appendChild(document.createElement('span')).textContent = i;
+        }
+    }
+
+    function handleIndicatorSelection(indicator, isSelected) {
+        const infoCell = document.getElementById(`info-${indicator.id}`);
+        if (isSelected) {
+            const colorAcideFR = colorTranslations[indicator.couleurAcide] || indicator.couleurAcide;
+            const colorBaseFR = colorTranslations[indicator.couleurBase] || indicator.couleurBase;
+            infoCell.innerHTML = `Plage de virage : <strong>${indicator.plage[0]} - ${indicator.plage[1]}</strong>
+                                 <span class="indicator-info">Couleurs : ${colorAcideFR} à ${colorBaseFR}</span>`;
+            createInteractiveElements(indicator);
+        } else {
+            infoCell.innerHTML = '';
+            removeInteractiveElements(indicator.id);
+        }
+    }
+
+    function createInteractiveElements(indicator) {
+        const scaleWidth = handlesContainer.clientWidth;
+        const handle1 = createHandle(indicator, scaleWidth * 0.25);
+        const handle2 = createHandle(indicator, scaleWidth * 0.75);
+        handlesContainer.appendChild(handle1);
+        handlesContainer.appendChild(handle2);
+        state[indicator.id] = { handle1, handle2, isCorrect: false };
+    }
+    
+    function createHandle(indicator, initialLeft) {
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.dataset.indicatorId = indicator.id;
+        handle.style.left = `${initialLeft}px`;
+        handle.addEventListener('mousedown', startDrag);
+        return handle;
+    }
+
+    function removeInteractiveElements(id) {
+        if (state[id]) {
+            state[id].handle1.remove();
+            state[id].handle2.remove();
+            delete state[id];
+            updateGlobalPhScaleColor();
+        }
+    }
+
+    let activeHandle = null;
+    function startDrag(e) { e.preventDefault(); activeHandle = e.target; document.addEventListener('mousemove', drag); document.addEventListener('mouseup', endDrag); }
+    function drag(e) { if (!activeHandle) return; const scaleRect = handlesContainer.getBoundingClientRect(); let x = e.clientX - scaleRect.left; x = Math.max(0, Math.min(x, scaleRect.width)); activeHandle.style.left = `${x}px`; }
+    function endDrag() { if (!activeHandle) return; checkAnswer(activeHandle.dataset.indicatorId); document.removeEventListener('mousemove', drag); document.removeEventListener('mouseup', endDrag); activeHandle = null; }
+
+    /**
+     * FONCTION CHECKANSWER CORRIGÉE
+     */
+    function checkAnswer(id) {
+        const indicator = indicateurs.find(ind => ind.id === id);
+        const elements = state[id];
+        if (!indicator || !elements) return;
+
+        const scaleWidth = handlesContainer.clientWidth;
+        const { handle1, handle2 } = elements;
+        const { plage } = indicator;
+
+        const ph1 = (parseFloat(handle1.style.left) / scaleWidth) * 14;
+        const ph2 = (parseFloat(handle2.style.left) / scaleWidth) * 14;
+
+        const tolerance = 0.3;
+
+        // Tester chaque poignée contre chaque cible (début et fin de plage)
+        const handle1OnLow = Math.abs(ph1 - plage[0]) <= tolerance;
+        const handle1OnHigh = Math.abs(ph1 - plage[1]) <= tolerance;
+        
+        const handle2OnLow = Math.abs(ph2 - plage[0]) <= tolerance;
+        const handle2OnHigh = Math.abs(ph2 - plage[1]) <= tolerance;
+
+        // Une poignée est correcte si elle est sur l'une des deux cibles
+        handle1.classList.toggle('correct', handle1OnLow || handle1OnHigh);
+        handle2.classList.toggle('correct', handle2OnLow || handle2OnHigh);
+
+        // La paire est correcte si les deux cibles sont couvertes
+        const pairIsCorrect = (handle1OnLow && handle2OnHigh) || (handle1OnHigh && handle2OnLow);
+        
+        state[id].isCorrect = pairIsCorrect;
+        updateGlobalPhScaleColor();
+    }
+
+
+    function mixColorsRGB(rgb1, rgb2) {
+        if (!rgb1) return rgb2; 
+        if (!rgb2) return rgb1;
+        return [
+            Math.round((rgb1[0] + rgb2[0]) / 2),
+            Math.round((rgb1[1] + rgb2[1]) / 2),
+            Math.round((rgb1[2] + rgb2[2]) / 2)
+        ];
+    }
+
+    function rgbToString(rgb) {
+        if (!rgb) return 'transparent';
+        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function getColorAtPh(ph, activeIndicators) {
+        let finalRgb = null; 
+        activeIndicators.forEach(ind => {
+            let indicatorRgb;
+            if (ph < ind.plage[0]) {
+                indicatorRgb = colorRGB[ind.couleurAcide];
+            } else if (ph > ind.plage[1]) {
+                indicatorRgb = colorRGB[ind.couleurBase];
+            } else {
+                indicatorRgb = mixColorsRGB(colorRGB[ind.couleurAcide], colorRGB[ind.couleurBase]);
+            }
+            finalRgb = mixColorsRGB(finalRgb, indicatorRgb);
+        });
+        return rgbToString(finalRgb);
+    }
+    
+    function updateGlobalPhScaleColor() {
+        const correctIndicators = indicateurs
+            .filter(ind => state[ind.id] && state[ind.id].isCorrect)
+            .sort((a, b) => a.plage[0] - b.plage[0]);
+
+        if (correctIndicators.length === 0) {
+            scaleVisual.style.background = `var(--scale-bg)`;
+            return;
+        }
+
+        const breakpoints = new Set([0, 14]);
+        correctIndicators.forEach(ind => {
+            breakpoints.add(ind.plage[0]);
+            breakpoints.add(ind.plage[1]);
+        });
+        const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
+        
+        let gradientStops = [];
+        for (let i = 0; i < sortedBreakpoints.length - 1; i++) {
+            const startPh = sortedBreakpoints[i];
+            const endPh = sortedBreakpoints[i+1];
+            
+            if (startPh.toFixed(5) >= endPh.toFixed(5)) continue;
+
+            const midPh = (startPh + endPh) / 2;
+            const segmentColor = getColorAtPh(midPh, correctIndicators);
+            
+            const startPercent = (startPh / 14) * 100;
+            const endPercent = (endPh / 14) * 100;
+            
+            gradientStops.push(`${segmentColor} ${startPercent.toFixed(2)}%`);
+            gradientStops.push(`${segmentColor} ${endPercent.toFixed(2)}%`);
+        }
+        
+        scaleVisual.style.background = `linear-gradient(to right, ${gradientStops.join(', ')})`;
+    }
+
+    init();
+});
+</script>
+
+</body>
+</html>
