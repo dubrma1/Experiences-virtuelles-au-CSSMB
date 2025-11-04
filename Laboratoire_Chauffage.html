@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur Température vs Temps de Chauffage</title>
+    <style>
+        /* Styles généraux pour le corps et le conteneur */
+        body {
+            font-family: 'Inter', Arial, sans-serif; /* Utilisation de la police Inter */
+            max-width: 900px; /* Largeur maximale pour le contenu */
+            margin: 20px auto; /* Centrage et marge extérieure */
+            padding: 20px; /* Remplissage intérieur */
+            background-color: #f0f4f8; /* Couleur de fond légère */
+            color: #333; /* Couleur de texte par défaut */
+        }
+        .container {
+            background-color: #ffffff; /* Fond blanc pour le conteneur principal */
+            padding: 25px; /* Remplissage intérieur */
+            border-radius: 12px; /* Coins arrondis */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Ombre douce */
+            display: flex; /* Utilisation de flexbox pour l'organisation */
+            flex-direction: column; /* Disposition en colonne */
+            gap: 20px; /* Espacement entre les éléments */
+        }
+        h1 {
+            text-align: center; /* Centrage du titre */
+            color: #2c3e50; /* Couleur foncée pour le titre */
+            margin-bottom: 25px; /* Marge sous le titre */
+        }
+        /* Styles pour les groupes d'entrée (labels et inputs) */
+        .input-group {
+            display: flex; /* Flexbox pour aligner label et input */
+            align-items: center; /* Alignement vertical au centre */
+            margin-bottom: 15px; /* Marge sous chaque groupe */
+            flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
+            gap: 10px; /* Espacement entre les éléments du groupe */
+        }
+        label {
+            flex-basis: 180px; /* Largeur fixe pour les labels */
+            font-weight: bold; /* Texte en gras */
+            color: #4a6572; /* Couleur du label */
+        }
+        input[type="range"] {
+            flex-grow: 1; /* Permet au slider de prendre l'espace disponible */
+            height: 8px; /* Hauteur du slider */
+            -webkit-appearance: none; /* Supprime le style par défaut du navigateur */
+            background: #e0e0e0; /* Couleur de la piste du slider */
+            border-radius: 5px; /* Coins arrondis pour la piste */
+            outline: none; /* Supprime le contour au focus */
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; /* Supprime le style par défaut du navigateur */
+            width: 20px; /* Largeur du curseur */
+            height: 20px; /* Hauteur du curseur */
+            border-radius: 50%; /* Forme ronde du curseur */
+            background: #3498db; /* Couleur du curseur */
+            cursor: pointer; /* Curseur pointeur */
+            border: 2px solid #fff; /* Bordure blanche */
+            box-shadow: 0 0 5px rgba(0,0,0,0.2); /* Ombre du curseur */
+        }
+        input[type="number"], select {
+            padding: 10px 12px; /* Remplissage intérieur */
+            border: 1px solid #c0d0e0; /* Bordure légère */
+            border-radius: 6px; /* Coins arrondis */
+            font-size: 16px; /* Taille de police */
+            color: #333; /* Couleur de texte */
+            max-width: 150px; /* Largeur maximale */
+        }
+        /* Styles pour les boutons */
+        button {
+            background-color: #3498db; /* Couleur de fond bleue */
+            color: white; /* Texte blanc */
+            padding: 12px 25px; /* Remplissage */
+            border: none; /* Pas de bordure */
+            border-radius: 6px; /* Coins arrondis */
+            cursor: pointer; /* Curseur pointeur */
+            font-size: 16px; /* Taille de police */
+            margin: 5px; /* Marge autour des boutons */
+            transition: background-color 0.3s ease, transform 0.1s ease; /* Transition douce */
+        }
+        button:hover {
+            background-color: #2980b9; /* Couleur au survol */
+            transform: translateY(-2px); /* Léger déplacement au survol */
+        }
+        button:disabled {
+            background-color: #cccccc; /* Couleur si désactivé */
+            cursor: not-allowed; /* Curseur interdit */
+            transform: none; /* Pas de transformation */
+        }
+        #arreterButton {
+            background-color: #e74c3c; /* Rouge pour le bouton Arrêter */
+        }
+        #arreterButton:hover {
+            background-color: #c0392b;
+        }
+        #capturerButton {
+            background-color: #27ae60; /* Vert pour Capturer */
+        }
+        #capturerButton:hover {
+            background-color: #229954;
+        }
+        #exporterButton {
+            background-color: #f39c12; /* Orange pour Exporter */
+        }
+        #exporterButton:hover {
+            background-color: #e67e22;
+        }
+        /* Panneau de contrôle des boutons */
+        .control-panel {
+            display: flex; /* Flexbox pour les boutons */
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne */
+            gap: 15px; /* Espacement entre les boutons */
+            align-items: center; /* Alignement vertical */
+            justify-content: center; /* Centrage horizontal */
+            margin-top: 20px; /* Marge supérieure */
+            padding-top: 15px; /* Remplissage supérieur */
+            border-top: 1px solid #eee; /* Ligne de séparation */
+        }
+        /* Section de visualisation (thermomètre, chronomètre, bécher) */
+        .visualization {
+            display: grid; /* Utilisation de la grille CSS */
+            grid-template-columns: 1fr 1fr 1fr; /* 3 colonnes de taille égale */
+            grid-template-rows: auto auto; /* 2 rangées, hauteur automatique */
+            gap: 20px; /* Espacement entre les éléments de la grille */
+            align-items: center; /* Alignement vertical au centre des cellules */
+            justify-items: center; /* Centrage horizontal des éléments dans les cellules */
+            margin-top: 30px; /* Marge supérieure */
+            padding: 20px; /* Remplissage */
+            background-color: #ecf0f1; /* Fond léger */
+            border-radius: 10px; /* Coins arrondis */
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.05); /* Ombre interne */
+        }
+        /* Positionnement des éléments dans la grille */
+        #beakerCanvas {
+            grid-column: 1 / 2; /* 1ère colonne */
+            grid-row: 1 / 3; /* Sur 2 rangées */
+            border: 1px solid #ccc;
+            background-color: #fdfdfd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #chronometerCanvas {
+            grid-column: 2 / 3; /* 2e colonne */
+            grid-row: 1 / 2; /* 1ère rangée */
+            border: 1px solid #ccc;
+            background-color: #fdfdfd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .thermometer {
+            grid-column: 2 / 3; /* 2e colonne */
+            grid-row: 2 / 3; /* 2e rangée */
+            position: relative;
+            width: 50px;
+            height: 250px;
+            border: 3px solid #666;
+            border-radius: 25px;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+        }
+        .mercury {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background-color: #e74c3c;
+            border-radius: 0; /* 25px 25px 0 0; */
+            transition: height 0.5s ease-out;
+        }
+        .chronometer-display {
+            grid-column: 3 / 4; /* 3e colonne */
+            grid-row: 1 / 2; /* 1ère rangée */
+            font-size: 24px; /* Ajusté pour la place */
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
+        .temperature-display {
+            grid-column: 3 / 4; /* 3e colonne */
+            grid-row: 2 / 3; /* 2e rangée */
+            font-size: 24px; /* Ajusté pour la place */
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
+        /* Styles pour les labels 0 et 100 du thermomètre */
+        .thermometer-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: #555;
+            left: -25px; /* Positionnement à gauche du thermomètre */
+            text-align: right;
+            width: 20px;
+        }
+        .thermometer-label.top {
+            top: 5px;
+        }
+        .thermometer-label.bottom {
+            bottom: 5px;
+        }
+        /* Tableau de données */
+        .data-table {
+            margin-top: 30px; /* Marge supérieure */
+            overflow-x: auto; /* Permet le défilement horizontal si le tableau est trop large */
+        }
+        .data-table h2 {
+            text-align: center; /* Centrage du titre */
+            color: #2c3e50; /* Couleur foncée */
+            margin-bottom: 15px; /* Marge inférieure */
+        }
+        table {
+            width: 100%; /* Largeur complète */
+            border-collapse: collapse; /* Fusionne les bordures des cellules */
+        }
+        th, td {
+            border: 1px solid #ddd; /* Bordure des cellules */
+            padding: 10px; /* Remplissage des cellules */
+            text-align: center; /* Centrage du texte */
+            font-size: 14px; /* Taille de police */
+        }
+        th {
+            background-color: #e0e0e0; /* Fond des en-têtes */
+            color: #4a6572; /* Couleur du texte des en-têtes */
+            font-weight: bold; /* Gras */
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9; /* Couleur de fond alternée pour les lignes */
+        }
+        /* Nouveaux styles pour les boutons Capturer/Exporter */
+        .data-buttons-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulateur Température vs Temps de Chauffage</h1>
+        
+        <!-- Groupe de sélection de la substance -->
+        <div class="input-group">
+            <label for="substance">Substance :</label>
+            <select id="substance">
+                <option value="water">Eau Pure</option>
+                <option value="saltwater">Eau Salée Saturée</option>
+                <option value="oil">Huile Végétale</option>
+                <option value="alcohol">Alcool</option>
+            </select>
+        </div>
+
+        <!-- Groupe de contrôle du volume -->
+        <div class="input-group">
+            <label for="volume">Volume :</label>
+            <input type="range" id="volume" min="50" max="200" value="100">
+            <span id="volumeValue">100 mL</span>
+        </div>
+        
+        <!-- Groupe de contrôle de la puissance de chauffage -->
+        <div class="input-group">
+            <label for="power">Puissance de chauffage :</label>
+            <input type="range" id="power" min="1" max="100" value="50">
+            <span id="powerValue">50%</span>
+        </div>
+
+        <!-- Groupe de contrôle de la pression atmosphérique -->
+        <div class="input-group">
+            <label for="pressure">Pression atmosphérique :</label>
+            <input type="range" id="pressure" min="950" max="1030" value="1013">
+            <span id="pressureValue">1013 hPa</span>
+        </div>
+        
+        <!-- Panneau de contrôle des actions -->
+        <div class="control-panel">
+            <button id="demarrerButton" onclick="demarrerExperience()">Démarrer</button>
+            <button id="arreterButton" onclick="arreterExperience()" disabled>Arrêter</button>
+        </div>
+        
+        <!-- Section de visualisation : bécher, chronomètre, thermomètre -->
+        <div class="visualization">
+            <!-- Canvas pour l'animation du bécher -->
+            <canvas id="beakerCanvas" width="180" height="280"></canvas>
+
+            <!-- Canvas pour le chronomètre graphique -->
+            <canvas id="chronometerCanvas" width="150" height="100"></canvas>
+
+            <!-- Thermomètre analogique -->
+            <div class="thermometer">
+                <div class="mercury" id="mercure" style="height: 0%"></div>
+                <span class="thermometer-label top">100</span>
+                <span class="thermometer-label bottom">0</span>
+            </div>
+
+            <!-- Chronomètre numérique -->
+            <div class="chronometer-display" id="chronometre">Temps : <br><span id="chronometreValue">00:00:00</span></div>
+            
+            <!-- Affichage de la température numérique -->
+            <div class="temperature-display">Température : <br><span id="temperatureValue">0.0</span> °C</div>
+        </div>
+
+        <!-- Nouveaux boutons de capture/exportation sous la visualisation -->
+        <div class="data-buttons-panel">
+            <button id="capturerButton" onclick="capturerDonnees()" disabled>Capturer les données</button>
+            <button id="exporterButton" onclick="exporterCSV()" disabled>Exporter CSV</button>
+        </div>
+        
+        <!-- Tableau des données capturées -->
+        <div class="data-table">
+            <h2>Données Capturées</h2>
+            <table id="tableauDonnees">
+                <thead>
+                    <tr>
+                        <th>Substance</th>
+                        <th>Pression (hPa)</th>
+                        <th>Volume (mL)</th>
+                        <th>Puissance (%)</th>
+                        <th>Temps (s)</th>
+                        <th>Température (°C)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Propriétés des substances (capacités thermiques massiques, points d'ébullition et densités)
+        const substances = {
+            water: { 
+                specificHeat: 4.18, // Capacité thermique massique en J/(g·°C)
+                boilingPoint: 100,  // Point d'ébullition standard à 1 atm (1013 hPa)
+                density: 1.0,       // Densité en g/mL
+                initialTemp: 20,    // Température initiale
+                name: "Eau Pure"
+            },
+            saltwater: { 
+                specificHeat: 3.95, 
+                boilingPoint: 105,  // Point d'ébullition légèrement plus élevé à cause du sel
+                density: 1.03,      // Densité légèrement plus élevée
+                initialTemp: 20,
+                name: "Eau Salée Saturée"
+            },
+            oil: { 
+                specificHeat: 1.5, 
+                boilingPoint: 300,  // Approximatif pour l'huile végétale
+                density: 0.92,      // Densité approximative
+                initialTemp: 20,
+                name: "Huile Végétale"
+            },
+            alcohol: { 
+                specificHeat: 2.4, 
+                boilingPoint: 78,   // Pour l'éthanol
+                density: 0.79,      // Densité de l'éthanol
+                initialTemp: 21,    // Température initiale à 21°C comme demandé
+                name: "Alcool"
+            }
+        };
+
+        // Chaleurs latentes de vaporisation approximatives en J/g
+        const latentHeatVaporization = {
+            water: 2260, 
+            saltwater: 2260, // Simplifié, légèrement plus élevé en réalité
+            oil: 200, // Très approximatif, varie beaucoup selon le type d'huile
+            alcohol: 840 // Pour l'éthanol
+        };
+
+
+        let experienceEnCours = false;
+        let tempsDebut = 0;
+        let tempsEcoule = 0;
+        let intervalleChrono = null;
+        let intervalleTemp = null;
+        let donneesActuelles = [];
+        let temperatureActuelle = 0;
+        let pointEbullitionActuel = 0; // Point d'ébullition ajusté par la pression
+
+        // Variables pour le canvas du bécher
+        const beakerCanvas = document.getElementById('beakerCanvas');
+        const beakerCtx = beakerCanvas.getContext('2d');
+
+        // Variables pour le canvas du chronomètre graphique
+        const chronometerCanvas = document.getElementById('chronometerCanvas');
+        const chronometerCtx = chronometerCanvas.getContext('2d');
+
+        // --- Fonctions de mise à jour de l'affichage des paramètres ---
+        document.getElementById('power').addEventListener('input', function() {
+            document.getElementById('powerValue').textContent = this.value + '%';
+        });
+
+        document.getElementById('volume').addEventListener('input', function() {
+            document.getElementById('volumeValue').textContent = this.value + ' mL';
+        });
+
+        document.getElementById('pressure').addEventListener('input', function() {
+            document.getElementById('pressureValue').textContent = this.value + ' hPa';
+        });
+
+        // --- Fonctions principales de l'expérience ---
+
+        /**
+         * Démarre l'expérience de chauffage.
+         */
+        function demarrerExperience() {
+            if (experienceEnCours) return; 
+            
+            experienceEnCours = true;
+            tempsEcoule = 0; // Réinitialise le temps écoulé au démarrage
+            tempsDebut = Date.now(); // Définit le nouveau temps de début
+            
+            // Récupère la substance sélectionnée
+            const substanceKey = document.getElementById('substance').value;
+            const substance = substances[substanceKey];
+            
+            // Récupère les paramètres actuels
+            const pressionAtmospherique = parseInt(document.getElementById('pressure').value);
+            
+            // Initialise la température et calcule le point d'ébullition ajusté
+            temperatureActuelle = substance.initialTemp;
+            pointEbullitionActuel = calculerPointEbullition(substanceKey, pressionAtmospherique);
+            
+            // Met à jour l'interface utilisateur (boutons)
+            document.getElementById('demarrerButton').disabled = true;
+            document.getElementById('arreterButton').disabled = false;
+            document.getElementById('capturerButton').disabled = false;
+            document.getElementById('exporterButton').disabled = false;
+            
+            // Démarre les intervalles pour le chronomètre et la température
+            intervalleChrono = setInterval(mettreAJourChronomètre, 100); 
+            intervalleTemp = setInterval(mettreAJourTemperature, 100); 
+        }
+
+        /**
+         * Arrête l'expérience de chauffage.
+         */
+        function arreterExperience() {
+            experienceEnCours = false;
+            clearInterval(intervalleChrono); 
+            clearInterval(intervalleTemp);   
+            
+            // Met à jour l'interface utilisateur (boutons)
+            document.getElementById('demarrerButton').disabled = false;
+            document.getElementById('arreterButton').disabled = true;
+
+            // Assure que le bécher est dessiné une dernière fois avec l'état final
+            const substanceKey = document.getElementById('substance').value;
+            const substance = substances[substanceKey];
+            const volumeMl = parseInt(document.getElementById('volume').value);
+            const pressionAtmospherique = parseInt(document.getElementById('pressure').value);
+            dessinerBecher(volumeMl, temperatureActuelle, substance.initialTemp, calculerPointEbullition(substanceKey, pressionAtmospherique));
+        }
+
+        /**
+         * Met à jour l'affichage du chronomètre numérique et graphique.
+         */
+        function mettreAJourChronomètre() {
+            tempsEcoule = Date.now() - tempsDebut; 
+            const secondesTotales = Math.floor(tempsEcoule / 1000);
+            const minutes = Math.floor(secondesTotales / 60);
+            const secondes = secondesTotales % 60;
+            const heures = Math.floor(minutes / 60);
+            
+            // Formate le temps pour l'affichage numérique (HH:MM:SS)
+            const tempsFormate = 
+                String(heures).padStart(2, '0') + ':' +
+                String(minutes % 60).padStart(2, '0') + ':' +
+                String(secondes).padStart(2, '0');
+            
+            document.getElementById('chronometreValue').textContent = tempsFormate; // Cible le span pour la valeur
+
+            // Dessine le chronomètre graphique
+            dessinerChronomètreGraphique(minutes % 60, secondes);
+        }
+
+        /**
+         * Calcule le point d'ébullition ajusté en fonction de la pression atmosphérique.
+         * Simplification : pour l'eau, une approximation linéaire est utilisée.
+         * Pour les autres substances, le point d'ébullition standard est conservé.
+         * @param {string} substanceKey - Clé de la substance (e.g., 'water').
+         * @param {number} pressure_hPa - Pression atmosphérique en hectopascals (hPa).
+         * @returns {number} Le point d'ébullition ajusté en °C.
+         */
+        function calculerPointEbullition(substanceKey, pressure_hPa) {
+            const substance = substances[substanceKey];
+            let bp = substance.boilingPoint;
+
+            // Ajustement du point d'ébullition de l'eau en fonction de la pression
+            // Formule simplifiée pour l'eau : environ +0.037 °C par hPa au-dessus de 1013 hPa
+            // et -0.037 °C par hPa en dessous de 1013 hPa.
+            // Cette approximation est valable pour de petites variations autour de la pression standard.
+            if (substanceKey === 'water') {
+                const delta_pressure = pressure_hPa - 1013; // Différence par rapport à la pression standard
+                bp = substance.boilingPoint + (delta_pressure * 0.037);
+            }
+            // Pour l'eau salée, l'huile et l'alcool, on garde le point d'ébullition standard pour cette simulation simple.
+            // Des modèles plus complexes seraient nécessaires pour ajuster leur BP à la pression.
+            return bp;
+        }
+
+        /**
+         * Met à jour la température du liquide et l'affichage du thermomètre.
+         */
+        function mettreAJourTemperature() {
+            // Récupère les valeurs actuelles des paramètres
+            const substanceKey = document.getElementById('substance').value;
+            const substance = substances[substanceKey];
+            const puissanceNiveau = parseInt(document.getElementById('power').value) / 100; 
+            let volumeMl = parseInt(document.getElementById('volume').value); // Utilise let car le volume peut changer
+            const pressionAtmospherique = parseInt(document.getElementById('pressure').value);
+
+            // Recalcule le point d'ébullition à chaque étape si la pression change
+            pointEbullitionActuel = calculerPointEbullition(substanceKey, pressionAtmospherique);
+            
+            // Calcul de la masse en kg (volume en mL * densité en g/mL / 1000 g/kg)
+            const masseKg = (volumeMl * substance.density) / 1000;
+            
+            const pasDeTemps = 0.1; 
+            const puissanceWatts = 1000 * puissanceNiveau; 
+            
+            // Logique de chauffage et d'ébullition
+            if (temperatureActuelle < (pointEbullitionActuel - 5)) {
+                // Phase de chauffage : la température augmente
+                const tempAugmentation = puissanceWatts * pasDeTemps / (masseKg * substance.specificHeat * 1000); 
+                temperatureActuelle += tempAugmentation;
+                /**  // S'assure que la température ne dépasse pas le point d'ébullition si elle est atteinte dans ce pas de temps
+                if (temperatureActuelle >= pointEbullitionActuel) {
+                    temperatureActuelle = (pointEbullitionActuel - 5);
+                } */
+            } else {
+                // Phase d'ébullition : la température reste constante, le volume diminue
+                temperatureActuelle = pointEbullitionActuel; // Maintient la température au point d'ébullition
+
+                // Énergie fournie pendant ce pas de temps
+                const energyInputThisStep = puissanceWatts * pasDeTemps; // Joules
+
+                // Chaleur latente de vaporisation pour la substance actuelle
+                const L = latentHeatVaporization[substanceKey]; // J/g
+
+                // Calcul de la masse évaporée (grammes)
+                const massEvaporated = energyInputThisStep / L; 
+
+                // Calcul de la diminution du volume (mL)
+                const volumeDecrease = massEvaporated / substance.density; 
+                
+                volumeMl -= volumeDecrease; // Diminue le volume
+
+                // Met à jour le slider et l'affichage du volume
+                document.getElementById('volume').value = Math.max(0, volumeMl).toFixed(0); // S'assure que le volume ne devient pas négatif
+                document.getElementById('volumeValue').textContent = Math.max(0, volumeMl).toFixed(0) + ' mL';
+
+
+                // Vérifier la condition d'arrêt : niveau du liquide en dessous du bulbe de la sonde
+                // Recalculer les positions pour la vérification d'arrêt
+                const beakerBottomY = beakerCanvas.height - 40; // plateHeight
+                const beakerHeight = beakerCanvas.height - 40 - 20; // beakerCanvas.height - plateHeight - 20
+                const liquidMaxHeight = beakerHeight - 10; 
+                const currentLiquidHeight = liquidMaxHeight * (volumeMl / 200); // Utilise le volume actuel
+                const liquidTopY = beakerBottomY - currentLiquidHeight;
+
+                const beakerTopY = beakerBottomY - beakerHeight; 
+                const probeTipY = beakerTopY + beakerHeight - (liquidMaxHeight * 2 / 3); // Position fixe du bulbe par rapport au fond du bécher (ajusté pour être aux 2/3 du liquide max)
+                // Correction: probeTipY devrait être calculé par rapport au haut du bécher pour être fixe
+                // La sonde est dessinée de probeTopY à probeTipY. Le bulbe est à probeTipY.
+                // Si la sonde est fixe, sa pointe est à une hauteur fixe par rapport au fond du bécher.
+                // Simplifions: position du bulbe par rapport au fond du canvas
+                const fixedProbeBulbY = beakerBottomY - (beakerHeight * 0.2); // Par exemple, 20% de la hauteur du bécher depuis le bas
+
+                if (volumeMl <= 0 || liquidTopY >= fixedProbeBulbY) { // Si le volume est nul OU le haut du liquide est en dessous du bulbe
+                    arreterExperience(); 
+                    document.getElementById('volume').value = 0;
+                    document.getElementById('volumeValue').textContent = '0 mL';
+                }
+            }
+            
+            // Met à jour l'affichage du thermomètre
+            // La hauteur du mercure est proportionnelle à la température par rapport à la plage 0-100 visuelle
+            const hauteurMercure = Math.min(100, (temperatureActuelle - 0) / (100 - 0) * 100); 
+            document.getElementById('mercure').style.height = hauteurMercure + '%';
+            //document.getElementById('temperatureValue').textContent = temperatureActuelle.toFixed(1); // Cible le span pour la valeur
+			document.getElementById('temperatureValue').textContent = Math.round(temperatureActuelle);
+
+            // Dessine le bécher
+            dessinerBecher(volumeMl, temperatureActuelle, substance.initialTemp, pointEbullitionActuel);
+        }
+
+        /**
+         * Capture les données actuelles (temps, température, substance, puissance, volume, pression)
+         * et les ajoute au tableau.
+         */
+        function capturerDonnees() {
+            // Vérifie si l'expérience est en cours pour éviter de capturer des données statiques
+            if (!experienceEnCours && tempsEcoule === 0) return; 
+            
+            const substanceKey = document.getElementById('substance').value;
+            const substance = substances[substanceKey];
+            const puissanceNiveau = document.getElementById('power').value;
+            const volumeMl = parseInt(document.getElementById('volume').value); // Récupère la valeur actuelle du slider
+            const pressionAtmospherique = document.getElementById('pressure').value;
+            const tempsSecondes = tempsEcoule / 1000;
+            
+            // Ajoute les données à l'array
+            donneesActuelles.push({
+                time: tempsSecondes.toFixed(1),
+                temperature: temperatureActuelle.toFixed(1),
+                substance: substance.name,
+                power: puissanceNiveau,
+                volume: volumeMl,
+                pressure: pressionAtmospherique
+            });
+            
+            // Met à jour le tableau HTML
+            mettreAJourTableauDonnees();
+        }
+
+        /**
+         * Met à jour le tableau HTML avec les données capturées.
+         */
+        function mettreAJourTableauDonnees() {
+            const tbody = document.querySelector('#tableauDonnees tbody');
+            tbody.innerHTML = ''; 
+            
+            donneesActuelles.forEach(pointDeDonnee => {
+                const ligne = document.createElement('tr');
+                ligne.innerHTML = `
+                    <td>${pointDeDonnee.substance}</td>
+                    <td>${pointDeDonnee.pressure}</td>
+                    <td>${pointDeDonnee.volume}</td>
+                    <td>${pointDeDonnee.power}</td>
+                    <td>${pointDeDonnee.time}</td>
+                    <td>${pointDeDonnee.temperature}</td>
+                `;
+                tbody.appendChild(ligne);
+            });
+        }
+
+        /**
+         * Exporte les données capturées vers un fichier CSV.
+         */
+        function exporterCSV() {
+            if (donneesActuelles.length === 0) {
+                alert('Aucune donnée à exporter !');
+                return;
+            }
+            
+            // Crée le contenu CSV avec les en-têtes
+            let contenuCSV = 'Substance,Pression (hPa),Volume (mL),Puissance (%),Temps (s),Température (°C)\n';
+            donneesActuelles.forEach(pointDeDonnee => {
+                contenuCSV += `${pointDeDonnee.substance},${pointDeDonnee.pressure},${pointDeDonnee.volume},${pointDeDonnee.power},${pointDeDonnee.time},${pointDeDonnee.temperature}\n`;
+            });
+            
+            // Crée un lien de téléchargement
+            const blob = new Blob([contenuCSV], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'donnees_temperature.csv'); 
+            document.body.appendChild(a);
+            a.click(); 
+            document.body.removeChild(a); 
+        }
+
+        /**
+         * Dessine l'animation du bécher et de la plaque chauffante.
+         * @param {number} volumeMl - Volume actuel du liquide en mL.
+         * @param {number} currentTemp - Température actuelle du liquide en °C.
+         * @param {number} initialTemp - Température initiale de la substance.
+         * @param {number} boilingPoint - Point d'ébullition actuel de la substance.
+         */
+        function dessinerBecher(volumeMl, currentTemp, initialTemp, boilingPoint) {
+            beakerCtx.clearRect(0, 0, beakerCanvas.width, beakerCanvas.height); // Efface le canvas
+
+            // Dimensions de la plaque chauffante
+            const plateHeight = 40; // Hauteur augmentée de la plaque
+            const plateY = beakerCanvas.height - plateHeight;
+            const plateWidth = beakerCanvas.width - 20; // Plus large
+            const plateX = 10;
+
+            // Dessiner la plaque chauffante
+            beakerCtx.fillStyle = '#666'; // Gris foncé
+            beakerCtx.fillRect(plateX, plateY, plateWidth, plateHeight);
+            beakerCtx.fillStyle = '#444'; // Plus foncé pour le dessus
+            beakerCtx.fillRect(plateX + 5, plateY, plateWidth - 10, 10); // Dessus plus fin
+
+            // Effet de chaleur (lignes ondulées)
+            if (experienceEnCours && currentTemp < boilingPoint) {
+                beakerCtx.strokeStyle = 'orange';
+                beakerCtx.lineWidth = 2;
+                beakerCtx.beginPath();
+                beakerCtx.moveTo(beakerCanvas.width / 2 - 15, plateY - 5);
+                beakerCtx.bezierCurveTo(beakerCanvas.width / 2 - 10, plateY - 15,
+                                  beakerCanvas.width / 2 + 10, plateY - 15,
+                                  beakerCanvas.width / 2 + 15, plateY - 5);
+                beakerCtx.stroke();
+            }
+
+            // Dimensions du bécher
+            const beakerBottomY = plateY;
+            const beakerBottomWidth = beakerCanvas.width * 0.6;
+            const beakerTopWidth = beakerCanvas.width * 0.7;
+            const beakerHeight = beakerCanvas.height - plateHeight - 20; // Hauteur du bécher
+            const beakerBottomX = (beakerCanvas.width - beakerBottomWidth) / 2;
+            const beakerTopX = (beakerCanvas.width - beakerTopWidth) / 2;
+            const beakerTopY = beakerBottomY - beakerHeight; // Définition de beakerTopY ici
+
+            // Dessiner le liquide dans le bécher
+            const liquidMaxHeight = beakerHeight - 10; // Hauteur max du liquide dans le bécher (pour 200mL)
+            const liquidLevelRatio = volumeMl / 200; // Ratio du volume actuel par rapport au volume max (200mL)
+            const currentLiquidHeight = liquidMaxHeight * liquidLevelRatio;
+            
+            // Calculer la largeur du liquide en fonction de sa hauteur pour qu'il suive la forme du bécher
+            const liquidBottomY = beakerBottomY;
+            const liquidTopY = beakerBottomY - currentLiquidHeight;
+            
+            // Interpolation linéaire pour la largeur du liquide
+            const currentLiquidWidth = beakerBottomWidth + (beakerTopWidth - beakerBottomWidth) * (1 - (liquidBottomY - liquidTopY) / beakerHeight);
+            const currentLiquidX = (beakerCanvas.width - currentLiquidWidth) / 2;
+
+            beakerCtx.fillStyle = '#add8e6'; // Bleu clair pour le liquide
+            beakerCtx.fillRect(currentLiquidX, liquidTopY, currentLiquidWidth, currentLiquidHeight);
+
+            // Effet de bulles si proche de l'ébullition ou en ébullition
+            if (experienceEnCours && currentTemp >= boilingPoint - 5) { // Commence à buller 5°C avant l'ébullition
+                beakerCtx.fillStyle = 'rgba(255, 255, 255, 0.7)'; // Bulles blanches translucides
+                for (let i = 0; i < 5; i++) {
+                    const bubbleX = currentLiquidX + Math.random() * currentLiquidWidth;
+                    const bubbleY = liquidTopY + Math.random() * (beakerBottomY - liquidTopY); // Bulles dans toute la hauteur du liquide
+                    beakerCtx.beginPath();
+                    beakerCtx.arc(bubbleX, bubbleY, Math.random() * 3 + 1, 0, Math.PI * 2);
+                    beakerCtx.fill();
+                }
+            }
+
+            // Dessiner le contour du bécher en avant-plan
+            beakerCtx.strokeStyle = '#333'; // Bordure du bécher
+            beakerCtx.lineWidth = 2;
+            beakerCtx.beginPath();
+            beakerCtx.moveTo(beakerBottomX, beakerBottomY); // Bas gauche
+            beakerCtx.lineTo(beakerTopX, beakerTopY); // Haut gauche
+            beakerCtx.lineTo(beakerTopX + beakerTopWidth, beakerTopY); // Haut droite
+            beakerCtx.lineTo(beakerBottomX + beakerBottomWidth, beakerBottomY); // Bas droite
+            beakerCtx.closePath();
+            beakerCtx.stroke();
+
+            // Dessiner la sonde du thermomètre dans le bécher
+            const probeX = beakerCanvas.width / 2 + 15; // Position X de la sonde
+            const probeTopY = beakerTopY - 20; // Haut de la sonde, au-dessus du bécher
+            // La pointe de la sonde est fixe par rapport au bécher, pas au niveau du liquide
+            const probeTipYFixed = beakerBottomY - (beakerHeight * 0.3); // Par exemple, 30% de la hauteur du bécher depuis le bas
+
+            beakerCtx.strokeStyle = '#e74c3c'; // Couleur rouge pour la sonde
+            beakerCtx.lineWidth = 4; // Épaisseur de la ligne de la sonde (augmentée à 4px)
+            beakerCtx.beginPath();
+            beakerCtx.moveTo(probeX, probeTopY);
+            beakerCtx.lineTo(probeX, probeTipYFixed);
+            beakerCtx.stroke();
+            beakerCtx.beginPath(); // Dessiner la pointe de la sonde (bulbe)
+            beakerCtx.arc(probeX, probeTipYFixed, 3, 0, Math.PI * 2);
+            beakerCtx.fillStyle = '#e74c3c'; // Couleur rouge pour le bulbe
+            beakerCtx.fill();
+        }
+
+        /**
+         * Dessine le chronomètre graphique avec les minutes et secondes.
+         * @param {number} minutes - Les minutes à afficher (0-59).
+         * @param {number} secondes - Les secondes à afficher (0-59).
+         */
+        function dessinerChronomètreGraphique(minutes, secondes) {
+            chronometerCtx.clearRect(0, 0, chronometerCanvas.width, chronometerCanvas.height); // Efface le canvas
+
+            const centerX = chronometerCanvas.width / 2;
+            const centerY = chronometerCanvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 10; // Rayon du cadran
+
+            // Dessiner le cadran du chronomètre
+            chronometerCtx.beginPath();
+            chronometerCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            chronometerCtx.strokeStyle = '#333';
+            chronometerCtx.lineWidth = 2;
+            chronometerCtx.stroke();
+            chronometerCtx.fillStyle = '#f0f0f0';
+            chronometerCtx.fill();
+
+            // Dessiner les graduations des minutes (toutes les 5 secondes)
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+                const x1 = centerX + radius * Math.cos(angle);
+                const y1 = centerY + radius * Math.sin(angle);
+                const x2 = centerX + (radius - 5) * Math.cos(angle);
+                const y2 = centerY + (radius - 5) * Math.sin(angle);
+                chronometerCtx.beginPath();
+                chronometerCtx.moveTo(x1, y1);
+                chronometerCtx.lineTo(x2, y2);
+                chronometerCtx.strokeStyle = '#666';
+                chronometerCtx.lineWidth = 1;
+                chronometerCtx.stroke();
+            }
+
+            // Dessiner l'aiguille des minutes
+            const minutesAngle = (minutes / 60) * Math.PI * 2 - Math.PI / 2;
+            chronometerCtx.beginPath();
+            chronometerCtx.moveTo(centerX, centerY);
+            chronometerCtx.lineTo(centerX + (radius * 0.6) * Math.cos(minutesAngle),
+                                 centerY + (radius * 0.6) * Math.sin(minutesAngle));
+            chronometerCtx.strokeStyle = '#0000ff'; // Bleu
+            chronometerCtx.lineWidth = 3;
+            chronometerCtx.stroke();
+
+            // Dessiner l'aiguille des secondes
+            const secondesAngle = (secondes / 60) * Math.PI * 2 - Math.PI / 2;
+            chronometerCtx.beginPath();
+            chronometerCtx.moveTo(centerX, centerY);
+            chronometerCtx.lineTo(centerX + (radius * 0.8) * Math.cos(secondesAngle),
+                                 centerY + (radius * 0.8) * Math.sin(secondesAngle));
+            chronometerCtx.strokeStyle = '#ff0000'; // Rouge
+            chronometerCtx.lineWidth = 2;
+            chronometerCtx.stroke();
+
+            // Dessiner le centre
+            chronometerCtx.beginPath();
+            chronometerCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+            chronometerCtx.fillStyle = '#333';
+            chronometerCtx.fill();
+
+            // Afficher le temps numérique au centre du chronomètre graphique
+            chronometerCtx.fillStyle = '#2c3e50';
+            chronometerCtx.font = '14px Arial';
+            chronometerCtx.textAlign = 'center';
+            chronometerCtx.textBaseline = 'middle';
+            const formattedMin = String(minutes).padStart(2, '0');
+            const formattedSec = String(secondes).padStart(2, '0');
+            chronometerCtx.fillText(`${formattedMin}:${formattedSec}`, centerX, centerY + radius + 15);
+        }
+
+
+        // --- Initialisation au chargement de la page ---
+        window.onload = function() {
+            // Met à jour les valeurs initiales affichées
+            document.getElementById('powerValue').textContent = document.getElementById('power').value + '%';
+            document.getElementById('volumeValue').textContent = document.getElementById('volume').value + ' mL';
+            document.getElementById('pressureValue').textContent = document.getElementById('pressure').value + ' hPa';
+            
+            // Initialise la température et l'affichage
+            const substanceKey = document.getElementById('substance').value;
+            const substance = substances[substanceKey];
+            temperatureActuelle = substance.initialTemp;
+            document.getElementById('temperatureValue').textContent = Math.round(temperatureActuelle); // Cible le span pour la valeur
+
+            // Dessine le bécher initial
+            dessinerBecher(
+                parseInt(document.getElementById('volume').value),
+                temperatureActuelle,
+                substance.initialTemp,
+                substance.boilingPoint // Utilise le BP standard pour le dessin initial, sera ajusté au démarrage
+            );
+
+            // Dessine le chronomètre graphique initial
+            dessinerChronomètreGraphique(0, 0);
+
+            // Ajuste la température initiale de l'alcool si sélectionné
+            document.getElementById('substance').addEventListener('change', function() {
+                const selectedSubstanceKey = this.value;
+                const selectedSubstance = substances[selectedSubstanceKey];
+                temperatureActuelle = selectedSubstance.initialTemp;
+                document.getElementById('temperatureValue').textContent = Math.round(temperatureActuelle); // Cible le span pour la valeur
+                
+                // Réinitialiser la hauteur du mercure et redessiner le bécher
+                // La hauteur du mercure est proportionnelle à la température par rapport à la plage 0-100 visuelle
+                const hauteurMercure = Math.min(100, (temperatureActuelle - 0) / (100 - 0) * 100); 
+                document.getElementById('mercure').style.height = hauteurMercure + '%';
+                
+                dessinerBecher(
+                    parseInt(document.getElementById('volume').value),
+                    temperatureActuelle,
+                    selectedSubstance.initialTemp,
+                    selectedSubstance.boilingPoint
+                );
+            });
+        };
+    </script>
+</body>
+</html>
