@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire Virtuel : Magnétisme</title>
+    <style>
+        :root {
+            --bg-light: #f8f9fa;
+            --container-bg: #ffffff;
+            --border-color: #dee2e6;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --accent-blue: #007bff;
+            --accent-red: #dc3545;
+            --pole-north: #d9534f;
+            --pole-south: #428bca;
+            --test-object-bg: #777;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        .app-section {
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        #simulation-section {
+            grid-column: 1 / span 7;
+            display: flex;
+            flex-direction: column;
+            min-height: 550px;
+        }
+        
+        #controls-section {
+            grid-column: 8 / -1;
+        }
+
+        h1, h2, h3 {
+            color: var(--text-primary);
+            margin-top: 0;
+        }
+
+        /* --- Zone de Simulation --- */
+        #simulation-area {
+            flex-grow: 1;
+            background: #e9ecef;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #suspended-magnet-pivot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #343a40;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        #suspended-magnet {
+            width: 30px;
+            height: 180px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Centre l'aimant sur le pivot */
+            transform-origin: center center; /* Le point de rotation est maintenant le centre */
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        .pole {
+            height: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            color: white;
+            font-weight: bold;
+        }
+        #pole-n { background-color: var(--pole-north); border-radius: 5px 5px 0 0; }
+        #pole-s { background-color: var(--pole-south); border-radius: 0 0 5px 5px; }
+
+        #suspended-magnet.attract-n { transform: translate(-50%, -50%) rotate(-30deg); }
+        #suspended-magnet.repel-n { transform: translate(-50%, -50%) rotate(150deg); }
+        #suspended-magnet.attract-s { transform: translate(-50%, -50%) rotate(30deg); }
+        #suspended-magnet.repel-s { transform: translate(-50%, -50%) rotate(-150deg); }
+
+        /* Objet de test */
+        #test-object {
+            width: 150px;
+            height: 40px;
+            background-color: var(--test-object-bg);
+            position: absolute;
+            left: -200px; /* Hors de l'écran */
+            top: 50%; /* Position par défaut */
+            transform: translateY(-50%);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            color: white;
+            font-weight: bold;
+            transition: left 0.8s ease-in-out, top 0.5s ease-in-out;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        #test-object.active {
+            left: 30px;
+        }
+
+        /* --- Zone de Contrôles --- */
+        .control-group {
+            background: #fdfdff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        select, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+        button {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover:not(:disabled) { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .grid-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        
+        /* Tableau d'observations */
+        .observation-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .observation-table th, .observation-table td { border: 1px solid var(--border-color); padding: 8px; text-align: center; }
+        .observation-table th { background-color: #e9ecef; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header class="header">
+            <h1>Laboratoire Virtuel : Magnétisme</h1>
+            <p>Sélectionnez un matériau, approchez ses extrémités des pôles de l'aimant et déduisez ses propriétés.</p>
+        </header>
+
+        <section id="simulation-section" class="app-section">
+            <h3>Zone d'expérimentation</h3>
+            <div id="simulation-area">
+                <div id="suspended-magnet">
+                    <div id="pole-n" class="pole">N</div>
+                    <div id="pole-s" class="pole">S</div>
+                </div>
+                <div id="suspended-magnet-pivot"></div>
+                <div id="test-object">
+                    <span id="test-object-end-a">A</span>
+                    <span id="test-object-end-b">B</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="controls-section" class="app-section">
+            <div id="step-1-selection" class="control-group">
+                <h3>Étape 1 : Sélection</h3>
+                <label for="material-select">Choisir un matériau à tester :</label>
+                <select id="material-select"></select>
+                <button id="select-material-button">Commencer l'expérience</button>
+            </div>
+
+            <div id="step-2-testing" class="control-group hidden">
+                <h3>Étape 2 : Test</h3>
+                <p>Matériau sélectionné : <strong id="current-material-name"></strong></p>
+                <div class="grid-buttons">
+                    <button id="approach-end-a">Approcher le bout A</button>
+                    <button id="approach-end-b">Approcher le bout B</button>
+                </div>
+            </div>
+            
+            <div id="step-3-interaction" class="control-group hidden">
+                <h3>Étape 3 : Interaction</h3>
+                <p>Tester <strong id="current-end-name"></strong> contre les pôles.</p>
+                <div class="grid-buttons">
+                    <button id="approach-pole-n">Pôle Nord</button>
+                    <button id="approach-pole-s">Pôle Sud</button>
+                </div>
+            </div>
+
+            <div id="step-4-observation" class="control-group hidden">
+                 <h3>Étape 4 : Observation</h3>
+                 <p>Qu'observez-vous ?</p>
+                 <div class="grid-buttons">
+                    <button id="observe-attraction">Attraction</button>
+                    <button id="observe-repulsion">Répulsion</button>
+                    <button id="observe-none">Aucune</button>
+                </div>
+            </div>
+        </section>
+        
+        <section id="results-section" class="app-section" style="grid-column: 1 / -1;">
+            <h3>Tableau des résultats</h3>
+            <table class="observation-table">
+                <thead>
+                    <tr>
+                        <th>Matériau Testé</th>
+                        <th>Bout de l'objet</th>
+                        <th>Pôle de l'aimant</th>
+                        <th>Interaction Observée</th>
+                    </tr>
+                </thead>
+                <tbody id="observations-tbody"></tbody>
+            </table>
+            <button id="reset-button" style="margin-top: 20px; background-color: #6c757d;">Réinitialiser l'expérience</button>
+        </section>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const materials = [
+        { id: 'fer', nom: 'Clou en Fer', type: 'ferromagnetic' },
+        { id: 'aimant', nom: 'Autre Aimant', type: 'magnet', endA: 'north', endB: 'south' },
+        { id: 'nickel', nom: 'Pièce de Nickel', type: 'ferromagnetic' },
+        { id: 'bois', nom: 'Bout de Bois', type: 'non-magnetic' },
+        { id: 'aluminium', nom: 'Canette d\'Aluminium', type: 'non-magnetic' },
+        { id: 'aimant_inverse', nom: 'Aimant (inversé)', type: 'magnet', endA: 'south', endB: 'north' },
+    ];
+
+    const select = document.getElementById('material-select');
+    const selectBtn = document.getElementById('select-material-button');
+    const suspendedMagnet = document.getElementById('suspended-magnet');
+    const testObject = document.getElementById('test-object');
+    const step1Div = document.getElementById('step-1-selection');
+    const step2Div = document.getElementById('step-2-testing');
+    const step3Div = document.getElementById('step-3-interaction');
+    const step4Div = document.getElementById('step-4-observation');
+    const approachA_Btn = document.getElementById('approach-end-a');
+    const approachB_Btn = document.getElementById('approach-end-b');
+    const approachN_Btn = document.getElementById('approach-pole-n');
+    const approachS_Btn = document.getElementById('approach-pole-s');
+    const observeAttractionBtn = document.getElementById('observe-attraction');
+    const observeRepulsionBtn = document.getElementById('observe-repulsion');
+    const observeNoneBtn = document.getElementById('observe-none');
+    const resetButton = document.getElementById('reset-button');
+    const currentMaterialName = document.getElementById('current-material-name');
+    const currentEndName = document.getElementById('current-end-name');
+    const observationsTbody = document.getElementById('observations-tbody');
+
+    let state = {};
+
+    function init() {
+        materials.forEach(material => {
+            select.innerHTML += `<option value="${material.id}">${material.nom}</option>`;
+        });
+        resetExperience();
+    }
+
+    function resetExperience() {
+        state = { currentMaterial: null, testingEnd: null, testingPole: null };
+        step1Div.classList.remove('hidden');
+        step2Div.classList.add('hidden');
+        step3Div.classList.add('hidden');
+        step4Div.classList.add('hidden');
+        testObject.classList.remove('active');
+        suspendedMagnet.className = '';
+        observationsTbody.innerHTML = '';
+        select.disabled = false;
+        selectBtn.disabled = false;
+        testObject.style.top = '50%';
+        testObject.style.flexDirection = 'row';
+    }
+
+    function handleSelectMaterial() {
+        state.currentMaterial = materials.find(m => m.id === select.value);
+        currentMaterialName.textContent = state.currentMaterial.nom;
+        step1Div.classList.add('hidden');
+        step2Div.classList.remove('hidden');
+    }
+
+    function handleSelectEnd(end) {
+        state.testingEnd = end;
+        currentEndName.textContent = `Bout ${end}`;
+        
+        if (end === 'B') {
+            testObject.style.flexDirection = 'row-reverse';
+        } else {
+            testObject.style.flexDirection = 'row';
+        }
+        
+        step2Div.classList.add('hidden');
+        step3Div.classList.remove('hidden');
+    }
+
+    function handleApproachPole(pole) {
+        state.testingPole = pole;
+        
+        // CORRECTION DU BUG :
+        // L'objet de test se positionne maintenant à la bonne hauteur pour
+        // s'aligner avec le pôle nord ou le pôle sud de l'aimant suspendu.
+        if (pole === 'N') {
+            // Se positionne en haut, près du pôle Nord de l'aimant.
+            testObject.style.top = '25%'; 
+        } else { // pole === 'S'
+            // Se positionne en bas, près du pôle Sud de l'aimant.
+            testObject.style.top = '75%';
+        }
+        testObject.classList.add('active'); 
+        
+        const material = state.currentMaterial;
+        const materialEndPole = (state.testingEnd === 'A') ? material.endA : material.endB;
+        let interaction = 'none';
+
+        if (material.type === 'ferromagnetic') {
+            interaction = 'attraction';
+        } else if (material.type === 'magnet') {
+            if (pole === 'N') {
+                interaction = (materialEndPole === 'south') ? 'attraction' : 'repulsion';
+            } else { // pole === 'S'
+                interaction = (materialEndPole === 'north') ? 'attraction' : 'repulsion';
+            }
+        }
+
+        playInteractionAnimation(interaction, pole);
+        
+        step3Div.classList.add('hidden');
+        step4Div.classList.remove('hidden');
+    }
+
+    function handleRecordObservation(observation) {
+        const newRow = `
+            <tr>
+                <td>${state.currentMaterial.nom}</td>
+                <td>Bout ${state.testingEnd}</td>
+                <td>Pôle ${state.testingPole}</td>
+                <td>${observation}</td>
+            </tr>
+        `;
+        observationsTbody.insertAdjacentHTML('beforeend', newRow);
+
+        suspendedMagnet.className = '';
+        step4Div.classList.add('hidden');
+        step2Div.classList.remove('hidden');
+        testObject.classList.remove('active');
+    }
+
+    function playInteractionAnimation(interaction, pole) {
+        setTimeout(() => {
+            if (interaction === 'attraction') {
+                suspendedMagnet.classList.add(pole === 'N' ? 'attract-n' : 'attract-s');
+            } else if (interaction === 'repulsion') {
+                suspendedMagnet.classList.add(pole === 'N' ? 'repel-n' : 'repel-s');
+            }
+        }, 800);
+    }
+
+    selectBtn.addEventListener('click', handleSelectMaterial);
+    approachA_Btn.addEventListener('click', () => handleSelectEnd('A'));
+    approachB_Btn.addEventListener('click', () => handleSelectEnd('B'));
+    approachN_Btn.addEventListener('click', () => handleApproachPole('N'));
+    approachS_Btn.addEventListener('click', () => handleApproachPole('S'));
+    observeAttractionBtn.addEventListener('click', () => handleRecordObservation('Attraction'));
+    observeRepulsionBtn.addEventListener('click', () => handleRecordObservation('Répulsion'));
+    observeNoneBtn.addEventListener('click', () => handleRecordObservation('Aucune'));
+    resetButton.addEventListener('click', resetExperience);
+
+    init();
+});
+</script>
+
+</body>
+</html>
