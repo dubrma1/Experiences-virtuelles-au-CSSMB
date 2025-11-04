@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartes Isobares - Jeu d'apprentissage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.26/dist/interact.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+        }
+        
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background-color: #eef5ff;
+            border: 2px solid #dbeafe;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        #main-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
+
+        .pressure-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .pressure-point:hover .pressure-label {
+            opacity: 1;
+            transform: translate(-50%, -150%);
+        }
+
+        .pressure-point.selected {
+            transform: translate(-50%, -50%) scale(2);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 0 6px #2563eb;
+            z-index: 20;
+        }
+        
+        .isobar-line {
+            stroke-width: 2.5px;
+            stroke-linecap: round;
+        }
+        
+        .pressure-label {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2px 5px;
+            border-radius: 4px;
+            pointer-events: none;
+            transform: translate(-50%, -120%);
+            opacity: 0;
+            transition: all 0.2s;
+        }
+        
+        .pressure-zone {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            cursor: move;
+            user-select: none;
+            z-index: 30;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+        
+        .high-pressure { background-color: #d9464f; }
+        .low-pressure { background-color: #3b82f6; }
+
+        .success-message { animation: fadeIn 0.5s ease-out; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="py-8 px-4">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Trace une carte isobare</h1>
+            <!-- <p class="text-gray-600">Reliez les points de même pression pour identifier les zones de haute et basse pression.</p>  -->
+        </div>
+        
+        <div class="game-container p-6">
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Colonne de gauche: Instructions et Outils -->
+                <div class="w-full md:w-1/4">
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+                        <h2 class="text-lg font-semibold text-blue-800 mb-2"><i class="fas fa-info-circle mr-2"></i>Instructions</h2>
+                        <ol class="list-decimal list-inside text-sm text-gray-700 space-y-2">
+                            <li>Survolez un point pour voir la valeur de pression (kpa) mesurée à cette station météo.</li>
+                            <li>Cliquez sur un point, puis sur un autre de <B>même valeur</B> pour tracer une ligne.</li>
+                            <li>Placez le marqueur <B>A</B> dans la zone de haute pression (anticyclone) et le marqueur <B>D</B> dans la zone de basse pression (dépression).</li>
+                            <li>Cliquez sur 'Valider' pour vérifier votre carte.</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+                        <h3 class="font-medium text-gray-700 mb-3"><i class="fas fa-map-signs mr-2"></i>Marqueurs</h2>
+                        <div class="flex justify-around items-center">
+                            <div id="highPressureMarker" class="pressure-zone high-pressure" data-type="H">A</div>
+                            <div id="lowPressureMarker" class="pressure-zone low-pressure" data-type="L">D</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto flex flex-col space-y-2">
+                        <button id="validateBtn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition flex items-center justify-center">
+                            <i class="fas fa-check-circle mr-2"></i> Valider ma réponse
+                        </button>
+                        <button id="resetBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-medium transition flex items-center justify-center">
+                            <i class="fas fa-redo mr-2"></i> Recommencer
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Colonne de droite: Carte -->
+                <div class="w-full md:w-3/4">
+                    <div class="map-container rounded-lg" id="map">
+                        <svg id="main-svg"></svg>
+                    </div>
+                     <div class="text-right text-gray-600 font-semibold mt-2 pr-2">
+                        Score: <span id="scoreDisplay">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="feedbackModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 success-message">
+                <div class="text-center">
+                    <div id="feedbackIcon" class="text-6xl mb-4"></div>
+                    <h3 id="feedbackTitle" class="text-xl font-bold mb-2"></h3>
+                    <p id="feedbackMessage" class="text-gray-600 mb-4"></p>
+                    <button id="closeFeedbackBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition">
+                        Continuer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // FIX: Define the SVG namespace constant
+            const SVG_NS = "http://www.w3.org/2000/svg";
+
+            const gameState = {
+                points: [],
+                selectedPoint: null,
+                isobars: [],
+                score: 0,
+                highPressureCenter: { x: 0, y: 0 },
+                lowPressureCenter: { x: 0, y: 0 },
+            };
+            
+            const map = document.getElementById('map');
+            const svg = document.getElementById('main-svg');
+            const validateBtn = document.getElementById('validateBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const feedbackModal = document.getElementById('feedbackModal');
+            const feedbackTitle = document.getElementById('feedbackTitle');
+            const feedbackMessage = document.getElementById('feedbackMessage');
+            const feedbackIcon = document.getElementById('feedbackIcon');
+            const closeFeedbackBtn = document.getElementById('closeFeedbackBtn');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const highPressureMarker = document.getElementById('highPressureMarker');
+            const lowPressureMarker = document.getElementById('lowPressureMarker');
+            
+            function initGame() {
+                svg.innerHTML = ''; 
+                Array.from(map.getElementsByClassName('pressure-point')).forEach(el => el.remove());
+                gameState.points = [];
+                gameState.selectedPoint = null;
+                gameState.isobars = [];
+                gameState.score = 0;
+                scoreDisplay.textContent = '0';
+                
+                generatePressurePoints();
+                setupEventListeners();
+                resetMarkerPositions();
+            }
+            
+            function generatePressurePoints() {
+                const mapWidth = map.clientWidth;
+                const mapHeight = map.clientHeight;
+                const numPoints = 80;
+                const minDistance = 40;
+
+                // Définir aléatoirement les centres de haute et basse pression
+                gameState.highPressureCenter = { x: Math.random() * mapWidth * 0.4 + mapWidth * 0.1, y: Math.random() * mapHeight * 0.4 + mapHeight * 0.1 };
+                gameState.lowPressureCenter = { x: Math.random() * mapWidth * 0.4 + mapWidth * 0.5, y: Math.random() * mapHeight * 0.4 + mapHeight * 0.5 };
+                
+                for (let i = 0; i < numPoints; i++) {
+                    let x, y, isTooClose;
+                    do {
+                        x = Math.random() * (mapWidth - 40) + 20;
+                        y = Math.random() * (mapHeight - 40) + 20;
+                        isTooClose = gameState.points.some(p => Math.hypot(p.x - x, p.y - y) < minDistance);
+                    } while (isTooClose);
+                    
+                    const distToHigh = Math.hypot(x - gameState.highPressureCenter.x, y - gameState.highPressureCenter.y);
+                    const distToLow = Math.hypot(x - gameState.lowPressureCenter.x, y - gameState.lowPressureCenter.y);
+                    
+                    const basePressure = 1000;
+                    const pressure = Math.round(basePressure + 24 * Math.exp(-distToHigh / (mapWidth * 0.3)) - 24 * Math.exp(-distToLow / (mapWidth * 0.3)));
+                    
+                    const pressureStep = 4;
+                    const roundedPressure = Math.round(pressure / pressureStep) * pressureStep;
+
+                    createPressurePoint(x, y, roundedPressure);
+                }
+            }
+            
+            function createPressurePoint(x, y, pressure) {
+                const pointEl = document.createElement('div');
+                pointEl.className = 'pressure-point';
+                
+                const pressureNormalized = (pressure - 980) / (1024 - 980);
+                const hue = 240 - (pressureNormalized * 240);
+                pointEl.style.backgroundColor = `hsl(${hue}, 80%, 60%)`;
+                
+                pointEl.style.left = `${x}px`;
+                pointEl.style.top = `${y}px`;
+                
+                const label = document.createElement('div');
+                label.className = 'pressure-label';
+                label.textContent = `${pressure}`;
+                pointEl.appendChild(label);
+                
+                const pointData = { element: pointEl, x, y, pressure };
+                pointEl.dataset.pointId = gameState.points.length;
+                gameState.points.push(pointData);
+                map.appendChild(pointEl);
+                pointEl.addEventListener('click', () => handlePointClick(pointData));
+            }
+
+            function resetMarkerPositions() {
+                [highPressureMarker, lowPressureMarker].forEach(marker => {
+                    marker.style.position = 'relative';
+                    marker.style.left = 'auto';
+                    marker.style.top = 'auto';
+                    marker.style.transform = 'none';
+                    marker.setAttribute('data-x', 0);
+                    marker.setAttribute('data-y', 0);
+                    // Append marker to its initial container if it's not there
+                    if(!marker.parentElement.classList.contains('justify-around')) {
+                        document.querySelector('.fa-map-signs').parentElement.nextElementSibling.firstElementChild.appendChild(marker);
+                    }
+                });
+            }
+
+            function setupEventListeners() {
+                interact('.pressure-zone').draggable({
+                    listeners: {
+                        start(event) {
+                            const target = event.target;
+                            if (target.style.position !== 'absolute') {
+                                target.style.position = 'absolute';
+                                // Move the element to the map container for correct positioning
+                                map.appendChild(target);
+                                const parentRect = map.getBoundingClientRect();
+                                const rect = target.getBoundingClientRect();
+                                target.style.left = `${event.clientX - parentRect.left - rect.width/2}px`;
+                                target.style.top = `${event.clientY - parentRect.top - rect.height/2}px`;
+                                target.setAttribute('data-x', 0);
+                                target.setAttribute('data-y', 0);
+
+                            }
+                        },
+                        move(event) {
+                            const target = event.target;
+                            const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                            const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                            target.style.transform = `translate(${x}px, ${y}px)`;
+                            target.setAttribute('data-x', x);
+                            target.setAttribute('data-y', y);
+                        },
+                    }
+                });
+                validateBtn.addEventListener('click', validateSolution);
+                resetBtn.addEventListener('click', initGame);
+                closeFeedbackBtn.addEventListener('click', () => feedbackModal.classList.add('hidden'));
+            }
+            
+            function handlePointClick(point) {
+                if (gameState.selectedPoint === point) {
+                    point.element.classList.remove('selected');
+                    gameState.selectedPoint = null;
+                    return;
+                }
+                
+                if (!gameState.selectedPoint) {
+                    point.element.classList.add('selected');
+                    gameState.selectedPoint = point;
+                    return;
+                }
+                
+                if (point.pressure === gameState.selectedPoint.pressure) {
+                    drawIsobar(gameState.selectedPoint, point);
+                    gameState.score += 5;
+                    scoreDisplay.textContent = gameState.score;
+                }
+                
+                gameState.selectedPoint.element.classList.remove('selected');
+                gameState.selectedPoint = null;
+            }
+            
+            function drawIsobar(point1, point2) {
+                const line = document.createElementNS(SVG_NS, 'line');
+                line.setAttribute('class', 'isobar-line');
+                
+                const pressureNormalized = (point1.pressure - 980) / (1024 - 980);
+                const hue = 240 - (pressureNormalized * 240);
+                line.style.stroke = `hsl(${hue}, 70%, 45%)`;
+
+                line.setAttribute('x1', point1.x);
+                line.setAttribute('y1', point1.y);
+                line.setAttribute('x2', point2.x);
+                line.setAttribute('y2', point2.y);
+                
+                svg.appendChild(line);
+                gameState.isobars.push({ p1: point1, p2: point2, pressure: point1.pressure });
+            }
+            
+            function validateSolution() {
+                const mapRect = map.getBoundingClientRect();
+                
+                const highMarkerRect = highPressureMarker.getBoundingClientRect();
+                const highX = highMarkerRect.left + highMarkerRect.width / 2 - mapRect.left;
+                const highY = highMarkerRect.top + highMarkerRect.height / 2 - mapRect.top;
+                
+                const lowMarkerRect = lowPressureMarker.getBoundingClientRect();
+                const lowX = lowMarkerRect.left + lowMarkerRect.width / 2 - mapRect.left;
+                const lowY = lowMarkerRect.top + lowMarkerRect.height / 2 - mapRect.top;
+                
+                const tolerance = mapRect.width * 0.2;
+                const highCorrect = Math.hypot(highX - gameState.highPressureCenter.x, highY - gameState.highPressureCenter.y) < tolerance;
+                const lowCorrect = Math.hypot(lowX - gameState.lowPressureCenter.x, lowY - gameState.lowPressureCenter.y) < tolerance;
+                
+                let finalScore = gameState.score;
+                if (highCorrect) finalScore += 50;
+                if (lowCorrect) finalScore += 50;
+                scoreDisplay.textContent = finalScore;
+
+                if (highCorrect && lowCorrect) {
+                    showFeedback('success', 'Bravo !', 'Vous avez parfaitement identifié les zones de haute et basse pression!');
+                } else if (highCorrect || lowCorrect) {
+                    showFeedback('warning', 'Presque !', 'Vous avez identifié une zone correctement. Vérifiez l\'autre!');
+                } else {
+                    showFeedback('error', 'À revoir', 'Les zones de pression ne sont pas bien placées. Observez bien vos lignes isobares.');
+                }
+            }
+
+            function showFeedback(type, title, message) {
+                const icons = {
+                    success: '<i class="fas fa-check-circle text-green-500"></i>',
+                    warning: '<i class="fas fa-exclamation-circle text-yellow-500"></i>',
+                    error: '<i class="fas fa-times-circle text-red-500"></i>'
+                };
+                feedbackIcon.innerHTML = icons[type];
+                feedbackTitle.textContent = title;
+                feedbackMessage.textContent = message;
+                feedbackModal.classList.remove('hidden');
+            }
+            
+            initGame();
+        });
+    </script>
+</body>
+</html>
