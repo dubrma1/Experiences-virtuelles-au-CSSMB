@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Transfusion Sanguine - Plaque à Godets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.26/dist/interact.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f1f5f9;
+        }
+        .well-plate {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .well-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .well {
+            width: 60px;
+            height: 60px;
+            border: 1px solid #94a3b8;
+            border-radius: 50%;
+            background-color: #fecaca; /* red-200 pour sang non réagi */
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .well-label {
+            font-size: 0.85em;
+            margin-top: 6px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .well.agglutinated {
+            background-color: #f87171; /* red-400 */
+            background-image:
+                radial-gradient(circle at 15% 20%, #b91c1c 3px, transparent 3.5px),
+                radial-gradient(circle at 50% 35%, #991b1b 4px, transparent 4.5px),
+                radial-gradient(circle at 75% 25%, #b91c1c 2px, transparent 2.5px),
+                radial-gradient(circle at 20% 70%, #991b1b 3px, transparent 3.5px),
+                radial-gradient(circle at 60% 80%, #b91c1c 4px, transparent 4.5px),
+                radial-gradient(circle at 80% 60%, #991b1b 2.5px, transparent 3px);
+        }
+        .blood-bag {
+            width: 60px;
+            height: 80px;
+            background-color: #dc2626; /* red-600 */
+            border-radius: 5px 5px 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            cursor: grab;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s, transform 0.2s;
+            touch-action: none;
+        }
+        .blood-bag::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 10px;
+            background-color: #b91c1c; /* red-700 */
+            border-radius: 3px 3px 0 0;
+        }
+        .blood-bag.dragging {
+            opacity: 0.7;
+            transform: scale(1.1);
+            z-index: 1000;
+        }
+        .blood-bag.used {
+            background-color: #9ca3af; /* gray-400 */
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .blood-bag.used::before {
+             background-color: #6b7280; /* gray-500 */
+        }
+        .patient.highlight {
+            border: 3px dashed #22c55e; /* green-500 */
+            background-color: #f0fdf4; /* green-50 */
+        }
+        #modal {
+             transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="py-8 px-4">
+    <div id="game-container" class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6">
+        <h1 class="text-3xl font-bold text-center text-red-800 mb-4">Simulateur de Transfusion Sanguine</h1>
+        <div class="text-right font-bold text-lg text-gray-700 mb-4">Score: <span id="score">0</span></div>
+
+        <div id="patients-container" class="mb-6">
+            <!-- Le patient sera généré ici -->
+        </div>
+
+        <div class="bg-gray-100 p-4 rounded-lg">
+            <h3 class="font-semibold text-center text-lg text-gray-800 mb-3">Banque de Sang</h3>
+            <div class="blood-bags flex justify-center gap-4 flex-wrap" id="blood-bags">
+                 <!-- Les poches de sang seront générées ici -->
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="modal-content bg-white p-8 rounded-lg text-center max-w-sm w-full shadow-2xl">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h2 id="modal-title" class="text-2xl font-bold mb-2"></h2>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button id="modal-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Continuer</button>
+        </div>
+    </div>
+
+    <script>
+        const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+        const patientNames = ["Alice Dubois", "Benoît Tremblay", "Carole Gagnon", "Denis Roy", "Émilie Côté", "François Lavoie", "Ginette Bouchard", "Henri Gagné"];
+
+        const gameState = {
+            score: 0,
+            currentPatient: null,
+            compatibleDonors: [],
+            foundDonors: []
+        };
+        
+        const scoreEl = document.getElementById('score');
+        const patientsContainer = document.getElementById('patients-container');
+        const bloodBagsContainer = document.getElementById('blood-bags');
+        const modal = document.getElementById('modal');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalBtn = document.getElementById('modal-btn');
+
+        function isCompatible(donorType, recipientType) {
+            const recipientABO = recipientType.slice(0, -1) || recipientType;
+            const recipientRh = recipientType.includes("+");
+            const donorABO = donorType.slice(0, -1) || donorType;
+            const donorRh = donorType.includes("+");
+
+            if (!recipientRh && donorRh) return false;
+            if (recipientABO === "A" && (donorABO === "B" || donorABO === "AB")) return false;
+            if (recipientABO === "B" && (donorABO === "A" || donorABO === "AB")) return false;
+            if (recipientABO === "O" && donorABO !== "O") return false;
+            
+            return true;
+        }
+
+        function createPatient() {
+            const bloodGroup = bloodGroups[Math.floor(Math.random() * bloodGroups.length)];
+            const patientName = patientNames[Math.floor(Math.random() * patientNames.length)];
+            
+            gameState.currentPatient = { bloodGroup, name: patientName };
+            gameState.compatibleDonors = bloodGroups.filter(donor => isCompatible(donor, bloodGroup));
+            gameState.foundDonors = [];
+
+            const patientElement = document.createElement("div");
+            patientElement.className = "patient bg-white border-2 border-gray-200 rounded-xl p-4";
+            patientElement.dataset.bloodGroup = bloodGroup;
+
+            const abo = bloodGroup.slice(0,-1) || bloodGroup;
+            const rh = bloodGroup.slice(-1);
+
+            patientElement.innerHTML = `
+                <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                    <h3 class="text-xl font-bold text-gray-800">${patientName}</h3>
+                    <p class="text-sm text-gray-500">ID Patient: ${Date.now().toString().slice(-4)}</p>
+                </div>
+                <div class="test-results">
+                    <h4 class="text-md font-semibold text-center text-gray-700 mb-3">Résultats des Tests</h4>
+                    <div class="well-plate">
+                        <div class="well-container">
+                            <div class="well ${ (abo === 'A' || abo === 'AB') ? 'agglutinated' : '' }"></div>
+                            <span class="well-label">Anti-A</span>
+                        </div>
+                        <div class="well-container">
+                            <div class="well ${ (abo === 'B' || abo === 'AB') ? 'agglutinated' : '' }"></div>
+                            <span class="well-label">Anti-B</span>
+                        </div>
+                        <div class="well-container">
+                            <div class="well ${ rh === '+' ? 'agglutinated' : '' }"></div>
+                            <span class="well-label">Anti-D (Rh)</span>
+                        </div>
+                        <div class="well-container">
+                            <div class="well agglutinated"></div>
+                            <span class="well-label">Témoin (+)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="patient-drop-zone mt-4 text-center text-gray-500 italic p-4 border-t">
+                    Déposez ici les sacs de sang compatibles.
+                </div>
+            `;
+            patientsContainer.innerHTML = '';
+            patientsContainer.appendChild(patientElement);
+        }
+
+        function renderBloodBags() {
+            bloodBagsContainer.innerHTML = '';
+            bloodGroups.forEach(type => {
+                const bag = document.createElement('div');
+                bag.className = 'blood-bag';
+                bag.dataset.type = type;
+                bag.textContent = type;
+                bloodBagsContainer.appendChild(bag);
+            });
+            setupDragAndDrop();
+        }
+
+        function setupDragAndDrop() {
+            interact('.blood-bag:not(.used)').draggable({
+                inertia: true,
+                autoScroll: true,
+                listeners: {
+                    start(event) {
+                        event.target.classList.add('dragging');
+                    },
+                    move(event) {
+                        const target = event.target;
+                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                        target.style.transform = `translate(${x}px, ${y}px)`;
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
+                    },
+                    end(event) {
+                        const target = event.target;
+                        target.classList.remove('dragging');
+                        target.style.transform = 'translate(0px, 0px)';
+                        target.setAttribute('data-x', 0);
+                        target.setAttribute('data-y', 0);
+                    }
+                }
+            });
+
+            interact('.patient').dropzone({
+                accept: '.blood-bag',
+                ondragenter: event => event.target.classList.add('highlight'),
+                ondragleave: event => event.target.classList.remove('highlight'),
+                ondrop(event) {
+                    const donorType = event.relatedTarget.dataset.type;
+                    checkTransfusion(donorType, event.relatedTarget);
+                    event.target.classList.remove('highlight');
+                }
+            });
+        }
+        
+        function checkTransfusion(donorType, bagElement) {
+            if (isCompatible(donorType, gameState.currentPatient.bloodGroup)) {
+                if (gameState.foundDonors.includes(donorType)) {
+                    showModal('info', 'Déjà Trouvé!', 'Vous avez déjà utilisé ce groupe sanguin compatible.');
+                } else {
+                    gameState.foundDonors.push(donorType);
+                    gameState.score += 10;
+                    scoreEl.textContent = gameState.score;
+                    bagElement.classList.add('used');
+                    
+                    if (gameState.foundDonors.length === gameState.compatibleDonors.length) {
+                        showModal('success', 'Patient Sauvé!', 'Vous avez trouvé toutes les compatibilités sanguines. Excellent travail!');
+                        gameState.score += 50; // Bonus
+                        scoreEl.textContent = gameState.score;
+                        modalBtn.onclick = setupNewGame;
+                    } else {
+                        showModal('info', 'Bon Choix!', `Le groupe ${donorType} est compatible. Y en a-t-il d'autres ?`);
+                    }
+                }
+            } else {
+                gameState.score = Math.max(0, gameState.score - 5);
+                scoreEl.textContent = gameState.score;
+                showModal('failure', 'Échec de la Transfusion', `Le sang ${donorType} n'est pas compatible avec le patient. Réaction hémolytique!`);
+            }
+        }
+
+        function showModal(type, title, message) {
+            const icons = {
+                success: '<i class="fas fa-check-circle text-green-500"></i>',
+                failure: '<i class="fas fa-times-circle text-red-500"></i>',
+                info: '<i class="fas fa-info-circle text-blue-500"></i>'
+            };
+            modalIcon.innerHTML = icons[type];
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            modalBtn.onclick = () => modal.classList.add('hidden');
+        }
+
+        function setupNewGame() {
+            modal.classList.add('hidden');
+            createPatient();
+            renderBloodBags();
+        }
+
+        document.addEventListener('DOMContentLoaded', setupNewGame);
+    </script>
+</body>
+</html>
