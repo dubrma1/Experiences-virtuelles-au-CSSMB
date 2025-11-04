@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Masse Volumique et Flottaison</title>
+    <style>
+        /* Styles généraux */
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f8ff;
+            color: #333;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #005a9c;
+        }
+
+        /* Disposition principale */
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .controls-panel {
+            flex: 1;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .visualization-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Styles des contrôles */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .input-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        label {
+            font-weight: bold;
+            color: #4a6572;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+
+        /* Zone de visualisation */
+        #simulationCanvas {
+            background-color: #ffffff;
+            border: 2px solid #b0c4de;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            cursor: grab;
+        }
+        #simulationCanvas.grabbing {
+            cursor: grabbing;
+        }
+        
+        /* Grille d'information sous les paramètres */
+        .info-display-columns {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .info-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .info-box {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: bold;
+            text-align: center;
+        }
+        .info-box span {
+            display: block;
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+        .apparent-weight.up { color: #28a745; }
+        .apparent-weight.down { color: #dc3545; }
+
+        /* Tableau de données */
+        .data-table {
+            margin-top: 20px;
+        }
+        .data-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #e9ecef;
+        }
+        
+        /* Boutons */
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulateur de Flottaison (Principe d'Archimède)</h1>
+        
+        <div class="main-layout">
+            <div class="controls-panel">
+                <h2>Paramètres</h2>
+                
+                <div class="input-group">
+                    <div class="input-group-header">
+                        <label>Masse volumique du liquide (ρ) :</label>
+                        <span id="liquidDensityValue">1.00 g/cm³</span>
+                    </div>
+                    <input type="range" id="liquidDensity" min="80" max="150" value="100">
+                </div>
+
+                <hr>
+
+                <div class="input-group">
+                    <div class="input-group-header">
+                        <label>Masse volumique de l'objet (ρ) :</label>
+                        <span id="objectDensityValue">1.00 g/cm³</span>
+                    </div>
+                    <input type="range" id="objectDensity" min="50" max="200" value="100">
+                </div>
+
+                <div class="input-group">
+                    <div class="input-group-header">
+                        <label>Arête du cube :</label>
+                        <span id="objectEdgeValue">5.0 cm</span>
+                    </div>
+                    <input type="range" id="objectEdge" min="2" max="10" value="5">
+                </div>
+                
+                <!-- MODIFIÉ : Grille d'information restructurée -->
+                <div class="info-display-columns">
+                    <div class="info-column">
+                        <div class="info-box">Poids dans l'air<span id="weightValue">---</span></div>
+                        <div class="info-box">Poussée d'Archimède<span id="thrustValue">---</span></div>
+                        <div class="info-box apparent-weight" id="apparentWeightBox">Poids apparent<span id="apparentWeightValue">---</span></div>
+                    </div>
+                    <div class="info-column">
+                        <div class="info-box">Volume Total<span id="totalVolumeValue">0 cm³</span></div>
+                        <div class="info-box">Volume Immergé<span id="submergedVolumeValue">0 cm³</span></div>
+                        <div class="info-box">Volume Émergé<span id="emergedVolumeValue">0 cm³</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="visualization-area">
+                <canvas id="simulationCanvas" width="600" height="450"></canvas>
+            </div>
+        </div>
+
+        <div class="data-table">
+            <h2>Données Enregistrées</h2>
+            <div class="data-controls">
+                 <button id="recordBtn" onclick="recordData()">Enregistrer les données</button>
+                 <button id="exportBtn" onclick="exportCSV()" disabled>Exporter en CSV</button>
+            </div>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>ρ Liquide (g/cm³)</th>
+                        <th>ρ Objet (g/cm³)</th>
+                        <th>Arête (cm)</th>
+                        <th>Poids (N)</th>
+                        <th>Poussée (N)</th>
+                        <th>Poids App. (N)</th>
+                        <th>Vol. Total (cm³)</th>
+                        <th>Vol. Immergé (cm³)</th>
+                        <th>Vol. Émergé (cm³)</th>
+                        <th>Résultat</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- VARIABLES GLOBALES ---
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const G = 9.81;
+
+        // État de la simulation
+        let liquidDensity = 1000;
+        let objectDensity = 1000;
+        let objectEdgeLength = 0.05;
+        let objectVolume = Math.pow(objectEdgeLength, 3);
+        let recordedData = [];
+
+        let simulationActive = false;
+        let isDragging = false;
+
+        const object = { x: canvas.width / 2, y: canvas.height / 4, vy: 0, size: 80 };
+
+        // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+        const liquidSlider = document.getElementById('liquidDensity');
+        const densitySlider = document.getElementById('objectDensity');
+        const edgeSlider = document.getElementById('objectEdge');
+
+        liquidSlider.addEventListener('input', e => {
+            const density_g_cm3 = parseInt(e.target.value) / 100.0;
+            liquidDensity = density_g_cm3 * 1000; 
+            document.getElementById('liquidDensityValue').textContent = `${density_g_cm3.toFixed(2)} g/cm³`;
+            resetObjectPosition();
+        });
+        densitySlider.addEventListener('input', e => {
+            const density_g_cm3 = parseInt(e.target.value) / 100.0;
+            objectDensity = density_g_cm3 * 1000;
+            document.getElementById('objectDensityValue').textContent = `${density_g_cm3.toFixed(2)} g/cm³`;
+            resetObjectPosition();
+        });
+        edgeSlider.addEventListener('input', e => {
+            const edgeCm = parseInt(e.target.value);
+            objectEdgeLength = edgeCm / 100.0;
+            objectVolume = Math.pow(objectEdgeLength, 3);
+            document.getElementById('objectEdgeValue').textContent = `${edgeCm.toFixed(1)} cm`;
+            resetObjectPosition();
+        });
+
+        // --- FONCTION DE MISE À JOUR DES AFFICHAGES ---
+        function updateInfoDisplays() {
+            const objectMass = objectDensity * objectVolume;
+            const weightForce = objectMass * G;
+            const totalVolume_cm3 = objectVolume * 1e6;
+            const waterLevel = canvas.height / 2;
+            const objectBottom = object.y + object.size / 2;
+            let submergedRatio = 0;
+            
+            if (objectBottom > waterLevel) {
+                const submergedHeight = Math.min(object.size, objectBottom - waterLevel);
+                submergedRatio = submergedHeight / object.size;
+            }
+            
+            const submergedVolume = objectVolume * submergedRatio;
+            const emergedVolume = objectVolume - submergedVolume;
+            const archimedesThrust = liquidDensity * submergedVolume * G;
+
+            document.getElementById('weightValue').textContent = `${weightForce.toFixed(1)} N`;
+            document.getElementById('thrustValue').textContent = `${archimedesThrust.toFixed(1)} N`;
+            document.getElementById('apparentWeightValue').textContent = `${(weightForce - archimedesThrust).toFixed(1)} N`;
+            
+            const submergedVolume_cm3 = submergedVolume * 1e6;
+            const emergedVolume_cm3 = emergedVolume * 1e6;
+            document.getElementById('totalVolumeValue').textContent = `${totalVolume_cm3.toFixed(0)} cm³`;
+            document.getElementById('submergedVolumeValue').textContent = `${submergedVolume_cm3.toFixed(0)} cm³`;
+            document.getElementById('emergedVolumeValue').textContent = `${emergedVolume_cm3.toFixed(0)} cm³`;
+            
+            const apparentWeightBox = document.getElementById('apparentWeightBox');
+            apparentWeightBox.className = 'info-box apparent-weight';
+            const netForce = archimedesThrust - weightForce;
+            if (netForce > 0.1) apparentWeightBox.classList.add('up');
+            if (netForce < -0.1) apparentWeightBox.classList.add('down');
+        }
+
+        // --- FONCTION DE PHYSIQUE ET MOUVEMENT ---
+        function updatePhysicsAndPosition() {
+            object.size = 40 + (objectEdgeLength * 800);
+            
+            if (isDragging) return;
+
+            if (simulationActive) {
+                const waterLevel = canvas.height / 2;
+                let equilibriumY;
+
+                if (objectDensity > liquidDensity) {
+                    equilibriumY = canvas.height - 20 - object.size / 2;
+                } else if (Math.abs(objectDensity - liquidDensity) < 10) {
+                    equilibriumY = canvas.height * 3/4;
+                } else {
+                    const submergedRatio = objectDensity / liquidDensity;
+                    const submergedDisplayHeight = object.size * submergedRatio;
+                    equilibriumY = waterLevel - (object.size / 2) + submergedDisplayHeight;
+                }
+                object.y += (equilibriumY - object.y) * 0.05;
+            }
+            
+            updateInfoDisplays();
+        }
+
+        // --- FONCTIONS DE DESSIN ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const waterLevel = canvas.height / 2;
+            ctx.fillStyle = '#aed6f1';
+            ctx.fillRect(0, waterLevel, canvas.width, canvas.height - waterLevel);
+            
+            if (!simulationActive && !isDragging) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.font = "bold 18px Inter";
+                ctx.textAlign = "center";
+                ctx.fillText("Glissez le cube dans l'eau pour commencer", canvas.width / 2, 40);
+            }
+
+            drawCube(object.x, object.y, object.size);
+            drawVectors();
+            
+            ctx.strokeStyle = '#b0c4de';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+        }
+
+        function drawCube(x, y, size) {
+            const half = size / 2;
+            const depth = size * 0.4;
+            ctx.fillStyle = '#a93226';
+            ctx.beginPath();
+            ctx.moveTo(x - half + depth, y - half - depth);
+            ctx.lineTo(x + half + depth, y - half - depth);
+            ctx.lineTo(x + half + depth, y + half - depth);
+            ctx.lineTo(x - half + depth, y + half - depth);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.moveTo(x - half, y - half);
+            ctx.lineTo(x + half, y - half);
+            ctx.lineTo(x + half + depth, y - half - depth);
+            ctx.lineTo(x - half + depth, y - half - depth);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#cb4335';
+            ctx.beginPath();
+            ctx.moveTo(x + half, y - half);
+            ctx.lineTo(x + half, y + half);
+            ctx.lineTo(x + half + depth, y + half - depth);
+            ctx.lineTo(x + half + depth, y - half - depth);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#c0392b';
+            ctx.fillRect(x - half, y - half, size, size);
+
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawVectors() {
+            const weight = (objectDensity * objectVolume * G);
+            const waterLevel = canvas.height / 2;
+            const objectBottom = object.y + object.size / 2;
+            let submergedRatio = 0;
+            if (objectBottom > waterLevel) {
+                submergedRatio = Math.min(1, (objectBottom - waterLevel) / object.size);
+            }
+            const thrust = liquidDensity * (objectVolume * submergedRatio) * G;
+
+            drawArrow(object.x, object.y, weight * 50, 0, 'purple', 'P');
+            if (thrust > 0.1) {
+                drawArrow(object.x, object.y, thrust * 50, -180, 'orange', '∀');
+            }
+        }
+
+        function drawArrow(x, y, length, angle, color, label) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle * Math.PI / 180);
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, length);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, length);
+            ctx.lineTo(-5, length - 10);
+            ctx.lineTo(5, length - 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.font = "bold 14px Inter";
+            ctx.fillText(label, 10, length / 2);
+
+            ctx.restore();
+        }
+
+        // --- GESTION DES DONNÉES ---
+        function recordData() {
+            if (!simulationActive) return;
+            const weight = objectDensity * objectVolume * G;
+            const maxThrust = liquidDensity * objectVolume * G;
+			
+            let result = "Flottabilité neutre";
+			// let result = "Flotte";
+			if (Math.abs(weight - maxThrust) < 1) result = "Flottabilité neutre";
+            if (weight > maxThrust) result = "Coule";
+			if (weight < maxThrust) result = "Flotte";
+            
+            
+            const submergedVolume = objectVolume * Math.min(1, objectDensity / liquidDensity);
+            const emergedVolume = objectVolume - submergedVolume;
+
+            recordedData.push({
+                liquidD: (liquidDensity / 1000).toFixed(2),
+                objectD: (objectDensity / 1000).toFixed(2),
+                edge: (objectEdgeLength * 100).toFixed(1),
+                weight: weight.toFixed(1),
+                thrust: (liquidDensity * submergedVolume * G).toFixed(1),
+                apparentWeight: (weight - (liquidDensity * submergedVolume * G)).toFixed(1),
+                totalV: (objectVolume * 1e6).toFixed(0),
+                submergedV: (submergedVolume * 1e6).toFixed(0),
+                emergedV: (emergedVolume * 1e6).toFixed(0),
+                result: result
+            });
+            updateDataTable();
+            document.getElementById('exportBtn').disabled = false;
+        }
+
+        function updateDataTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            recordedData.forEach(data => {
+                tbody.innerHTML += `<tr>
+                    <td>${data.liquidD}</td>
+                    <td>${data.objectD}</td>
+                    <td>${data.edge}</td>
+                    <td>${data.weight}</td>
+                    <td>${data.thrust}</td>
+                    <td>${data.apparentWeight}</td>
+                    <td>${data.totalV}</td>
+                    <td>${data.submergedV}</td>
+                    <td>${data.emergedV}</td>
+                    <td>${data.result}</td>
+                </tr>`;
+            });
+        }
+
+        function exportCSV() {
+            if (recordedData.length === 0) return;
+            let csvContent = "ρ Liquide (g/cm³),ρ Objet (g/cm³),Arête (cm),Poids (N),Poussée (N),Poids App. (N),Vol. Total (cm³),Vol. Immergé (cm³),Vol. Émergé (cm³),Resultat\n";
+            recordedData.forEach(d => {
+                csvContent += `${d.liquidD},${d.objectD},${d.edge},${d.weight},${d.thrust},${d.apparentWeight},${d.totalV},${d.submergedV},${d.emergedV},${d.result}\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "donnees_flottaison.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- LOGIQUE DE DRAG & DROP ---
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+        }
+
+        function onMouseDown(e) {
+            const pos = getMousePos(e);
+            if (pos.x >= object.x - object.size / 2 && pos.x <= object.x + object.size / 2 &&
+                pos.y >= object.y - object.size / 2 && pos.y <= object.y + object.size / 2) {
+                isDragging = true;
+                simulationActive = false;
+                canvas.classList.add('grabbing');
+            }
+        }
+
+        function onMouseMove(e) {
+            if (isDragging) {
+                const pos = getMousePos(e);
+                object.x = pos.x;
+                object.y = pos.y;
+                updateInfoDisplays();
+            }
+        }
+
+        function onMouseUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                canvas.classList.remove('grabbing');
+                simulationActive = true;
+            }
+        }
+        
+        function resetObjectPosition() {
+            simulationActive = false;
+            object.x = canvas.width / 2;
+            object.y = canvas.height / 4;
+            object.vy = 0;
+            updateInfoDisplays();
+        }
+
+        // --- BOUCLE D'ANIMATION ET INITIALISATION ---
+        function animationLoop() {
+            updatePhysicsAndPosition();
+            draw();
+            requestAnimationFrame(animationLoop);
+        }
+
+        window.onload = () => {
+            liquidSlider.dispatchEvent(new Event('input'));
+            densitySlider.dispatchEvent(new Event('input'));
+            edgeSlider.dispatchEvent(new Event('input'));
+            
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            
+            animationLoop();
+        };
+    </script>
+</body>
+</html>
