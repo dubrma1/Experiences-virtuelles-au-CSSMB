@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traceur de Rayons</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #mirrorCanvas {
+            border: 1px solid #4b5563;
+            background-color: #f9fafb;
+            cursor: default;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-indigo-700 mb-2">Traceur de Rayons Manuel</h1>
+            <p class="text-gray-600">
+                Phase 1: Cliquez sur le point noir, glissez jusqu'au miroir, relâchez.<br>
+                Phase 2: Cliquez sur le point d'impact, glissez pour tracer le rayon réfléchi, relâchez.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-center mb-4">
+                    <canvas id="mirrorCanvas" width="800" height="500"></canvas>
+                </div>
+                
+                <div class="ray-control flex flex-wrap justify-center items-center gap-4 mt-6">
+                    <button id="showImageBtn" class="control-btn bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <i class="fas fa-eye mr-2"></i> Afficher Image Théorique
+                    </button>
+                    <button id="clearRaysBtn" class="control-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <i class="fas fa-trash-alt mr-2"></i> Effacer Rayons Tracés
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Contrôles du Système Optique</h2>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Composant Optique</label>
+                        <div class="flex flex-col items-start space-y-2 text-sm">
+                            <label><input type="radio" name="componentType" value="mirror" checked> Miroir</label>
+                            <label><input type="radio" name="componentType" value="lens"> Lentille</label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Propagation</label>
+                        <div class="flex flex-col items-start space-y-2 text-sm">
+                            <label><input type="radio" name="propagationType" value="converging" checked> Convergent(e)</label>
+                            <label><input type="radio" name="propagationType" value="diverging"> Divergent(e)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="objectDistance" class="block text-sm font-medium text-gray-700 mb-1">Distance Objet (cm)</label>
+                    <input type="range" id="objectDistance" min="10" max="150" value="60" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <div class="text-center mt-1"><span id="objectDistanceValue" class="text-sm font-medium">60 cm</span></div>
+                </div>
+                <div class="mb-4">
+                    <label for="focalLength" class="block text-sm font-medium text-gray-700 mb-1">Distance Focale (cm)</label>
+                    <input type="range" id="focalLength" min="10" max="50" value="25" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <div class="text-center mt-1"><span id="focalLengthValue" class="text-sm font-medium">25 cm</span></div>
+                </div>
+                <div class="mb-4">
+                    <label for="objectHeight" class="block text-sm font-medium text-gray-700 mb-1">Hauteur Objet (cm)</label>
+                    <input type="range" id="objectHeight" min="5" max="40" value="15" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    <div class="text-center mt-1"><span id="objectHeightValue" class="text-sm font-medium">15 cm</span></div>
+                </div>
+                <div class="mt-6 p-4 bg-indigo-50 rounded-lg">
+                    <h3 class="text-sm font-medium text-indigo-800 mb-2">Les 3 Rayons Principaux :</h3>
+                    <ul id="principalRaysInfo" class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- ÉLÉMENTS DU DOM ---
+    const canvas = document.getElementById('mirrorCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Contrôles des paramètres
+    const objectDistanceSlider = document.getElementById('objectDistance');
+    const focalLengthSlider = document.getElementById('focalLength');
+    const objectHeightSlider = document.getElementById('objectHeight');
+    const objectDistanceValue = document.getElementById('objectDistanceValue');
+    const focalLengthValue = document.getElementById('focalLengthValue');
+    const objectHeightValue = document.getElementById('objectHeightValue');
+
+    // NOUVEAU : Contrôles du type de système
+    const componentTypeRadios = document.querySelectorAll('input[name="componentType"]');
+    const propagationTypeRadios = document.querySelectorAll('input[name="propagationType"]');
+    const principalRaysInfo = document.getElementById('principalRaysInfo'); // Le <ul> pour les infos
+
+    // Boutons d'action
+    const showImageBtn = document.getElementById('showImageBtn');
+    const clearRaysBtn = document.getElementById('clearRaysBtn');
+
+    // --- CONSTANTES ET ÉTAT ---
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const centerY = canvasHeight / 2;
+    const vertexX = canvasWidth / 2 + 100; // Position de l'axe central du composant
+    const scale = 4;
+    const hotspotRadius = 15;
+
+    // État principal de la simulation
+    let config = {
+        focalLength: 25,
+        objectDistance: 60,
+        objectHeight: 15,
+        componentType: 'mirror',      // 'mirror' ou 'lens'
+        propagationType: 'converging' // 'converging' ou 'diverging'
+    };
+
+    // État du dessin manuel
+    let showImageState = false;
+    let userDrawnRays = [];
+    let rayColors = ['#FF6347', '#4682B4', '#32CD32', '#FFD700', '#6A5ACD'];
+    let nextRayColorIndex = 0;
+    const DRAW_STATE = { IDLE: 'idle', DRAWING_INCIDENT: 'drawing_incident', AWAITING_REFLECTION_START: 'awaiting_reflection_start', DRAWING_REFLECTED: 'drawing_reflected' };
+    let currentDrawingState = DRAW_STATE.IDLE;
+    let isDrawing = false;
+    let activeRay = null;
+    let dragStartPoint = null;
+    let currentMousePos = null;
+
+    // --- FONCTIONS DE DESSIN PRINCIPALES ---
+
+    /**
+     * Dessine toute la scène sur le canvas.
+     */
+    function drawScene() {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight); // Efface le canvas
+        drawPrincipalAxis(); // Dessine l'axe optique principal
+        drawOpticalComponent(); // Dessine le miroir ou la lentille
+        drawFocalPoints();      // Dessine les points focaux (F, F', C, 2F, 2F')
+        drawObject();           // Dessine l'objet
+        
+        // Dessine les rayons tracés par l'utilisateur
+        userDrawnRays.forEach(ray => drawRay(ray));
+        if (activeRay) drawRay(activeRay); // Dessine le rayon en cours de tracé
+        
+        // Affiche l'image théorique si activée
+        if (showImageState) drawImage(calculateImageProperties());
+        
+        drawHotspots(); // Dessine les points cliquables (pour le traçage des rayons)
+        if (isDrawing) drawTemporaryLine(); // Dessine la ligne temporaire lors du glissement
+    }
+
+    /**
+     * Dessine l'axe optique principal (ligne horizontale au centre).
+     */
+    function drawPrincipalAxis() {
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(canvasWidth, centerY);
+        ctx.strokeStyle = '#374151'; // Couleur gris foncé
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+    
+    /**
+     * Dessine le symbole schématique pour une lentille convergente (biconvexe).
+     * Inclut le remplissage bleu et les flèches vers l'extérieur.
+     */
+    function drawConvergingLensSymbol(topY, bottomY) {
+        const arrowSize = 10; // La taille des flèches
+        const lensVisualHeight = 180; // Hauteur visuelle de la lentille
+        const lensVisualTopY = centerY - lensVisualHeight / 2;
+        const lensVisualBottomY = centerY + lensVisualHeight / 2;
+        const lensVisualBulge = 35; // Profondeur du bombement de la lentille
+
+        // Dessine la forme de la lentille biconvexe (remplissage bleu sans contour)
+        ctx.fillStyle = 'rgba(173, 216, 230, 0.6)'; // Bleu pâle avec transparence
+        ctx.beginPath();
+        ctx.moveTo(vertexX, lensVisualTopY); // Point de départ en haut
+        // Courbe gauche
+        ctx.quadraticCurveTo(vertexX - lensVisualBulge, centerY, vertexX, lensVisualBottomY);
+        // Courbe droite
+        ctx.quadraticCurveTo(vertexX + lensVisualBulge, centerY, vertexX, lensVisualTopY);
+        ctx.closePath();
+        ctx.fill(); // Remplit la lentille
+
+        // Dessine l'axe vertical et les flèches (au premier plan)
+        ctx.strokeStyle = '#000000'; // Trait noir
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        
+        // Axe vertical central de la lentille
+        ctx.moveTo(vertexX, topY);
+        ctx.lineTo(vertexX, bottomY);
+
+        // Flèche du haut (pointe vers l'extérieur)
+        ctx.moveTo(vertexX - arrowSize, topY + arrowSize);
+        ctx.lineTo(vertexX, topY);
+        ctx.lineTo(vertexX + arrowSize, topY + arrowSize);
+
+        // Flèche du bas (pointe vers l'extérieur)
+        ctx.moveTo(vertexX - arrowSize, bottomY - arrowSize);
+        ctx.lineTo(vertexX, bottomY);
+        ctx.lineTo(vertexX + arrowSize, bottomY - arrowSize);
+        ctx.stroke(); // Applique le tracé des flèches et de l'axe
+    }
+
+    /**
+     * Dessine le symbole schématique pour une lentille divergente (biconcave).
+     * Inclut le remplissage bleu et les flèches vers l'intérieur.
+     */
+    function drawDivergingLensSymbol(topY, bottomY) {
+        const arrowSize = 10; // La taille des flèches
+        const lensVisualHeight = 180; // Hauteur visuelle de la lentille (pour l'ombre)
+        const lensVisualTopY = centerY - lensVisualHeight / 2;
+        const lensVisualBottomY = centerY + lensVisualHeight / 2;
+
+        // Paramètres pour la forme biconcave de l'ombre
+        const edgeWidth = 40;    // Largeur aux bords de la lentille
+        const centerWidth = 10;  // Largeur au centre de la lentille (plus mince)
+        
+        // Dessine la forme de la lentille biconcave (remplissage bleu)
+        ctx.fillStyle = 'rgba(135, 206, 250, 0.5)'; // Bleu ciel avec transparence
+        ctx.beginPath();
+        // Côté gauche de la lentille
+        ctx.moveTo(vertexX - edgeWidth / 2, lensVisualTopY);
+        ctx.quadraticCurveTo(vertexX - centerWidth / 2, centerY, vertexX - edgeWidth / 2, lensVisualBottomY);
+        // Côté droit de la lentille
+        ctx.lineTo(vertexX + edgeWidth / 2, lensVisualBottomY);
+        ctx.quadraticCurveTo(vertexX + centerWidth / 2, centerY, vertexX + edgeWidth / 2, lensVisualTopY);
+        ctx.closePath();
+        ctx.fill(); // Remplit la lentille divergente
+
+        // Dessine l'axe vertical et les flèches (au premier plan)
+        ctx.strokeStyle = '#000000'; // Trait noir
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+
+        // Axe vertical central de la lentille
+        ctx.moveTo(vertexX, topY);
+        ctx.lineTo(vertexX, bottomY);
+
+        // Flèche du haut (pointe vers l'intérieur)
+        ctx.moveTo(vertexX - arrowSize, topY);
+        ctx.lineTo(vertexX, topY + arrowSize);
+        ctx.lineTo(vertexX + arrowSize, topY);
+        
+        // Flèche du bas (pointe vers l'intérieur)
+        ctx.moveTo(vertexX - arrowSize, bottomY);
+        ctx.lineTo(vertexX, bottomY - arrowSize);
+        ctx.lineTo(vertexX + arrowSize, bottomY);
+        ctx.stroke(); // Applique le tracé des flèches et de l'axe
+    }
+
+    /**
+     * Dessine le miroir, qu'il soit convergent ou divergent.
+     */
+    function drawMirror() {
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#60a5fa'; // Couleur du miroir
+        const radius = config.focalLength * 2 * scale; // Rayon du miroir
+
+        // Hauteur fixe du miroir pour une apparence cohérente
+        const mirrorHeight = 250; 
+        
+        // Calcul du centre de courbure (C) pour le miroir
+        const centerX = (config.propagationType === 'converging') 
+            ? vertexX - radius // Pour un miroir convergent, C est à gauche du sommet
+            : vertexX + radius; // Pour un miroir divergent, C est à droite du sommet
+        
+        // Angle pour déterminer la portion de cercle à dessiner
+        const angle = Math.asin(Math.min(1, mirrorHeight / (2 * radius)));
+        
+        ctx.beginPath();
+        // Dessine l'arc du miroir. Le dernier argument (counterclockwise) est important pour les miroirs divergents.
+        //ctx.arc(centerX, centerY, radius, -angle, angle, (config.propagationType === 'diverging'));
+                        if (config.propagationType === 'converging') {
+                    const centerX = vertexX - radius;
+                    ctx.arc(centerX, centerY, radius, -angle, angle, false);
+                } else { // diverging
+                    const centerX = vertexX + radius;
+                    ctx.arc(centerX, centerY, radius, Math.PI - angle, Math.PI + angle, false);
+                }
+                ctx.stroke();
+	    }
+
+    /**
+     * Dessine la lentille, qu'elle soit convergente ou divergente.
+     * Cette fonction est un simple "dispatch" vers les fonctions spécifiques de dessin de lentille.
+     */
+    function drawLens() {
+        const lensSymbolHeight = 100; // Hauteur du symbole de la lentille sur le canevas
+        if (config.propagationType === 'converging') {
+            drawConvergingLensSymbol(centerY - lensSymbolHeight, centerY + lensSymbolHeight);
+        } else { // 'diverging'
+            drawDivergingLensSymbol(centerY - lensSymbolHeight, centerY + lensSymbolHeight);
+        }
+    }
+
+    /**
+     * Dessine le bon composant optique (miroir ou lentille) en fonction des choix de l'utilisateur.
+     * Cette fonction est maintenant un simple "dispatch" vers les fonctions spécifiques.
+     */
+    function drawOpticalComponent() {
+        if (config.componentType === 'mirror') {
+            drawMirror();
+        } else { // 'lens'
+            drawLens();
+        }
+    }
+
+    /**
+     * Dessine les points focaux (F, F', C, 2F, 2F').
+     * Les points virtuels ne sont plus tracés en pointillé pour F et C/2F/2F'.
+     */
+    function drawFocalPoints() {
+        const f = config.focalLength * scale; // Distance focale mise à l'échelle
+        const c = 2 * f; // Point 2F (ou C pour les miroirs)
+
+        if (config.componentType === 'mirror') {
+            if (config.propagationType === 'converging') {
+                drawPoint(vertexX - f, 'F', '#ef4444', false); // Foyer réel à gauche, pas de tirets
+                drawPoint(vertexX - c, 'C', '#f97316', false); // Centre de courbure réel à gauche, pas de tirets
+            } else { // Diverging Mirror
+                // Pour les miroirs divergents, F et C sont virtuels, mais nous les voulons en cercle plein
+                drawPoint(vertexX + f, 'F', '#ef4444', false); // Foyer virtuel à droite, pas de tirets
+                drawPoint(vertexX + c, 'C', '#f97316', false); // Centre de courbure virtuel à droite, pas de tirets
+            }
+        } else { // Lens
+            if (config.propagationType === 'converging') {
+                drawPoint(vertexX + f, "F'", '#ef4444', false); // Foyer image réel à droite, pas de tirets
+                drawPoint(vertexX - f, 'F', '#ef4444', false); // Foyer objet réel à gauche, pas de tirets
+                drawPoint(vertexX + c, "2F'", '#f97316', false); // Point 2F' réel à droite, pas de tirets
+                drawPoint(vertexX - c, '2F', '#f97316', false); // Point 2F réel à gauche, pas de tirets
+            } else { // Diverging Lens
+                // Pour les lentilles divergentes, F et F' (et 2F/2F') sont virtuels, mais en cercle plein
+                drawPoint(vertexX - f, "F'", '#ef4444', false); // Foyer image virtuel à gauche, pas de tirets
+                drawPoint(vertexX + f, 'F', '#ef4444', false);    // Foyer objet virtuel à droite, pas de tirets
+                drawPoint(vertexX - c, "2F'", '#f97316', false); // Point 2F' virtuel à gauche, pas de tirets
+                drawPoint(vertexX + c, '2F', '#f97316', false);    // Point 2F virtuel à droite, pas de tirets
+            }
+        }
+    }
+
+    // --- FONCTIONS DE CALCUL ET D'AIDE ---
+
+    /**
+     * Calcule les propriétés de l'image (position, taille, virtualité) basée sur les paramètres actuels.
+     */
+    function calculateImageProperties() {
+        // La distance focale est négative pour les systèmes divergents
+        const f_eff = (config.propagationType === 'converging') ? config.focalLength : -config.focalLength;
+        const do_ = config.objectDistance; // Distance de l'objet
+
+        if (do_ === f_eff) return { imageAtInfinity: true }; // Image à l'infini pour objet au foyer
+
+        // Formule de la lentille/miroir: 1/f = 1/do + 1/di  => di = 1 / (1/f - 1/do)
+        const di = 1 / (1 / f_eff - 1 / do_); // Distance de l'image
+        const m = -di / do_; // Grandissement
+
+        let screenX, isVirtual;
+        if (config.componentType === 'mirror') {
+            screenX = vertexX - di * scale; // Pour les miroirs, l'image est à gauche ou à droite du miroir
+            isVirtual = di < 0; // L'image est virtuelle si di est négatif
+        } else { // lens
+            screenX = vertexX + di * scale; // Pour les lentilles, l'image est à gauche ou à droite de la lentille
+            isVirtual = di < 0; // L'image est virtuelle si di est négatif
+        }
+
+        return { 
+            screenX: screenX, 
+            screenTopY: centerY - (config.objectHeight * m * scale), // Position verticale de la pointe de l'image
+            isVirtual: isVirtual
+        };
+    }
+    
+    /**
+     * Met à jour les informations textuelles sur les 3 rayons principaux.
+     */
+    function updatePrincipalRayInfo() {
+        let html = '';
+        const { componentType, propagationType } = config;
+
+        if (componentType === 'mirror' && propagationType === 'converging') {
+            html = `<li><strong class="text-blue-600">Rayon Parallèle :</strong> part parallèlement à l'axe et est réfléchi en passant par le foyer (F).</li>
+                        <li><strong class="text-red-600">Rayon Focal :</strong> passe par le foyer (F) et est réfléchi parallèlement à l'axe.</li>
+                        <li><strong class="text-green-600">Rayon Central :</strong> passe par le centre de courbure (C) et est réfléchi sur lui-même.</li>`;
+        } else if (componentType === 'mirror' && propagationType === 'diverging') {
+            html = `<li><strong class="text-blue-600">Rayon Parallèle :</strong> part parallèlement à l'axe et est réfléchi comme s'il provenait du foyer (F).</li>
+                        <li><strong class="text-red-600">Rayon Focal :</strong> se dirigeant vers le foyer (F) est réfléchi parallèlement à l'axe.</li>
+                        <li><strong class="text-green-600">Rayon Central :</strong> se dirigeant vers le centre (C) est réfléchi sur lui-même.</li>`;
+        } else if (componentType === 'lens' && propagationType === 'converging') {
+            html = `<li><strong class="text-blue-600">Rayon Parallèle :</strong> part parallèlement à l'axe et est réfracté en passant par le foyer image (F').</li>
+                        <li><strong class="text-red-600">Rayon Central :</strong> passe par le centre optique et n'est pas dévié.</li>
+                        <li><strong class="text-green-600">Rayon Focal :</strong> passe par le foyer objet (F) et est réfracté parallèlement à l'axe.</li>`;
+        } else { // lens & diverging
+            html = `<li><strong class="text-blue-600">Rayon Parallèle :</strong> part parallèlement à l'axe et est réfracté comme s'il provenait du foyer image (F').</li>
+                        <li><strong class="text-red-600">Rayon Central :</strong> passe par le centre optique et n'est pas dévié.</li>
+                        <li><strong class="text-green-600">Rayon Focal :</strong> se dirigeant vers le foyer objet (F) est réfracté parallèlement à l'axe.</li>`;
+        }
+        principalRaysInfo.innerHTML = html;
+    }
+    
+    /**
+     * Réinitialise le traçage des rayons manuels et redessine la scène lorsque les paramètres changent.
+     */
+    function resetOnParamChange() {
+        userDrawnRays = [];
+        nextRayColorIndex = 0;
+        currentDrawingState = DRAW_STATE.IDLE;
+        activeRay = null;
+        isDrawing = false;
+        requestAnimationFrame(drawScene);
+    }
+
+    // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+
+    // Écouteurs pour les sliders de paramètres
+    objectDistanceSlider.addEventListener('input', (e) => { config.objectDistance = parseInt(e.target.value); objectDistanceValue.textContent = `${e.target.value} cm`; resetOnParamChange(); });
+    focalLengthSlider.addEventListener('input', (e) => { config.focalLength = parseInt(e.target.value); focalLengthValue.textContent = `${e.target.value} cm`; resetOnParamChange(); });
+    objectHeightSlider.addEventListener('input', (e) => { config.objectHeight = parseInt(e.target.value); objectHeightValue.textContent = `${e.target.value} cm`; resetOnParamChange(); });
+
+    // Écouteurs pour les boutons radio de type de composant et de propagation
+    componentTypeRadios.forEach(radio => radio.addEventListener('change', (e) => {
+        config.componentType = e.target.value;
+        updatePrincipalRayInfo();
+        resetOnParamChange();
+    }));
+    propagationTypeRadios.forEach(radio => radio.addEventListener('change', (e) => {
+        config.propagationType = e.target.value;
+        updatePrincipalRayInfo();
+        resetOnParamChange();
+    }));
+
+    // Écouteurs pour les boutons "Afficher Image Théorique" et "Effacer Rayons Tracés"
+    showImageBtn.addEventListener('click', () => {
+        showImageState = !showImageState;
+        showImageBtn.innerHTML = showImageState ? '<i class="fas fa-eye-slash mr-2"></i> Masquer Image' : '<i class="fas fa-eye mr-2"></i> Afficher Image Théorique';
+        requestAnimationFrame(drawScene);
+    });
+    clearRaysBtn.addEventListener('click', resetOnParamChange);
+
+    // --- LOGIQUE DE DESSIN MANUEL (fonctions auxiliaires) ---
+
+    /**
+     * Dessine un point sur l'axe principal avec un label.
+     * Le paramètre `isVirtual` ne contrôle plus le style de ligne (toujours cercle plein).
+     */
+    function drawPoint(x, label, color, isVirtual = false) { // isVirtual est toujours présent mais ne modifie plus le style de tracé
+        ctx.beginPath();
+        ctx.arc(x, centerY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        // Nous ne traçons plus de cercle pointillé pour les points virtuels F et C/2F/2F'
+        // ctx.strokeStyle = color;
+        // ctx.lineWidth = 1.5;
+        // ctx.setLineDash([2, 3]);
+        // ctx.stroke();
+        // ctx.setLineDash([]);
+        
+        ctx.fillStyle = '#000000';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, centerY - 15); // Texte au-dessus du point
+    }
+
+    /**
+     * Dessine l'objet (la flèche noire) sur le canvas.
+     */
+    function drawObject() {
+        const { x, y } = getObjectTipScreenCoords(); // Coordonnées de la pointe de l'objet
+        ctx.beginPath();
+        ctx.moveTo(x, centerY); // Base de la flèche
+        ctx.lineTo(x, y);       // Pointe de la flèche
+        ctx.strokeStyle = '#059669'; // Couleur de l'objet
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.beginPath();
+        // Dessine la pointe de la flèche
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 6, y + 10);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 6, y + 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2); // Cercle à la pointe de l'objet (hotspot)
+        ctx.fillStyle = 'black';
+        ctx.fill();
+    }
+
+    /**
+     * Dessine l'image formée par le système optique.
+     * Est toujours en ligne pleine et de couleur jaune foncé.
+     */
+    function drawImage({ screenX, screenTopY, isVirtual, imageAtInfinity }) {
+        if (imageAtInfinity) return; // Ne rien dessiner si l'image est à l'infini
+        if (!isFinite(screenX) || !isFinite(screenTopY)) return; // Empêche les erreurs de dessin pour des valeurs non finies
+
+        const isUpright = screenTopY < centerY; // Vérifie si l'image est droite ou inversée
+        ctx.beginPath();
+        ctx.strokeStyle = '#DAA520'; // Couleur jaune foncé pour l'image
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]); // Toujours en ligne pleine, pas de tirets
+        ctx.moveTo(screenX, centerY);
+        ctx.lineTo(screenX, screenTopY);
+        // Dessine la pointe de la flèche de l'image
+        ctx.lineTo(screenX - 8, screenTopY + (isUpright ? 12 : -12));
+        ctx.moveTo(screenX, screenTopY);
+        ctx.lineTo(screenX + 8, screenTopY + (isUpright ? 12 : -12));
+        ctx.stroke();
+        // ctx.setLineDash([]); // Déjà fait juste avant le stroke
+    }
+
+    /**
+     * Dessine un rayon lumineux (segment de ligne).
+     */
+    function drawRay(ray) {
+        if (!ray) return;
+        ctx.beginPath();
+        ctx.strokeStyle = ray.color;
+        ctx.lineWidth = 2;
+        // Dessine le segment incident (avant le miroir/lentille)
+        if (ray.incidentStart && ray.incidentEnd) {
+            ctx.moveTo(ray.incidentStart.x, ray.incidentStart.y);
+            ctx.lineTo(ray.incidentEnd.x, ray.incidentEnd.y);
+        }
+        // Dessine le segment réfléchi/réfracté (après le miroir/lentille)
+        if (ray.reflectedStart && ray.reflectedEnd) {
+            ctx.moveTo(ray.reflectedStart.x, ray.reflectedStart.y);
+            ctx.lineTo(ray.reflectedEnd.x, ray.reflectedEnd.y);
+        }
+        ctx.stroke();
+    }
+
+    /**
+     * Dessine une ligne temporaire pendant le traçage manuel des rayons.
+     */
+    function drawTemporaryLine() {
+        if (!isDrawing || !dragStartPoint || !currentMousePos) return;
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // Ligne semi-transparente
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 2]); // Ligne pointillée
+        ctx.moveTo(dragStartPoint.x, dragStartPoint.y);
+        ctx.lineTo(currentMousePos.x, currentMousePos.y);
+        ctx.stroke();
+        ctx.setLineDash([]); // Réinitialise le style de ligne
+    }
+
+    /**
+     * Dessine un "hotspot" visuel (cercle rouge semi-transparent) pour indiquer un point cliquable.
+     */
+    function drawHotspots() {
+        // Dessine un hotspot à la fin du rayon incident, en attendant le début du rayon réfléchi
+        if (currentDrawingState === DRAW_STATE.AWAITING_REFLECTION_START && activeRay && activeRay.incidentEnd) {
+            ctx.beginPath();
+            ctx.arc(activeRay.incidentEnd.x, activeRay.incidentEnd.y, hotspotRadius / 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.5)'; // Rouge semi-transparent
+            ctx.fill();
+        }
+    }
+
+    /**
+     * Retourne les coordonnées de la pointe de l'objet en unités de pixels sur le canvas.
+     */
+    function getObjectTipScreenCoords() {
+        return { x: vertexX - config.objectDistance * scale, y: centerY - config.objectHeight * scale };
+    }
+
+    /**
+     * Gère l'événement de clic de souris.
+     */
+    function handleMouseDown(event) {
+        const pos = getMousePos(event); // Position de la souris sur le canvas
+        if (currentDrawingState === DRAW_STATE.IDLE) {
+            // Si on est au repos et que le clic est près de l'objet
+            if (isNearPoint(pos.x, pos.y, getObjectTipScreenCoords())) {
+                isDrawing = true;
+                dragStartPoint = getObjectTipScreenCoords(); // Point de départ du rayon incident
+                currentMousePos = pos;
+                // Crée un nouveau rayon actif avec une couleur cyclique
+                activeRay = { incidentStart: dragStartPoint, color: rayColors[nextRayColorIndex % rayColors.length] };
+                currentDrawingState = DRAW_STATE.DRAWING_INCIDENT; // Passe à l'état de dessin du rayon incident
+                canvas.style.cursor = 'grabbing'; // Curseur de "saisie"
+            }
+        } else if (currentDrawingState === DRAW_STATE.AWAITING_REFLECTION_START) {
+            // Si on attend le début du rayon réfléchi et que le clic est près du point d'impact
+            if (isNearPoint(pos.x, pos.y, activeRay.incidentEnd)) {
+                isDrawing = true;
+                dragStartPoint = activeRay.incidentEnd; // Point de départ du rayon réfléchi
+                currentMousePos = pos;
+                activeRay.reflectedStart = dragStartPoint;
+                currentDrawingState = DRAW_STATE.DRAWING_REFLECTED; // Passe à l'état de dessin du rayon réfléchi
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+    }
+
+    /**
+     * Gère l'événement de mouvement de souris.
+     */
+    function handleMouseMove(event) {
+        const pos = getMousePos(event);
+        if (isDrawing) {
+            currentMousePos = pos; // Met à jour la position de la souris pour la ligne temporaire
+        } else {
+            updateCursor(pos.x, pos.y); // Met à jour le curseur en fonction des hotspots
+        }
+        requestAnimationFrame(drawScene); // Redessine la scène
+    }
+
+    /**
+     * Gère l'événement de relâchement du bouton de souris.
+     */
+    function handleMouseUp(event) {
+        if (!isDrawing) return; // Ne rien faire si on ne dessinait pas
+        isDrawing = false;
+        const pos = getMousePos(event);
+        if (currentDrawingState === DRAW_STATE.DRAWING_INCIDENT) {
+            activeRay.incidentEnd = pos; // Enregistre le point d'impact du rayon incident
+            currentDrawingState = DRAW_STATE.AWAITING_REFLECTION_START; // Passe à l'état d'attente du rayon réfléchi
+        } else if (currentDrawingState === DRAW_STATE.DRAWING_REFLECTED) {
+            activeRay.reflectedEnd = pos; // Enregistre le point final du rayon réfléchi
+            userDrawnRays.push(activeRay); // Ajoute le rayon complet à la liste des rayons tracés
+            nextRayColorIndex++; // Prépare la prochaine couleur de rayon
+            activeRay = null; // Réinitialise le rayon actif
+            currentDrawingState = DRAW_STATE.IDLE; // Revient à l'état de repos
+        }
+        dragStartPoint = null;
+        updateCursor(pos.x, pos.y);
+        requestAnimationFrame(drawScene);
+    }
+
+    /**
+     * Obtient les coordonnées de la souris par rapport au canvas.
+     */
+    function getMousePos(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    /**
+     * Vérifie si les coordonnées (x, y) sont proches d'un point donné.
+     */
+    function isNearPoint(x, y, point) {
+        return point && Math.hypot(x - point.x, y - point.y) < hotspotRadius;
+    }
+
+    /**
+     * Met à jour le style du curseur de la souris en fonction de la proximité des hotspots.
+     */
+    function updateCursor(x, y) {
+        let onHotspot = false;
+        if (currentDrawingState === DRAW_STATE.IDLE && isNearPoint(x, y, getObjectTipScreenCoords())) {
+            onHotspot = true;
+        } else if (currentDrawingState === DRAW_STATE.AWAITING_REFLECTION_START && activeRay && isNearPoint(x, y, activeRay.incidentEnd)) {
+            onHotspot = true;
+        }
+        canvas.style.cursor = onHotspot ? 'grab' : 'default';
+    }
+
+    // Assignation des gestionnaires d'événements à la toile
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseout', () => { 
+        // Si la souris sort du canvas pendant le dessin, simule un "mouseUp"
+        if(isDrawing) handleMouseUp({}); 
+    });
+
+    // --- INITIALISATION ---
+    updatePrincipalRayInfo(); // Met à jour les informations sur les rayons au démarrage
+    requestAnimationFrame(drawScene); // Lance le premier dessin de la scène
+});
+    </script>
+</body>
+</html>
