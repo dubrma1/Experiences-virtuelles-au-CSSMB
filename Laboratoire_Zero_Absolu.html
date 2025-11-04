@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Laboratoire : Zéro Absolu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+
+    <style>
+        /* Conteneur du slider vertical */
+        #tempSlider {
+            height: 300px;
+            margin: 10px 0;
+        }
+        /* Barre de connexion bleue */
+        .noUi-connect {
+            background: #3b82f6;
+        }
+        /* NOUVEAU : Style de la poignée du curseur corrigé */
+        .noUi-vertical .noUi-handle {
+            width: 22px;   /* Largeur de la poignée */
+            height: 16px;  /* Hauteur de la poignée */
+            right: 12px;   /* Positionne la poignée à GAUCHE de la barre */
+            top: -8px;     /* Centre verticalement la poignée */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Simulateur de Laboratoire : Zéro Absolu</h1>
+            <p class="text-gray-600">Exploration de la loi de Gay-Lussac (Pression vs. Température)</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-lg shadow-lg p-6 flex flex-col">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Configuration de l'Appareil</h2>
+                <div class="flex-grow flex flex-row items-center justify-center space-x-4">
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg flex flex-col items-center space-y-4">
+                        <i data-feather="thermometer" class="text-blue-600"></i>
+                        <div id="tempSlider"></div>
+                        <span id="sliderValue" class="font-mono text-blue-800 text-lg w-20 text-center">20.0°C</span>
+                    </div>
+
+                    <div class="flex-grow h-full flex items-center justify-center">
+                         <canvas id="apparatusCanvas" width="400" height="400"></canvas>
+                    </div>
+                </div>
+                </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                
+                <div class="bg-green-50 p-4 rounded-lg mb-6">
+                    <h3 class="font-medium text-green-800 mb-2">Collecte de Données</h3>
+                    <button id="recordData" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center w-full justify-center">
+                        <i data-feather="plus-circle" class="mr-2"></i> Enregistrer les Données Actuelles
+                    </button>
+                </div>
+
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Données Collectées</h2>
+                <div class="overflow-y-auto" style="max-height: 250px;">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 sticky top-0">
+                                <th class="py-2 px-4 border">Essai</th>
+                                <th class="py-2 px-4 border">Température (°C)</th>
+                                <th class="py-2 px-4 border">Pression (kPa)</th>
+                                <th class="py-2 px-4 border">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTable"></tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button id="clearData" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="trash-2" class="mr-2"></i> Effacer Toutes les Données
+                    </button>
+                    <button id="exportCSV" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="download" class="mr-2"></i> Exporter en CSV
+                    </button>
+                    <button id="exportXLS" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center">
+                        <i data-feather="download" class="mr-2"></i> Exporter en Excel
+                    </button>
+                </div>
+
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="font-medium text-yellow-800 mb-2">Instructions</h3>
+                    <ol class="list-decimal pl-5 text-sm text-gray-700 space-y-1">
+                        <li>Ajustez la température en utilisant le curseur vertical.</li>
+                        <li>Cliquez sur "Enregistrer les Données Actuelles" pour capturer les lectures.</li>
+                        <li>Répétez pour différentes températures.</li>
+                        <li>Exportez vos données pour analyse.</li>
+                        <li>Tracez la Pression en fonction de la Température pour trouver le zéro absolu.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            
+            let currentTemp = 20;
+            let currentPressure = 101.3;
+            let trialCount = 0;
+            let dataPoints = [];
+
+            const canvas = document.getElementById('apparatusCanvas');
+            const ctx = canvas.getContext('2d');
+            // SUPPRESSION des références aux éléments qui n'existent plus
+            // const currentTempElement = document.getElementById('currentTemp');
+            // const currentPressureElement = document.getElementById('currentPressure');
+            const dataTableElement = document.getElementById('dataTable');
+            
+            const recordDataButton = document.getElementById('recordData');
+            const clearDataButton = document.getElementById('clearData');
+            const exportCSVButton = document.getElementById('exportCSV');
+            const exportXLSButton = document.getElementById('exportXLS');
+            
+            const tempSlider = document.getElementById('tempSlider');
+            const sliderValueDisplay = document.getElementById('sliderValue');
+
+            noUiSlider.create(tempSlider, {
+                start: [20],
+                connect: [true, false],
+                orientation: 'vertical',
+                direction: 'rtl',
+                range: { 'min': -5, 'max': 100 },
+                step: 0.5
+            });
+            
+            tempSlider.noUiSlider.on('update', function (values, handle) {
+                const newTemp = parseFloat(values[handle]);
+                setTemperature(newTemp);
+            });
+
+
+            function drawDialManometer(ctx, x, y, size, pressureValue, minPressure, maxPressure) {
+                const radius = size / 2;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#c0c0c0';
+                ctx.fill();
+                ctx.strokeStyle = '#808080';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.9, 0, Math.PI * 2);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fill();
+                const startAngle = Math.PI * 0.75;
+                const endAngle = Math.PI * 2.25;
+                const totalAngle = endAngle - startAngle;
+                ctx.font = `${Math.round(size * 0.07)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#333';
+                for (let i = 0; i <= 10; i++) {
+                    const angle = startAngle + (i / 10) * totalAngle;
+                    const label = minPressure + (i / 10) * (maxPressure - minPressure);
+                    const tx = radius * 0.7 * Math.cos(angle);
+                    const ty = radius * 0.7 * Math.sin(angle);
+                    ctx.fillText(label.toFixed(0), tx, ty);
+                }
+                const pressureRange = maxPressure - minPressure;
+                const clampedPressure = Math.max(minPressure, Math.min(maxPressure, pressureValue));
+                const normalizedPressure = (clampedPressure - minPressure) / pressureRange;
+                const needleAngle = startAngle + normalizedPressure * totalAngle;
+                ctx.rotate(needleAngle);
+                ctx.beginPath();
+                ctx.moveTo(-radius * 0.1, 0);
+                ctx.lineTo(radius * 0.85, 0);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.stroke();
+                ctx.rotate(-needleAngle);
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.1, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                ctx.font = `${Math.round(size * 0.08)}px Arial`;
+                ctx.fillText('kPa', 0, radius * 0.45);
+                ctx.restore();
+            }
+
+            function drawApparatus() {
+				const width = canvas.width;
+				const height = canvas.height;
+				ctx.clearRect(0, 0, width, height);
+				const sphereRadius = width * 0.18;
+				const sphereX = width / 2;
+				const sphereY = height * 0.65;
+				const connectionHeight = height * 0.1;
+                let liquidColor = '#a9c2d1';
+                if (currentTemp <= 5) {
+                    liquidColor = '#94b9ff';
+                } else if (currentTemp >= 90) {
+                    liquidColor = '#d1a9b8';
+                }
+                const beakerBottomY = height * 0.95;
+                const beakerWidth = sphereRadius * 2.5;
+                ctx.fillStyle = liquidColor;
+                ctx.globalAlpha = 0.25;
+                ctx.fillRect(sphereX - beakerWidth / 2, sphereY - sphereRadius * 0.8, beakerWidth, beakerBottomY - (sphereY - sphereRadius * 0.8));
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(sphereX - beakerWidth / 2, sphereY - sphereRadius * 0.8);
+                ctx.lineTo(sphereX - beakerWidth / 2, beakerBottomY);
+                ctx.lineTo(sphereX + beakerWidth / 2, beakerBottomY);
+                ctx.lineTo(sphereX + beakerWidth / 2, sphereY - sphereRadius * 0.8);
+                ctx.stroke();
+				const gradient = ctx.createRadialGradient(sphereX - sphereRadius * 0.3, sphereY - sphereRadius * 0.3, sphereRadius * 0.1, sphereX, sphereY, sphereRadius);
+				gradient.addColorStop(0, 'white');
+				gradient.addColorStop(0.5, '#e0e0e0');
+				gradient.addColorStop(1, '#a0a0e0');
+				ctx.beginPath();
+				ctx.arc(sphereX, sphereY, sphereRadius, 0, Math.PI * 2);
+				ctx.fillStyle = gradient;
+				ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+				ctx.shadowBlur = 15;
+				ctx.shadowOffsetX = 5;
+				ctx.shadowOffsetY = 5;
+				ctx.fill();
+				ctx.shadowColor = 'transparent';
+				ctx.fillStyle = '#9e9e9e';
+				ctx.fillRect(sphereX - width * 0.04, sphereY - sphereRadius - connectionHeight, width * 0.08, connectionHeight);
+				const manometerSize = width * 0.35;
+				const manometerY = sphereY - sphereRadius - connectionHeight - manometerSize / 2;
+				drawDialManometer(ctx, sphereX, manometerY, manometerSize, currentPressure, 0, 200);
+			}
+            
+            function updateDisplay() {
+                // SUPPRESSION des lignes mettant à jour les lectures numériques
+                // currentTempElement.textContent = `${currentTemp.toFixed(1)}°C`;
+                // currentPressureElement.textContent = `${currentPressure.toFixed(1)} kPa`;
+                sliderValueDisplay.textContent = `${currentTemp.toFixed(1)}°C`;
+                drawApparatus();
+            }
+
+            function setTemperature(temp) {
+                currentTemp = temp;
+                const kelvinTemp = temp + 273.15;
+                const refKelvin = 20 + 273.15;
+                currentPressure = (101.3 * kelvinTemp) / refKelvin;
+                updateDisplay();
+            }
+
+            function recordData() {
+                trialCount++;
+                const dataPoint = {
+                    trial: trialCount,
+                    temperature: parseFloat(currentTemp.toFixed(1)),
+                    pressure: parseFloat(currentPressure.toFixed(1))
+                };
+                dataPoints.push(dataPoint);
+                updateDataTable();
+            }
+
+            function updateDataTable() {
+                dataTableElement.innerHTML = '';
+                dataPoints.forEach(point => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="py-2 px-4 border text-center">${point.trial}</td>
+                        <td class="py-2 px-4 border text-center">${point.temperature}</td>
+                        <td class="py-2 px-4 border text-center">${point.pressure}</td>
+                        <td class="py-2 px-4 border text-center">
+                            <button class="text-red-500 hover:text-red-700 delete-btn" data-trial="${point.trial}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    dataTableElement.appendChild(row);
+                });
+                feather.replace();
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const trialToDelete = parseInt(this.getAttribute('data-trial'));
+                        dataPoints = dataPoints.filter(point => point.trial !== trialToDelete);
+                        updateDataTable();
+                    });
+                });
+            }
+
+            function clearData() {
+                if (confirm('Êtes-vous sûr de vouloir effacer toutes les données ?')) {
+                    dataPoints = [];
+                    trialCount = 0;
+                    updateDataTable();
+                }
+            }
+
+            function exportCSV() {
+                if (dataPoints.length === 0) { alert('Aucune donnée à exporter'); return; }
+                const csv = Papa.unparse({
+                    fields: ["Essai", "Température (°C)", "Pression (kPa)"],
+                    data: dataPoints.map(p => [p.trial, p.temperature, p.pressure])
+                });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'gay_lussac_data.csv');
+                link.click();
+            }
+
+            function exportXLS() {
+                if (dataPoints.length === 0) { alert('Aucune donnée à exporter'); return; }
+                const worksheet = XLSX.utils.json_to_sheet(dataPoints.map(p => ({
+                    'Essai': p.trial,
+                    'Température (°C)': p.temperature,
+                    'Pression (kPa)': p.pressure
+                })));
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Données Gay-Lussac");
+                XLSX.writeFile(workbook, "gay_lussac_data.xlsx");
+            }
+
+            recordDataButton.addEventListener('click', recordData);
+            clearDataButton.addEventListener('click', clearData);
+            exportCSVButton.addEventListener('click', exportCSV);
+            exportXLSButton.addEventListener('click', exportXLS);
+        });
+    </script>
+</body>
+</html>
