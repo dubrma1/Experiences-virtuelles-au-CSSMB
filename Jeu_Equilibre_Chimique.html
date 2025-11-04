@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Jeu de l'Équilibre - Équilibrage Chimique</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        .seesaw-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .seesaw-fulcrum {
+            width: 0;
+            height: 0;
+            border-left: 40px solid transparent;
+            border-right: 40px solid transparent;
+            border-bottom: 70px solid #a16207; /* amber-700 */
+            z-index: 1;
+        }
+
+        .seesaw-plank {
+            position: absolute;
+            bottom: 70px;
+            left: 10%;
+            width: 80%;
+            height: 20px;
+            background: linear-gradient(to right, #f59e0b, #fbbf24, #f59e0b); /* amber-400, amber-300 */
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transform-origin: center;
+            transition: transform 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 2;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        
+        .reactants-display, .products-display {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            min-width: 45%;
+            padding-bottom: 20px; /* Space for molecules */
+        }
+
+        .molecule-visualization {
+            width: 80px;
+            height: 60px;
+        }
+        
+        .atom-viz {
+            stroke-width: 2px;
+            stroke: rgba(0,0,0,0.3);
+        }
+        .atom-label {
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            pointer-events: none;
+        }
+        .bond-line {
+            stroke: #4b5563;
+            stroke-width: 3px;
+            stroke-linecap: round;
+        }
+        
+        /* Atom Colors */
+        .fill-H { fill: #ffffff; }
+        .stroke-H { stroke: #e5e7eb; }
+        .text-H { fill: #374151; }
+        
+        .fill-O { fill: #ef4444; }
+        .stroke-O { stroke: #b91c1c; }
+        .text-O { fill: #ffffff; }
+
+        .fill-C { fill: #374151; }
+        .stroke-C { stroke: #000000; }
+        .text-C { fill: #ffffff; }
+
+        .fill-N { fill: #3b82f6; }
+        .stroke-N { stroke: #1d4ed8; }
+        .text-N { fill: #ffffff; }
+        
+        .fill-Cl { fill: #22c55e; }
+        .stroke-Cl { stroke: #15803d; }
+        .text-Cl { fill: #ffffff; }
+
+        .fill-Na { fill: #a78bfa; }
+        .stroke-Na { stroke: #7c3aed; }
+        .text-Na { fill: #ffffff; }
+        
+        .control-group {
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        .coefficient-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 40px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-800 mb-2">Le Jeu de l'Équilibre</h1>
+            <p class="text-xl text-gray-700">Équilibrez les équations chimiques en ajustant les coefficients !</p>
+        </header>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="text-center mb-6">
+                <h2 id="equation-title" class="text-2xl font-semibold text-gray-800">Équation Actuelle</h2>
+                <p id="equation-display" class="text-3xl mt-2 font-mono"></p>
+            </div>
+            
+            <div class="seesaw-container">
+                <div class="seesaw-plank" id="seesaw-plank">
+                    <div class="reactants-display" id="reactants-display"></div>
+                    <div class="products-display" id="products-display"></div>
+                </div>
+                <div class="seesaw-fulcrum"></div>
+            </div>
+            
+            <div class="text-center mt-8">
+                <h3 class="text-xl font-semibold mb-4">Ajuster les Coefficients</h3>
+                <div id="controls-container" class="mt-4 flex flex-col md:flex-row gap-8 justify-center">
+                    <div class="flex-1">
+                        <h4 class="text-lg font-semibold text-center text-gray-700 mb-3 border-b pb-2">Réactifs</h4>
+                        <div id="reactant-controls" class="flex flex-wrap items-center justify-center gap-4">
+                            <!-- Contrôles des réactifs insérés ici -->
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-lg font-semibold text-center text-gray-700 mb-3 border-b pb-2">Produits</h4>
+                        <div id="product-controls" class="flex flex-wrap items-center justify-center gap-4">
+                            <!-- Contrôles des produits insérés ici -->
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="check-btn" class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105">
+                    <i class="fas fa-balance-scale mr-2"></i>Vérifier l'Équilibre
+                </button>
+            </div>
+        </div>
+
+        <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-8 max-w-sm w-full shadow-2xl text-center transform transition-all scale-95">
+                <div id="modal-icon" class="text-6xl mb-4"></div>
+                <h3 id="modal-title" class="text-2xl font-bold mb-2"></h3>
+                <p id="modal-message" class="text-gray-600 mb-6"></p>
+                <button id="modal-close-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Fermer</button>
+                <button id="next-btn" class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg hidden">Équation Suivante <i class="fas fa-arrow-right ml-2"></i></button>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Comment Jouer</h2>
+            <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                <li>La balançoire s'incline pour montrer de quel côté il y a le plus d'atomes.</li>
+                <li>Utilisez les flèches <i class="fas fa-arrow-up"></i> / <i class="fas fa-arrow-down"></i> pour ajuster le nombre de chaque molécule (coefficients).</li>
+                <li>Équilibrez l'équation pour avoir le même nombre de chaque type d'atome des deux côtés.</li>
+                <li>Cliquez sur "Vérifier l'Équilibre" pour voir si vous avez raison.</li>
+                <li>Quand l'équation est équilibrée, la balançoire est à l'horizontale !</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const equations = [
+            { reactants: [{ formula: "H2O" }], products: [{ formula: "H2" }, { formula: "O2" }] , description: "Décomposition de l'eau" },
+            { reactants: [{ formula: "N2" }, { formula: "H2" }], products: [{ formula: "NH3" }], description: "Synthèse de l'ammoniac" },
+            { reactants: [{ formula: "CH4" }, { formula: "O2" }], products: [{ formula: "CO2" }, { formula: "H2O" }], description: "Combustion du méthane" },
+            { reactants: [{ formula: "Na" }, { formula: "Cl2" }], products: [{ formula: "NaCl" }], description: "Synthèse du sel de table" }
+        ];
+        
+        let currentEquationIndex = 0;
+        let coefficients = {};
+
+        const reactantsDisplay = document.getElementById('reactants-display');
+        const productsDisplay = document.getElementById('products-display');
+        const reactantControls = document.getElementById('reactant-controls');
+        const productControls = document.getElementById('product-controls');
+        const equationDisplay = document.getElementById('equation-display');
+        const equationTitle = document.getElementById('equation-title');
+        const seesawPlank = document.getElementById('seesaw-plank');
+        const checkBtn = document.getElementById('check-btn');
+        const modal = document.getElementById('modal');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const nextBtn = document.getElementById('next-btn');
+        
+        function parseFormula(formula) {
+            const atoms = {};
+            const regex = /([A-Z][a-z]*)(\d*)/g;
+            let match;
+            while ((match = regex.exec(formula)) !== null) {
+                const element = match[1];
+                const count = parseInt(match[2] || '1', 10);
+                atoms[element] = (atoms[element] || 0) + count;
+            }
+            return atoms;
+        }
+
+        function setupEquation() {
+            const equation = equations[currentEquationIndex];
+            coefficients = {};
+            [...equation.reactants, ...equation.products].forEach((mol, i) => {
+                coefficients[`mol-${i}`] = 1;
+            });
+            render();
+        }
+
+        function createMoleculeVisual(formula) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("class", "molecule-visualization");
+            svg.setAttribute("viewBox", "0 0 80 60");
+
+            const layouts = {
+                "Na": { atoms: [{ el: "Na", x: 40, y: 30 }] },
+                "H2": { atoms: [{ el: "H", x: 25, y: 30 }, { el: "H", x: 55, y: 30 }], bonds: [[0, 1]] },
+                "O2": { atoms: [{ el: "O", x: 25, y: 30 }, { el: "O", x: 55, y: 30 }], bonds: [[0, 1]] },
+                "N2": { atoms: [{ el: "N", x: 25, y: 30 }, { el: "N", x: 55, y: 30 }], bonds: [[0, 1]] },
+                "Cl2": { atoms: [{ el: "Cl", x: 25, y: 30 }, { el: "Cl", x: 55, y: 30 }], bonds: [[0, 1]] },
+                "H2O": { atoms: [{ el: "O", x: 40, y: 30 }, { el: "H", x: 25, y: 45 }, { el: "H", x: 55, y: 45 }], bonds: [[0, 1], [0, 2]] },
+                "CO2": { atoms: [{ el: "C", x: 40, y: 30 }, { el: "O", x: 15, y: 30 }, { el: "O", x: 65, y: 30 }], bonds: [[0, 1], [0, 2]] },
+                "NH3": { atoms: [{ el: "N", x: 40, y: 25 }, { el: "H", x: 40, y: 45 }, { el: "H", x: 20, y: 40 }, { el: "H", x: 60, y: 40 }], bonds: [[0, 1], [0, 2], [0, 3]] },
+                "CH4": { atoms: [{ el: "C", x: 40, y: 30 }, { el: "H", x: 40, y: 15 }, { el: "H", x: 40, y: 45 }, { el: "H", x: 20, y: 30 }, { el: "H", x: 60, y: 30 }], bonds: [[0, 1], [0, 2], [0, 3], [0, 4]] },
+                "NaCl":{ atoms: [{ el: "Na", x: 25, y: 30 }, { el: "Cl", x: 55, y: 30 }], bonds: [[0, 1]] },
+            };
+            
+            const layout = layouts[formula] || { atoms: [{ el: '?', x: 40, y: 30 }] };
+
+            if (layout.bonds) {
+                layout.bonds.forEach(bond => {
+                    const [i, j] = bond;
+                    const line = document.createElementNS(svgNS, 'line');
+                    line.setAttribute('x1', layout.atoms[i].x);
+                    line.setAttribute('y1', layout.atoms[i].y);
+                    line.setAttribute('x2', layout.atoms[j].x);
+                    line.setAttribute('y2', layout.atoms[j].y);
+                    line.setAttribute('class', 'bond-line');
+                    svg.appendChild(line);
+                });
+            }
+
+            layout.atoms.forEach(atom => {
+                const circle = document.createElementNS(svgNS, 'circle');
+                circle.setAttribute('cx', atom.x);
+                circle.setAttribute('cy', atom.y);
+                circle.setAttribute('r', 12);
+                circle.setAttribute('class', `atom-viz fill-${atom.el} stroke-${atom.el}`);
+                svg.appendChild(circle);
+
+                const text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', atom.x);
+                text.setAttribute('y', atom.y);
+                text.setAttribute('dy', '0.35em');
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('class', `atom-label text-${atom.el}`);
+                text.textContent = atom.el;
+                svg.appendChild(text);
+            });
+            
+            return svg;
+        }
+
+        function render() {
+            reactantsDisplay.innerHTML = '';
+            productsDisplay.innerHTML = '';
+            reactantControls.innerHTML = '';
+            productControls.innerHTML = '';
+            
+            const equation = equations[currentEquationIndex];
+            equationTitle.textContent = `Défi ${currentEquationIndex + 1}: ${equation.description}`;
+            
+            const renderSide = (molecules, displayContainer, controlsContainer, startIndex) => {
+                molecules.forEach((mol, i) => {
+                    const molId = `mol-${startIndex + i}`;
+                    const molContainer = document.createElement('div');
+                    molContainer.className = 'flex flex-col items-center gap-2';
+
+                    const visualWrapper = document.createElement('div');
+                    visualWrapper.className = 'flex flex-wrap justify-center items-center';
+                    for(let c = 0; c < coefficients[molId]; c++) {
+                        visualWrapper.appendChild(createMoleculeVisual(mol.formula));
+                    }
+                    molContainer.appendChild(visualWrapper);
+                    displayContainer.appendChild(molContainer);
+                    controlsContainer.appendChild(createControl(mol, molId));
+                });
+            };
+
+            renderSide(equation.reactants, reactantsDisplay, reactantControls, 0);
+            renderSide(equation.products, productsDisplay, productControls, equation.reactants.length);
+            
+            updateEquationDisplay();
+            updateSeesaw();
+        }
+        
+        function createControl(molecule, id) {
+            const controlGroup = document.createElement('div');
+            controlGroup.className = 'control-group';
+            
+            const formulaLabel = document.createElement('div');
+            formulaLabel.className = 'font-bold text-lg mb-2';
+            formulaLabel.innerHTML = formatFormula(molecule.formula);
+            
+            const controlWrapper = document.createElement('div');
+            controlWrapper.className = 'flex items-center justify-center';
+
+            const downBtn = createButton('<i class="fas fa-arrow-down"></i>', () => adjustCoefficient(id, -1));
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'coefficient-value';
+            valueSpan.textContent = coefficients[id];
+            const upBtn = createButton('<i class="fas fa-arrow-up"></i>', () => adjustCoefficient(id, 1));
+            
+            controlWrapper.append(downBtn, valueSpan, upBtn);
+            controlGroup.append(formulaLabel, controlWrapper);
+            return controlGroup;
+        }
+
+        function createButton(iconHtml, onClick) {
+            const btn = document.createElement('button');
+            btn.className = 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold p-2 rounded-full w-10 h-10 mx-2 transition';
+            btn.innerHTML = iconHtml;
+            btn.onclick = onClick;
+            return btn;
+        }
+
+        function adjustCoefficient(id, change) {
+            coefficients[id] = Math.max(1, coefficients[id] + change);
+            render();
+        }
+
+        function updateEquationDisplay() {
+            const equation = equations[currentEquationIndex];
+            let reactantStr = equation.reactants.map((mol, i) => `${coefficients[`mol-${i}`] > 1 ? coefficients[`mol-${i}`] : ''}${formatFormula(mol.formula)}`).join(' + ');
+            let productStr = equation.products.map((mol, i) => `${coefficients[`mol-${i+equation.reactants.length}`] > 1 ? coefficients[`mol-${i+equation.reactants.length}`] : ''}${formatFormula(mol.formula)}`).join(' + ');
+            equationDisplay.innerHTML = `${reactantStr} <i class="fas fa-arrow-right text-gray-400 mx-4"></i> ${productStr}`;
+        }
+        
+        function formatFormula(formula) {
+            return formula.replace(/(\d+)/g, '<sub>$1</sub>');
+        }
+
+        function calculateAtomCounts() {
+            const equation = equations[currentEquationIndex];
+            const counts = { reactants: {}, products: {} };
+            
+            const countSide = (molecules, side, startIndex) => {
+                molecules.forEach((mol, i) => {
+                    const molId = `mol-${startIndex + i}`;
+                    const atoms = parseFormula(mol.formula);
+                    for (const element in atoms) {
+                        counts[side][element] = (counts[side][element] || 0) + atoms[element] * coefficients[molId];
+                    }
+                });
+            };
+            
+            countSide(equation.reactants, 'reactants', 0);
+            countSide(equation.products, 'products', equation.reactants.length);
+            return counts;
+        }
+
+        function updateSeesaw() {
+            const counts = calculateAtomCounts();
+            let totalReactants = 0;
+            let totalProducts = 0;
+            const allElements = new Set([...Object.keys(counts.reactants), ...Object.keys(counts.products)]);
+
+            allElements.forEach(el => {
+                totalReactants += counts.reactants[el] || 0;
+                totalProducts += counts.products[el] || 0;
+            });
+            
+            const difference = totalProducts - totalReactants;
+            const tilt = Math.max(-20, Math.min(20, difference * 2.5));
+            seesawPlank.style.transform = `rotate(${tilt}deg)`;
+        }
+
+        function checkBalance() {
+            const counts = calculateAtomCounts();
+            const allElements = new Set([...Object.keys(counts.reactants), ...Object.keys(counts.products)]);
+            let isBalanced = true;
+
+            for (const element of allElements) {
+                if ((counts.reactants[element] || 0) !== (counts.products[element] || 0)) {
+                    isBalanced = false;
+                    break;
+                }
+            }
+
+            if (isBalanced) {
+                showModal('success', 'Félicitations !', 'L\'équation est parfaitement équilibrée.');
+                nextBtn.style.display = 'block';
+            } else {
+                showModal('error', 'Pas encore...', 'L\'équation n\'est pas équilibrée. Continuez d\'essayer !');
+            }
+        }
+
+        function showModal(type, title, message) {
+            const icons = {
+                success: '<i class="fas fa-check-circle text-green-500"></i>',
+                error: '<i class="fas fa-times-circle text-red-500"></i>'
+            };
+            modalIcon.innerHTML = icons[type];
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+        }
+        
+        function nextEquation() {
+            currentEquationIndex = (currentEquationIndex + 1) % equations.length;
+            setupEquation();
+            modal.classList.add('hidden');
+            nextBtn.style.display = 'none';
+        }
+
+        // Initialisation du jeu
+        document.addEventListener('DOMContentLoaded', () => {
+            checkBtn.addEventListener('click', checkBalance);
+            nextBtn.addEventListener('click', nextEquation);
+            modalCloseBtn.addEventListener('click', () => modal.classList.add('hidden'));
+            setupEquation();
+        });
+    </script>
+</body>
+</html>
