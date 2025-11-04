@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Solubilité</title>
+    <style>
+        /* Styles généraux */
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        /* Panneaux de contrôle */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        label {
+            flex-basis: 120px;
+            font-weight: bold;
+            color: #4a6572;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+        select {
+            padding: 10px 12px;
+            border: 1px solid #c0d0e0;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        /* NOUVELLE SECTION : Disposition de la visualisation principale */
+        .visualization-area {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .beaker-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        #beakerCanvas {
+            border: 2px solid #bdc3c7;
+            background-color: #fdfdfd;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .info-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+        }
+        #solubilityInfo {
+            font-size: 0.9em;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        
+        /* Panneau d'actions et boutons */
+        .actions-panel {
+            flex-grow: 1;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+		.actions-columns {
+            display: flex;
+            width: 100%;
+            gap: 15px; /* Espace entre les colonnes */
+		}	
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            gap: 10px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        button.add-btn { background-color: #27ae60; }
+        button.add-btn:hover { background-color: #229954; }
+        button.mix-btn { background-color: #0350ae; }
+        button.mix-btn:hover { background-color: #023068; }
+        button.reset-btn { background-color: #e74c3c; }
+        button.reset-btn:hover { background-color: #c0392b; }
+        button.record-btn { background-color: #8e44ad; }
+        button.record-btn:hover { background-color: #7d3c98; }
+        button.help-btn { background-color: #f9bb00; }
+        button.help-btn:hover { background-color: #b28500; }
+        /* button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }*/
+
+        /* NOUVEAU : Styles pour le popup d'aide */
+        .popup {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .popup-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+
+        /* Tableau de données */
+        .data-table {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #e9ecef;
+            color: #4a6572;
+            font-weight: bold;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simulateur de Solubilité</h1>
+        
+        <!-- Panneau des paramètres -->
+        <div class="controls-panel">
+            <div class="input-group">
+                <label for="salt">Sel :</label>
+                <select id="salt">
+                    <option value="NaCl">Chlorure de sodium (NaCl)</option>
+                    <option value="NH4Cl">Chlorure d'ammonium (NH₄Cl)</option>
+                    <option value="KClO3">Chlorate de potassium (KClO₃)</option>
+                    <option value="PbNO32">Nitrate de plomb(II) (Pb(NO₃)₂)</option>
+                    <option value="Na2SO4">Sulfate de sodium (Na₂SO₄)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="volume">Volume d'eau :</label>
+                <input type="range" id="volume" min="50" max="200" value="100">
+                <span id="volumeValue">100 mL</span>
+            </div>
+            <div class="input-group">
+                <label for="temperature">Température :</label>
+                <input type="range" id="temperature" min="5" max="90" value="20">
+                <span id="temperatureValue">20 °C</span>
+            </div>
+        </div>
+
+        <!-- MODIFIÉ : Zone de visualisation principale -->
+        <div class="visualization-area">
+            <div class="beaker-container">
+                <canvas id="beakerCanvas" width="300" height="350"></canvas>
+                <!-- <div class="info-display"> Masse de sel ajoutée : <span id="massValue">0.0</span> g </div>  -->
+                <!-- <div id="solubilityInfo"></div> -->
+            </div>
+            
+            <!-- Panneau des actions déplacé ici -->
+			<div class="actions-panel">
+				<div class="info-display"> Masse de sel ajoutée : <span id="massValue">0.0</span> g </div>
+                <h2>Actions</h2>
+                <div class="actions-columns">
+                    <div class="button-group">
+                        <button class="add-btn" onclick="addSolute(10)">Ajouter 10 g</button>
+                        <button class="add-btn" onclick="addSolute(1)">Ajouter 1 g</button>
+                        <button class="add-btn" onclick="addSolute(0.1)">Ajouter 0.1 g</button>
+                    </div>
+                    <div class="button-group">
+                        <button class="mix-btn" id="mixBtn" onclick="mixSolution()">Mélanger</button>
+                        <button class="reset-btn" onclick="resetExperiment()">Reprendre</button>
+                        <button class="record-btn" id="recordBtn" onclick="recordData()">Noter ce résultat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau de données -->
+        <div class="data-table">
+            <h2>Données Enregistrées (Points de Saturation)</h2>
+            <div class="button-group" style="margin-bottom: 15px; flex-direction: row; justify-content:center;">
+                 <button class="help-btn" onclick="showHelp()">Aide</button>
+                 <button id="exportBtn" onclick="exportCSV()" disabled>Exporter en CSV</button>
+            </div>
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Sel</th>
+                        <th>Température (°C)</th>
+                        <th>Volume d'eau (mL)</th>
+                        <th>Masse de soluté (g)</th>
+                        <th>Solubilité (g/100mL)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- NOUVEAU : Structure HTML du Popup -->
+    <div id="helpPopup" class="popup">
+        <div class="popup-content">
+            <span class="close-btn" onclick="closeHelp()">&times;</span>
+            <h2>Aide : Saturation Théorique</h2>
+            <p id="helpText" style="font-size: 1.1em; line-height: 1.6;"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- DONNÉES SCIENTIFIQUES ---
+        const solubilityData = {
+            "NaCl":   [[0, 35.7], [20, 35.9], [100, 39.8]],
+            "NH4Cl":  [[0, 29.4], [20, 37.2], [100, 77.3]],
+            "KClO3":  [[0, 3.3],  [20, 7.4],  [100, 57.0]],
+            "PbNO32": [[0, 37.7], [20, 56.3], [100, 127.0]],
+            "Na2SO4": [[0, 4.76], [20, 19.5], [32.38, 49.7], [100, 42.0]]
+        };
+
+        // --- VARIABLES D'ÉTAT ---
+        let currentVolume = 100;
+        let currentTemperature = 20;
+        let currentSalt = 'NaCl';
+        let addedMass = 0.0;
+        let isMixed = true;
+        let precipitateAmount = 0;
+        let recordedData = [];
+
+        // Variables d'animation
+        const beakerCanvas = document.getElementById('beakerCanvas');
+        const beakerCtx = beakerCanvas.getContext('2d');
+        let saltGrains = [];
+        let mixAnimationTime = 0;
+
+        // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+        const volumeSlider = document.getElementById('volume');
+        const temperatureSlider = document.getElementById('temperature');
+        const saltSelector = document.getElementById('salt');
+
+        volumeSlider.addEventListener('input', () => {
+            currentVolume = parseInt(volumeSlider.value);
+            document.getElementById('volumeValue').textContent = `${currentVolume} mL`;
+            updateSolubilityInfo();
+        });
+        temperatureSlider.addEventListener('input', () => {
+            currentTemperature = parseInt(temperatureSlider.value);
+            document.getElementById('temperatureValue').textContent = `${currentTemperature} °C`;
+            updateSolubilityInfo();
+        });
+        saltSelector.addEventListener('change', () => {
+            currentSalt = saltSelector.value;
+            resetExperiment();
+        });
+
+        // --- FONCTIONS DE L'APPLICATION ---
+        function getSolubility(salt, temp) {
+            const data = solubilityData[salt];
+            for (let i = 0; i < data.length - 1; i++) {
+                const [temp1, sol1] = data[i];
+                const [temp2, sol2] = data[i + 1];
+                if (temp >= temp1 && temp <= temp2) {
+                    const tempRatio = (temp - temp1) / (temp2 - temp1);
+                    return sol1 + tempRatio * (sol2 - sol1);
+                }
+            }
+            return data[data.length - 1][1];
+        }
+
+        function addSolute(amount) {
+            addedMass += amount;
+            document.getElementById('massValue').textContent = addedMass.toFixed(1);
+            isMixed = false;
+            document.getElementById('mixBtn').disabled = false;
+            for (let i = 0; i < amount * 2; i++) {
+                saltGrains.push({
+                    x: beakerCanvas.width / 2 + (Math.random() - 0.5) * 100,
+                    y: 50 + Math.random() * 30,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function mixSolution() {
+            if (isMixed) return;
+            mixAnimationTime = 2;
+            setTimeout(() => {
+                const maxSolubilityGramsPer100mL = getSolubility(currentSalt, currentTemperature);
+                const maxSoluteInVolume = maxSolubilityGramsPer100mL * (currentVolume / 100);
+                precipitateAmount = (addedMass > maxSoluteInVolume) ? addedMass - maxSoluteInVolume : 0;
+                isMixed = true;
+                mixAnimationTime = 0;
+            }, 2000);
+        }
+
+        function resetExperiment() {
+            addedMass = 0.0;
+            precipitateAmount = 0;
+            isMixed = true;
+            saltGrains = [];
+            document.getElementById('massValue').textContent = '0.0';
+            document.getElementById('mixBtn').disabled = true;
+            updateSolubilityInfo();
+        }
+
+        function recordData() {
+            const solubility = (addedMass / currentVolume) * 100;
+            recordedData.push({
+                salt: currentSalt,
+                temp: currentTemperature,
+                volume: currentVolume,
+                mass: addedMass.toFixed(1),
+                solubility: solubility.toFixed(1)
+            });
+            updateDataTable();
+            document.getElementById('exportBtn').disabled = false;
+        }
+
+        function updateDataTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+            recordedData.forEach(data => {
+                tbody.innerHTML += `<tr>
+                    <td>${data.salt}</td>
+                    <td>${data.temp}</td>
+                    <td>${data.volume}</td>
+                    <td>${data.mass}</td>
+                    <td>${data.solubility}</td>
+                </tr>`;
+            });
+        }
+        
+        function updateSolubilityInfo() {
+            const solubilityInfoDiv = document.getElementById('solubilityInfo');
+            if (solubilityInfoDiv) { // Vérifie si l'élément existe
+                const solubility = getSolubility(currentSalt, currentTemperature);
+                const maxSolute = solubility * (currentVolume / 100);
+                solubilityInfoDiv.textContent = 
+                    `Saturation théorique à ${currentTemperature}°C : ${solubility.toFixed(1)} g/100mL (soit ${maxSolute.toFixed(1)} g pour ${currentVolume} mL)`;
+            }
+        }
+
+        function exportCSV() {
+            if (recordedData.length === 0) return;
+            let csvContent = "Sel,Temperature_C,Volume_mL,Masse_g,Solubilite_g_100mL\n";
+            recordedData.forEach(d => {
+                csvContent += `${d.salt},${d.temp},${d.volume},${d.mass},${d.solubility}\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "donnees_solubilite.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- NOUVELLES FONCTIONS POUR LE POPUP ---
+        function showHelp() {
+            const popup = document.getElementById('helpPopup');
+            const solubility = getSolubility(currentSalt, currentTemperature);
+            const maxSolute = solubility * (currentVolume / 100);
+            document.getElementById('helpText').innerHTML =
+                `À <b>${currentTemperature}°C</b>, la solubilité du <b>${currentSalt}</b> est de <b>${solubility.toFixed(1)} g/100mL</b>.
+                 <br><br>
+                 Dans votre bécher de <b>${currentVolume} mL</b>, vous pouvez donc dissoudre au maximum <b>${maxSolute.toFixed(1)} g</b> de sel.`;
+            popup.style.display = 'flex';
+        }
+
+        function closeHelp() {
+            document.getElementById('helpPopup').style.display = 'none';
+        }
+
+        // --- MOTEUR D'ANIMATION (CANVAS) ---
+        function drawBeaker() {
+            beakerCtx.clearRect(0, 0, beakerCanvas.width, beakerCanvas.height);
+            
+            const beakerBottomY = beakerCanvas.height - 20;
+            const beakerWidth = 200;
+            const beakerX = (beakerCanvas.width - beakerWidth) / 2;
+            const waterHeight = (currentVolume / 200) * (beakerCanvas.height - 80);
+            const waterY = beakerBottomY - waterHeight;
+            const topOfBeakerY = 50;
+
+            // Dessin du liquide
+            beakerCtx.fillStyle = '#aed6f1';
+            beakerCtx.fillRect(beakerX, waterY, beakerWidth, waterHeight);
+            
+            // Animation de mélange
+            if (mixAnimationTime > 0) {
+                beakerCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                beakerCtx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    beakerCtx.beginPath();
+                    const swirlY = waterY + (waterHeight / 4) * (i + 1);
+                    const swirlX = beakerX + beakerWidth / 2 + Math.sin(Date.now() / 100 + i) * 40;
+                    beakerCtx.arc(swirlX, swirlY, 20, 0, Math.PI * 2);
+                    beakerCtx.stroke();
+                }
+            }
+
+            // Animation de chute des grains
+            saltGrains.forEach((grain, index) => {
+                grain.y += grain.speed;
+                beakerCtx.fillStyle = 'white';
+                beakerCtx.fillRect(grain.x, grain.y, grain.size, grain.size);
+                if (grain.y > beakerBottomY - 5) saltGrains.splice(index, 1);
+            });
+
+            // Dessin du précipité
+            if (isMixed && precipitateAmount > 0) {
+                const precipitateSize = Math.min(80, 3 + precipitateAmount * 2);
+                beakerCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                beakerCtx.fillRect(
+                    beakerX + (beakerWidth - precipitateSize) / 2,
+                    beakerBottomY - precipitateSize,
+                    precipitateSize, 
+                    precipitateSize
+                );
+            }
+            
+            // Dessin du contour du bécher avec bec verseur
+            beakerCtx.strokeStyle = '#7f8c8d';
+            beakerCtx.lineWidth = 4;
+            beakerCtx.beginPath();
+            beakerCtx.moveTo(beakerX, topOfBeakerY);
+            beakerCtx.lineTo(beakerX, beakerBottomY);
+            beakerCtx.lineTo(beakerX + beakerWidth, beakerBottomY);
+            beakerCtx.lineTo(beakerX + beakerWidth, topOfBeakerY + 10);
+            beakerCtx.lineTo(beakerX + beakerWidth + 15, topOfBeakerY - 5);
+            //beakerCtx.lineTo(beakerX + beakerWidth, topOfBeakerY - 20); // Ligne corrigée
+            beakerCtx.stroke();
+        }
+
+        function animationLoop() {
+            drawBeaker();
+            requestAnimationFrame(animationLoop);
+        }
+
+        // --- INITIALISATION ---
+        window.onload = () => {
+            resetExperiment();
+            animationLoop();
+            window.addEventListener('click', (event) => {
+                if (event.target == document.getElementById('helpPopup')) {
+                    closeHelp();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
