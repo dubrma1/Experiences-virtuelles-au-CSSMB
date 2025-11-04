@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Circulation Thermohaline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f0f4f8;
+        }
+        #simulation-container {
+            position: relative;
+            width: 100%;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 2px solid #93c5fd;
+        }
+        #simulation-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .control-label {
+            font-weight: 600;
+            color: #475569;
+        }
+        .control-value {
+            font-weight: 700;
+            color: #1e293b;
+            min-width: 50px;
+        }
+        input[type="range"].vertical {
+            writing-mode: bt-lr;
+            -webkit-appearance: slider-vertical;
+            width: 8px;
+            height: 150px;
+            padding: 0 5px;
+            background: #d1d5db;
+            border-radius: 5px;
+            cursor: ns-resize;
+        }
+        input[type="range"].vertical::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: ns-resize;
+        }
+        input[type="range"].vertical::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: ns-resize;
+            border: none;
+        }
+        #observation-form label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 1rem;
+            font-size: 0.875rem;
+        }
+        #observation-form input[type="radio"] {
+            margin-right: 0.35rem;
+        }
+        #observations-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        #observations-container th, #observations-container td {
+            border: 1px solid #e2e8f0;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+        #observations-container th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+        #observations-container tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="py-8 px-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Simulateur de Circulation Thermohaline</h1>
+            <p class="text-gray-600 text-lg">Observez comment la température et la salinité animent les courants océaniques.</p>
+        </header>
+
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex flex-col lg:flex-row justify-center items-center gap-4">
+                <div class="flex flex-col items-center gap-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <label for="tropic-temp-slider" class="control-label flex items-center">
+                        <i class="fas fa-sun fa-fw mr-2 text-amber-500"></i> Tropicale
+                    </label>
+                    <input type="range" id="tropic-temp-slider" min="10" max="35" value="22" class="vertical">
+                    <span id="tropic-temp-value" class="control-value text-amber-600 text-lg">22°C</span>
+                </div>
+
+                <div class="flex-grow w-full">
+                    <div id="simulation-container">
+                        <canvas id="simulation-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center gap-4 p-4 bg-sky-50 border-sky-200 rounded-lg">
+                    <label for="polar-temp-slider" class="control-label flex items-center">
+                        <i class="fas fa-snowflake fa-fw mr-2 text-sky-500"></i> Polaire
+                    </label>
+                    <input type="range" id="polar-temp-slider" min="-15" max="10" value="0" class="vertical">
+                    <span id="polar-temp-value" class="control-value text-sky-600 text-lg">0°C</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div class="md:col-span-2 bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-edit mr-2"></i>Faites une observation</h3>
+                    <form id="observation-form">
+                        <div class="mb-3">
+                            <strong class="text-sm text-gray-600 block mb-1">Vitesse de la boucle de convection :</strong>
+                            <div>
+                                <label><input type="radio" name="vitesse" value="rapide">rapide</label>
+                                <label><input type="radio" name="vitesse" value="moyenne">moyenne</label>
+                                <label><input type="radio" name="vitesse" value="lente">lente</label>
+                                <label><input type="radio" name="vitesse" value="arrêt">arrêt</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <strong class="text-sm text-gray-600 block mb-1">État du glacier:</strong>
+                            <div>
+                                <label><input type="radio" name="glacier" value="stable">stable</label>
+                                <label><input type="radio" name="glacier" value="fonte">fonte</label>
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <strong class="text-sm text-gray-600 block mb-1">État de la banquise:</strong>
+                            <div>
+                                <label><input type="radio" name="banquise" value="stable">stable</label>
+                                <label><input type="radio" name="banquise" value="fonte">fonte</label>
+                                <label><input type="radio" name="banquise" value="grossit">grossit</label>
+                            </div>
+                        </div>
+                        <div>
+                            <strong class="text-sm text-gray-600 block mb-1">Salinité de l’eau de surface au pôle:</strong>
+                            <div>
+                                <label><input type="radio" name="salinite" value="stable">stable</label>
+                                <label><input type="radio" name="salinite" value="diminue">diminue</label>
+                                <label><input type="radio" name="salinite" value="augmente">augmente</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="flex flex-col gap-3">
+                     <button id="add-observation-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition">
+                        <i class="fas fa-plus-circle mr-2"></i>Ajouter l'observation
+                    </button>
+                    <button id="reset-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>Réinitialiser Tout
+                    </button>
+                </div>
+            </div>
+             <div id="observations-container" class="mt-6"></div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- PARAMÈTRES DE SIMULATION ---
+            const NUM_PARTICLE_CLUSTERS = 200;
+            const WATER_LINE_Y = 80;
+            const STOP_CIRCULATION_TEMP = 10;
+            const SALT_RELEASE_TEMP = -4; 
+            const BASE_SPEED_FACTOR = 12;
+            const MELT_PROBABILITY_MAX = 0.5;
+
+            // --- ÉLÉMENTS DU DOM ---
+            const canvas = document.getElementById('simulation-canvas');
+            const ctx = canvas.getContext('2d');
+            const tropicSlider = document.getElementById('tropic-temp-slider');
+            const polarSlider = document.getElementById('polar-temp-slider');
+            const tropicValue = document.getElementById('tropic-temp-value');
+            const polarValue = document.getElementById('polar-temp-value');
+            const resetBtn = document.getElementById('reset-btn');
+            const addObservationBtn = document.getElementById('add-observation-btn');
+            const observationForm = document.getElementById('observation-form');
+            const observationsContainer = document.getElementById('observations-container');
+
+            // --- ÉTAT DE LA SIMULATION ---
+            let particles = [];
+            let containerWidth, containerHeight;
+            let observations = [];
+            
+            let simState = {
+                tropicTemp: 22,
+                polarTemp: 0
+            };
+
+            function resizeCanvas() {
+                const container = document.getElementById('simulation-container');
+                containerWidth = container.clientWidth;
+                containerHeight = containerWidth * 0.4;
+                canvas.width = containerWidth;
+                canvas.height = containerHeight;
+            }
+
+            function createParticle(layer) {
+                const ovalCenterY = WATER_LINE_Y + (containerHeight - WATER_LINE_Y) / 2;
+                const ovalHeight = (containerHeight - WATER_LINE_Y) * 0.35;
+                const bandThickness = 40;
+                const yOffset = (Math.random() - 0.5) * bandThickness;
+                const yPos = layer === 'surface' 
+                    ? (ovalCenterY - ovalHeight + yOffset)
+                    : (ovalCenterY + ovalHeight + yOffset);
+
+                return {
+                    x: Math.random() * containerWidth, y: yPos,
+                    vx: 0, vy: 0,
+                    type: 'water',
+                    layer: layer
+                };
+            }
+
+            function initSimulation() {
+                particles = [];
+                for (let i = 0; i < NUM_PARTICLE_CLUSTERS; i++) {
+                    particles.push(createParticle(i < NUM_PARTICLE_CLUSTERS / 2 ? 'surface' : 'deep'));
+                }
+            }
+            
+            function resetRadioButtons() {
+                const radios = observationForm.querySelectorAll('input[type="radio"]');
+                radios.forEach(radio => radio.checked = false);
+            }
+
+            function renderTable() {
+                if (observations.length === 0) {
+                    observationsContainer.innerHTML = '';
+                    return;
+                }
+                let tableHTML = `
+                    <h3 class="font-semibold text-gray-700 mt-4 mb-2"><i class="fas fa-table mr-2"></i>Tableau d'observations</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Temp. Tropicale</th>
+                                <th>Temp. Polaire</th>
+                                <th>Vitesse Boucle</th>
+                                <th>État Glacier</th>
+                                <th>État Banquise</th>
+                                <th>Salinité Pôle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                observations.forEach(obs => {
+                    tableHTML += `
+                        <tr>
+                            <td>${obs.tropicTemp}°C</td>
+                            <td>${obs.polarTemp}°C</td>
+                            <td>${obs.vitesse || 'N/A'}</td>
+                            <td>${obs.glacier || 'N/A'}</td>
+                            <td>${obs.banquise || 'N/A'}</td>
+                            <td>${obs.salinite || 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+                tableHTML += '</tbody></table>';
+                observationsContainer.innerHTML = tableHTML;
+            }
+            
+            function drawScene() {
+                // Fond de ciel
+                ctx.fillStyle = '#dbeafe';
+                ctx.fillRect(0, 0, containerWidth, WATER_LINE_Y);
+
+                // MODIFICATION 3: Changez la couleur de fond de l'océan ici (code couleur HEX)
+                ctx.fillStyle = '#60a5fa'; // Bleu plus pâle
+                ctx.fillRect(0, WATER_LINE_Y, containerWidth, containerHeight - WATER_LINE_Y);
+                
+                // Soleil
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(containerWidth * 0.1, 40, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Glacier
+                ctx.fillStyle = '#f0f9ff';
+                ctx.beginPath();
+                ctx.moveTo(containerWidth * 0.75, containerHeight);
+                ctx.lineTo(containerWidth * 0.78, WATER_LINE_Y - 30);
+                ctx.lineTo(containerWidth, WATER_LINE_Y - 35);
+                ctx.lineTo(containerWidth, containerHeight);
+                ctx.closePath();
+                ctx.fill();
+
+                // Dessin de la banquise
+                if (simState.polarTemp < 5) {
+                    const iceThickness = Math.max(0, 15 * ( (5 - simState.polarTemp) / 10));
+                    const iceWidth = Math.min(containerWidth * 0.3, containerWidth * 0.15 + containerWidth * 0.15 * ( (5 - simState.polarTemp) / 10));
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.beginPath();
+                    ctx.rect(containerWidth - iceWidth, WATER_LINE_Y - iceThickness, iceWidth, iceThickness);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(200, 220, 255, 0.7)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(containerWidth - iceWidth * 0.5, WATER_LINE_Y - iceThickness);
+                    ctx.lineTo(containerWidth - iceWidth * 0.5, WATER_LINE_Y);
+                    ctx.stroke();
+                }
+            }
+
+            function update() {
+                drawScene();
+
+                const tempDiff = simState.tropicTemp - simState.polarTemp;
+                let speedMultiplier = 1;
+                const isCirculationStopped = simState.polarTemp > STOP_CIRCULATION_TEMP;
+
+                if (isCirculationStopped) {
+                    speedMultiplier = 0;
+                } else if (simState.polarTemp > 0) {
+                    const slowDown = simState.polarTemp / STOP_CIRCULATION_TEMP;
+                    speedMultiplier = 1 - (slowDown * 0.8);
+                }
+                const baseSpeed = Math.max(0, tempDiff / BASE_SPEED_FACTOR) * speedMultiplier;
+                
+                if (simState.polarTemp <= SALT_RELEASE_TEMP) {
+                    if (Math.random() < 0.3) {
+                        particles.push({
+                            x: containerWidth - (Math.random() * 50), y: WATER_LINE_Y + 5,
+                            vx: (Math.random() - 0.5) * 0.2, vy: 0.5 + Math.random() * 0.5,
+                            type: 'salt', size: Math.random() * 2 + 2, life: 120
+                        });
+                    }
+                } else if (simState.polarTemp > 0) {
+                    const meltProbability = (simState.polarTemp / STOP_CIRCULATION_TEMP) * MELT_PROBABILITY_MAX;
+                     if (Math.random() < meltProbability) {
+                        particles.push({
+                            x: containerWidth * 0.82 + Math.random() * 0.1 * containerWidth, y: WATER_LINE_Y - 25,
+                            vx: -0.1, vy: 1 + Math.random(),
+                            type: 'meltwater', size: Math.random() * 2 + 2, life: 80
+                        });
+                    }
+                }
+                
+                particles.forEach((p, index) => {
+                    if (p.type === 'water') {
+                        const xRatio = p.x / containerWidth;
+
+                        if (speedMultiplier === 0) {
+                            p.vx *= 0.95; p.vy *= 0.95;
+                        } else {
+                            const ovalCenterY = WATER_LINE_Y + (containerHeight - WATER_LINE_Y) / 2;
+                            const ovalHeight = (containerHeight - WATER_LINE_Y) * 0.35;
+                            
+                            let targetY = p.layer === 'surface' ? ovalCenterY - ovalHeight : ovalCenterY + ovalHeight;
+                            let targetVX = (p.layer === 'surface' ? 1 : -1) * baseSpeed * 1.2;
+                            let targetVY = (targetY - p.y) * 0.01 * baseSpeed;
+                            
+                            if (xRatio > 0.85 && p.layer === 'surface') p.layer = 'deep';
+                            else if (xRatio < 0.15 && p.layer === 'deep') p.layer = 'surface';
+                            
+                            p.vx += (targetVX - p.vx) * 0.1;
+                            p.vy += (targetVY - p.vy) * 0.1;
+                        }
+                        
+                        const heat = Math.min(1, (1 - xRatio) * 1.5);
+                        
+                        // MODIFICATION 3: Changez la couleur FROIDE (bleu) et CHAUDE (rouge) des particules ici (valeurs RGB)
+                        const coldColor = { r: 147, g: 197, b: 253 }; // Bleu pâle
+                        const hotColor = { r: 239, g: 68, b: 68 }; // Rouge
+                        p.color = `rgb(
+                            ${hotColor.r * heat + coldColor.r * (1 - heat)}, 
+                            ${hotColor.g * heat + coldColor.g * (1 - heat)}, 
+                            ${hotColor.b * heat + coldColor.b * (1 - heat)}
+                        )`;
+                        
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); // Particules légèrement plus grosses
+                        ctx.fill();
+
+                    } else { 
+                        p.life--;
+                        p.y += p.vy;
+                        p.x += p.vx;
+                        if (p.life <= 0 || p.y > containerHeight) {
+                            particles.splice(index, 1);
+                        }
+                        
+                        if (p.type === 'salt') {
+                            // MODIFICATION 2: Dessin des carrés de sel blancs avec bordure grise
+                            ctx.fillStyle = `rgba(255, 255, 255, ${p.life/120})`;
+                            ctx.strokeStyle = `rgba(156, 163, 175, ${p.life/120})`; // Gris
+                            ctx.lineWidth = 1;
+                            ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+                            ctx.strokeRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+                        } else if (p.type === 'meltwater') {
+                            ctx.fillStyle = `rgba(200, 220, 255, ${p.life/80})`;
+                            ctx.beginPath();
+                            ctx.ellipse(p.x, p.y, p.size, p.size * 1.5, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.type === 'water') {
+                        if (p.x > containerWidth + 5) p.x = -5;
+                        if (p.x < -5) p.x = containerWidth + 5;
+                        if (p.y > containerHeight - 2 || p.y < WATER_LINE_Y) p.vy *= -0.1;
+                    }
+                });
+
+                requestAnimationFrame(update);
+            }
+
+            // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+            
+            tropicSlider.addEventListener('input', (e) => {
+                simState.tropicTemp = parseFloat(e.target.value);
+                tropicValue.textContent = `${simState.tropicTemp}°C`;
+                resetRadioButtons();
+            });
+            
+            polarSlider.addEventListener('input', (e) => {
+                simState.polarTemp = parseFloat(e.target.value);
+                polarValue.textContent = `${simState.polarTemp}°C`;
+                resetRadioButtons();
+            });
+
+            addObservationBtn.addEventListener('click', () => {
+                const formData = new FormData(observationForm);
+                const newObservation = {
+                    tropicTemp: simState.tropicTemp,
+                    polarTemp: simState.polarTemp,
+                    vitesse: formData.get('vitesse'),
+                    glacier: formData.get('glacier'),
+                    banquise: formData.get('banquise'),
+                    salinite: formData.get('salinite'),
+                };
+
+                if (!newObservation.vitesse || !newObservation.glacier || !newObservation.banquise || !newObservation.salinite) {
+                    alert("Veuillez répondre à toutes les questions avant d'ajouter une observation.");
+                    return;
+                }
+
+                observations.push(newObservation);
+                renderTable();
+                resetRadioButtons();
+            });
+
+            resetBtn.addEventListener('click', () => {
+                tropicSlider.value = 22;
+                polarSlider.value = 0;
+                simState.tropicTemp = 22;
+                simState.polarTemp = 0;
+                tropicValue.textContent = '22°C';
+                polarValue.textContent = '0°C';
+                initSimulation();
+                
+                observations = [];
+                renderTable();
+                resetRadioButtons();
+            });
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                initSimulation();
+            });
+
+            // --- DÉMARRAGE ---
+            resizeCanvas();
+            initSimulation();
+            update();
+        });
+    </script>
+</body>
+</html>
