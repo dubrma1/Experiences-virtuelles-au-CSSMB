@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Ruban de Chronographe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .page-wrapper { /* Nouveau wrapper pour tout le contenu */
+            width: 95%;
+            max-width: 1200px;
+            margin: 15px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        header {
+            text-align: center;
+            padding: 10px 0 20px 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .top-section-wrapper {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: flex-start; /* Aligne le haut des boutons avec le haut du canvas */
+        }
+
+        .action-buttons-vertical-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0; /* Empêche la colonne de rétrécir */
+        }
+
+        .action-buttons-vertical-column button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+            width: 130px; /* Largeur fixe pour les boutons */
+            box-sizing: border-box;
+        }
+        /* Styles des boutons (Start, Pause, Reset) repris ci-dessous */
+
+        .simulation-area-wrapper {
+            flex-grow: 1; /* Prend l'espace restant */
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex; /* Pour centrer le canvas si plus petit */
+            justify-content: center;
+            align-items: center;
+            min-height: 170px; /* Hauteur minimale du canvas + padding */
+        }
+        
+        #simulationCanvas {
+            border: 1px solid #bdc3c7;
+            background-color: #ffffff;
+            max-width: 100%; 
+            display: block; 
+        }
+        
+        .bottom-panels-wrapper {
+            display: flex;
+            flex-wrap: wrap; /* Empile sur petits écrans */
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .controls {
+            flex: 2; /* Prend 2 parts (environ 66%) */
+            min-width: 300px; /* Largeur minimale avant de s'empiler */
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            box-sizing: border-box;
+        }
+
+        .controls h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #34495e;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive */
+            gap: 15px; 
+            margin-bottom: 20px;
+            align-items: stretch; 
+        }
+
+        .parameter-column {
+            display: flex;
+            flex-direction: column; 
+            gap: 6px; /* Espace réduit entre les lignes */
+            text-align: center; 
+            background-color: #fff; 
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .parameter-title {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #2c3e50; 
+            min-height: 20px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .parameter-symbol-unit {
+            font-size: 0.8em;
+            color: #555;
+        }
+
+        .parameter-value-display {
+            font-size: 1em; 
+            font-weight: bold;
+            color: #333;
+            background-color: #e9ecef; 
+            padding: 5px 0;
+            border-radius: 4px;
+            min-height: 28px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .parameter-slider input[type="range"] {
+            width: 100%; 
+            margin-top: 4px; 
+        }
+       
+        #startBtn { background-color: #2ecc71; color: white; }
+        #startBtn:hover { background-color: #27ae60; }
+        #pauseBtn { background-color: #f39c12; color: white; }
+        #pauseBtn:hover { background-color: #e67e22; }
+        #resetBtn { background-color: #e74c3c; color: white; }
+        #resetBtn:hover { background-color: #c0392b; }
+        .action-buttons-vertical-column button:disabled { /* Style pour les boutons désactivés dans la colonne */
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .data-section {
+            flex: 1; /* Prend 1 part (environ 33%) */
+            min-width: 280px; 
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            box-sizing: border-box;
+        }
+        .data-section-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .data-section-buttons button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            background-color: #3498db;
+            color: white;
+            transition: background-color 0.2s ease;
+            flex-grow: 1; 
+        }
+        .data-section-buttons button:hover {
+            background-color: #2980b9;
+        }
+
+        #dataTableContainer {
+            max-height: 250px; /* Réduit un peu la hauteur max */
+            overflow-y: auto;
+            border-top: 1px solid #ddd;
+            padding-top: 10px; 
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 0.9em; }
+        th { background-color: #e9ecef; color: #495057; position: sticky; top: 0; z-index: 1; }
+
+        @media (max-width: 768px) { 
+            .top-section-wrapper, .bottom-panels-wrapper {
+                flex-direction: column; 
+            }
+            .controls, .data-section, .action-buttons-vertical-column, .simulation-area-wrapper {
+                min-width: 100%; 
+                width:100%; /* Prend toute la largeur disponible en mode colonne */
+                flex-basis: auto; 
+                margin-right: 0; /* Enlève la marge à droite pour la colonne de boutons */
+            }
+            .action-buttons-vertical-column {
+                flex-direction: row; /* Boutons en ligne sur mobile */
+                justify-content: center;
+                margin-bottom: 15px;
+            }
+             .action-buttons-vertical-column button {
+                width: auto; /* Largeur auto pour les boutons en ligne */
+                flex-grow: 1;
+            }
+            .parameters-grid {
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <header>
+            <h1>Simulateur de Ruban de Chronographe</h1>
+        </header>
+
+        <div class="top-section-wrapper">
+            <div class="action-buttons-vertical-column">
+                <button id="startBtn">Démarrer</button>
+                <button id="pauseBtn" disabled>Pause</button>
+                <button id="resetBtn">Réinitialiser</button>
+            </div>
+            <div class="simulation-area-wrapper">
+                <canvas id="simulationCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-panels-wrapper">
+            <div class="controls">
+                <h2>Paramètres</h2>
+                <div class="parameters-grid">
+                    <div class="parameter-column">
+                        <div class="parameter-title">Vitesse Initiale</div>
+                        <div class="parameter-symbol-unit">v₀ (m/s)</div>
+                        <div class="parameter-value-display"><span id="initialVelocityValue">0.5</span></div>
+                        <div class="parameter-slider">
+                            <input type="range" id="initialVelocity" min="0" max="5" value="0.5" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="parameter-column">
+                        <div class="parameter-title">Accélération</div>
+                        <div class="parameter-symbol-unit">a (m/s²)</div>
+                        <div class="parameter-value-display"><span id="accelerationValue">0.2</span></div>
+                        <div class="parameter-slider">
+                            <input type="range" id="acceleration" min="-2" max="2" value="0.2" step="0.05">
+                        </div>
+                    </div>
+
+                    <div class="parameter-column">
+                        <div class="parameter-title">Fréquence</div>
+                        <div class="parameter-symbol-unit">f (Hz)</div>
+                        <div class="parameter-value-display"><span id="frequencyValue">10</span></div>
+                        <div class="parameter-slider">
+                            <input type="range" id="frequency" min="5" max="50" value="10" step="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-section">
+                <div class="data-section-buttons">
+                    <button id="toggleDataBtn">Afficher Tableau</button>
+                    <button id="exportCsvBtn" style="display:none;">Exporter en CSV</button>
+                </div>
+                <div id="dataTableContainer" style="display:none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Temps (s)</th>
+                                <th>Position (m)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const initialVelocitySlider = document.getElementById('initialVelocity');
+    const accelerationSlider = document.getElementById('acceleration');
+    const frequencySlider = document.getElementById('frequency');
+    const initialVelocityValueSpan = document.getElementById('initialVelocityValue');
+    const accelerationValueSpan = document.getElementById('accelerationValue');
+    const frequencyValueSpan = document.getElementById('frequencyValue');
+
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const toggleDataBtn = document.getElementById('toggleDataBtn');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const dataTableContainer = document.getElementById('dataTableContainer');
+    const dataTableBody = document.getElementById('dataTableBody');
+
+    let v0 = parseFloat(initialVelocitySlider.value);
+    let a = parseFloat(accelerationSlider.value);
+    let f = parseFloat(frequencySlider.value);
+    let timePeriod = 1 / f;
+
+    let simTime = 0, lastTickTime = 0, displacement = 0;
+    let dots = [];
+    let animationFrameId = null;
+    let isRunning = false, isPaused = false;
+
+    const PIXELS_PER_METER = 70;
+    const CART_HEIGHT = 30, CART_BODY_WIDTH = 50, CART_CABIN_WIDTH = 30, CART_CABIN_HEIGHT = 15;
+    const CART_COLOR = '#3498db', TAPE_COLOR = '#ffffff', DOT_COLOR = '#2c3e50';
+    const DOT_RADIUS = 2.5, TAPE_HEIGHT = CART_HEIGHT, TAPE_START_X = 50;
+
+    if (!canvas || !ctx) { console.error("ERREUR Canvas"); return; }
+    canvas.width = 650; // Ajusté pour laisser de la place aux boutons à gauche
+    canvas.height = 150;
+    console.log(`Canvas initialisé : ${canvas.width}x${canvas.height}`);
+
+    initialVelocitySlider.addEventListener('input', (e) => {
+        v0 = parseFloat(e.target.value);
+        initialVelocityValueSpan.textContent = v0.toFixed(2);
+        if (!isRunning && !isPaused) resetSimulation();
+    });
+    accelerationSlider.addEventListener('input', (e) => {
+        a = parseFloat(e.target.value);
+        accelerationValueSpan.textContent = a.toFixed(2);
+        if (!isRunning && !isPaused) resetSimulation();
+    });
+    frequencySlider.addEventListener('input', (e) => {
+        f = parseFloat(e.target.value);
+        timePeriod = 1 / f;
+        frequencyValueSpan.textContent = f.toFixed(0);
+        if (!isRunning && !isPaused) resetSimulation();
+    });
+
+    startBtn.addEventListener('click', handleStartResume);
+    pauseBtn.addEventListener('click', handlePause);
+    resetBtn.addEventListener('click', resetSimulation);
+    toggleDataBtn.addEventListener('click', toggleDataTable);
+    exportCsvBtn.addEventListener('click', exportToCSV);
+
+    let lastTimestamp = 0; 
+
+    function handleStartResume() {
+        if (!isRunning) { 
+            isRunning = true; isPaused = false;
+            startBtn.disabled = true; pauseBtn.disabled = false;
+            pauseBtn.textContent = 'Pause'; 
+            disableSliders(true);
+            if (simTime === 0 || !isPaused) { // Réinitialise lastTimestamp si c'est un nouveau départ ou une reprise après un arrêt complet
+                lastTimestamp = 0; 
+            } // Si c'est une reprise après pause, lastTimestamp est déjà OK.
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+
+    function handlePause() {
+        if (isRunning) { 
+            isPaused = true; isRunning = false; 
+            pauseBtn.textContent = 'Reprendre';
+            startBtn.disabled = false; startBtn.textContent = 'Reprendre';
+        } else if (isPaused) { 
+            isPaused = false; 
+            handleStartResume(); // Réutilise la logique de démarrage/reprise
+        }
+    }
+    
+    function resetSimulation() {
+        isRunning = false; isPaused = false;
+        if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        simTime = 0; lastTickTime = 0; displacement = 0; dots = []; lastTimestamp = 0; 
+        startBtn.textContent = 'Démarrer'; startBtn.disabled = false;
+        pauseBtn.textContent = 'Pause'; pauseBtn.disabled = true;
+        disableSliders(false);
+        clearDataTable(); draw(); 
+    }
+
+    function disableSliders(disabled) { /* ... (inchangé) ... */ 
+        initialVelocitySlider.disabled = disabled; accelerationSlider.disabled = disabled; frequencySlider.disabled = disabled;
+    }
+
+    function animate(timestamp) {
+        if (!isRunning || isPaused) { return; }
+        if (!lastTimestamp) { lastTimestamp = timestamp; animationFrameId = requestAnimationFrame(animate); return; }
+        
+        const deltaTime = (timestamp - lastTimestamp) / 1000; 
+        lastTimestamp = timestamp;
+
+        if (deltaTime > 0.2) { animationFrameId = requestAnimationFrame(animate); return; }
+        if (deltaTime <= 0) { animationFrameId = requestAnimationFrame(animate); return; }
+        
+        simTime += deltaTime;
+        displacement = v0 * simTime + 0.5 * a * simTime * simTime;
+
+        while ((lastTickTime + timePeriod) <= (simTime + 1e-5)) { 
+             lastTickTime += timePeriod; 
+             const dotDisplacement = v0 * lastTickTime + 0.5 * a * lastTickTime * lastTickTime;
+             dots.push({ time: lastTickTime, position: dotDisplacement });
+        }
+        draw();
+
+        const cartDrawX = TAPE_START_X + displacement * PIXELS_PER_METER;
+        if (cartDrawX + CART_BODY_WIDTH > canvas.width - 10 || cartDrawX < 10 ) { 
+            isRunning = false; 
+            pauseBtn.textContent = "Terminé"; pauseBtn.disabled = true;
+            startBtn.disabled = true; startBtn.textContent = 'Démarrer';
+        } else {
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const commonTopY = canvas.height / 2 - TAPE_HEIGHT / 2;
+
+        let tapeDrawStartX = TAPE_START_X;
+        let actualTapeDrawWidth = displacement * PIXELS_PER_METER + CART_BODY_WIDTH;
+
+        if (displacement < 0) {
+            tapeDrawStartX = TAPE_START_X + displacement * PIXELS_PER_METER;
+            actualTapeDrawWidth = CART_BODY_WIDTH - (displacement * PIXELS_PER_METER);
+        }
+        actualTapeDrawWidth = Math.max(0, actualTapeDrawWidth);
+
+        if (actualTapeDrawWidth > 0) {
+            ctx.fillStyle = TAPE_COLOR; ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1;
+            ctx.fillRect(tapeDrawStartX, commonTopY, actualTapeDrawWidth, TAPE_HEIGHT);
+            ctx.strokeRect(tapeDrawStartX, commonTopY, actualTapeDrawWidth, TAPE_HEIGHT);
+        }
+        
+        ctx.fillStyle = DOT_COLOR;
+        dots.forEach(dot => {
+            const dotXonCanvas = TAPE_START_X + dot.position * PIXELS_PER_METER;
+            if (dotXonCanvas >= tapeDrawStartX && dotXonCanvas <= tapeDrawStartX + actualTapeDrawWidth + DOT_RADIUS) {
+                ctx.beginPath();
+                ctx.arc(dotXonCanvas, canvas.height / 2, DOT_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        const cartBodyX = TAPE_START_X + displacement * PIXELS_PER_METER;
+        ctx.fillStyle = CART_COLOR;
+        ctx.fillRect(cartBodyX, commonTopY, CART_BODY_WIDTH, CART_HEIGHT);
+        ctx.fillStyle = lightenColor(CART_COLOR, 20);
+        const cabinX = cartBodyX + (CART_BODY_WIDTH - CART_CABIN_WIDTH) / 2;
+        const cabinY = commonTopY + (CART_HEIGHT - CART_CABIN_HEIGHT) / 2;
+        ctx.fillRect(cabinX, cabinY, CART_CABIN_WIDTH, CART_CABIN_HEIGHT);
+    }
+    
+    function lightenColor(hex, percent) { /* ... (inchangé) ... */ 
+        hex = hex.replace(/^\s*#|\s*$/g, '');
+        if(hex.length === 3){ hex = hex.replace(/(.)/g, '$1$1'); }
+        let r = parseInt(hex.substring(0, 2), 16), g = parseInt(hex.substring(2, 4), 16), b = parseInt(hex.substring(4, 6), 16);
+        r = Math.min(255, Math.floor(r * (1 + percent / 100)));
+        g = Math.min(255, Math.floor(g * (1 + percent / 100)));
+        b = Math.min(255, Math.floor(b * (1 + percent / 100)));
+        return '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+    }
+
+    function toggleDataTable() {
+        const isHidden = dataTableContainer.style.display === 'none';
+        if (isHidden) {
+            populateDataTable();
+            dataTableContainer.style.display = 'block'; exportCsvBtn.style.display = 'inline-block';
+            toggleDataBtn.textContent = 'Masquer Tableau';
+        } else {
+            dataTableContainer.style.display = 'none'; exportCsvBtn.style.display = 'none';
+            toggleDataBtn.textContent = 'Afficher Tableau';
+        }
+    }
+
+    function populateDataTable() {
+        dataTableBody.innerHTML = ''; 
+        if (dots.length === 0) return;
+        dots.forEach((dot) => { // Simplement Temps et Position
+            const row = dataTableBody.insertRow();
+            row.insertCell().textContent = dot.time.toFixed(3);
+            row.insertCell().textContent = dot.position.toFixed(3);
+        });
+    }
+
+    function clearDataTable() { /* ... (inchangé) ... */
+        dataTableBody.innerHTML = '';
+         if (dataTableContainer.style.display !== 'none') { 
+            dataTableContainer.style.display = 'none'; exportCsvBtn.style.display = 'none'; toggleDataBtn.textContent = 'Afficher Tableau';
+        }
+    }
+
+    function exportToCSV() {
+        if (dots.length === 0) { alert("Aucune donnée à exporter !"); return; }
+        let csvContent = "Temps (s),Position (m)\n"; // En-têtes CSV simplifiés
+        dots.forEach((dot) => {
+            let rowArray = [dot.time.toFixed(3), dot.position.toFixed(3)];
+            csvContent += rowArray.join(",") + "\n";
+        });
+        const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri); link.setAttribute("download", "donnees_chronographe.csv");
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    resetSimulation(); 
+});
+</script>
+</body>
+</html>
