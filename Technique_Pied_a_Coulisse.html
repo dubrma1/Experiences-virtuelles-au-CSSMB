@@ -1,9 +1,19 @@
+/*
+ * =============================================================
+ * Application Éducative : Lecture du Pied à Coulisse
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Initiation à la lecture d'un pied à coulisse (vernier)
+ * =============================================================
+ */
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modèle de Pied à Coulisse</title>
+    <title>Lecture du Pied à Coulisse</title>
     <style>
 	/* Fichier : style.css (Version 8 - Contrôle de la taille amélioré) */
 :root {
@@ -359,6 +369,24 @@ class PiedACoulisse {
 window.addEventListener('DOMContentLoaded', () => {
     new PiedACoulisse('simulation-container');
 });
+
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
 </script>
 
 </body>
