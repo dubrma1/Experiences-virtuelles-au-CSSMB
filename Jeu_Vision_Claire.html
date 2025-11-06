@@ -1,0 +1,371 @@
+/*
+ * =============================================================
+ * Application Éducative : OptiQuête Vision Claire
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Simulation d'optométrie pour tester les corrections visuelles.
+ * =============================================================
+ */
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiQuête Vision Claire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <style>
+        .pupil {
+            background: radial-gradient(circle, #1a1a2e 0%, #16213e 70%, #0f3460 100%);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+        }
+        .retina {
+            filter: blur(50px);
+            transition: filter 0.5s ease;
+        }
+        .lens-control {
+            transition: all 0.2s ease;
+        }
+        .lens-control:hover {
+            transform: scale(1.05);
+        }
+        .lens-control:active {
+            transform: scale(0.95);
+        }
+        .diagnostic-radio {
+            cursor: pointer;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background-color: rgba(75, 85, 99, 0.5);
+            text-align: center;
+            transition: all 0.2s ease-in-out;
+        }
+        .diagnostic-radio:hover {
+            background-color: rgba(55, 65, 81, 0.7);
+        }
+        input[type="radio"]:checked + label {
+            background-color: #4f46e5;
+            color: white;
+            font-weight: bold;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        button:disabled:hover {
+            transform: none;
+            background-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-900 to-purple-900 min-h-screen text-white">
+    <div id="vanta-bg" class="fixed inset-0 z-0"></div>
+    
+    <div class="relative z-10 container mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300">👁️ OptiQuête Vision Claire</h1>
+            <p class="text-xl text-blue-200">Testez vos compétences en optométrie avec des patients virtuels !</p>
+        </header>
+
+        <div class="max-w-4xl mx-auto bg-gray-800 bg-opacity-70 backdrop-blur-lg rounded-xl p-6 shadow-2xl border border-purple-400 border-opacity-30">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="relative w-64 h-64 rounded-full overflow-hidden pupil mb-8">
+                        <div id="retina" class="retina absolute inset-0 flex items-center justify-center">
+                            <span class="text-8xl font-bold opacity-90">E</span>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <p class="text-xl mb-2">Puissance Actuelle :</p>
+                        <p id="current-lens" class="text-3xl font-bold mb-6">0.00 δ</p>
+                    </div>
+                </div>
+                
+                <div class="flex-1">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-semibold mb-4 text-purple-200">Détails du Patient</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
+                                <p class="text-sm text-blue-200">ID Patient</p>
+                                <p id="patient-id" class="text-lg">#0000</p>
+                            </div>
+                            <div class="bg-gray-700 bg-opacity-50 p-3 rounded-lg">
+                                <p class="text-sm text-blue-200">Correction Requise</p>
+                                <p id="required-correction" class="text-lg">???.?? δ</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h2 class="text-2xl font-semibold mb-4 text-purple-200">Contrôles de la Lentille</h2>
+                    <div class="grid grid-cols-3 gap-3 mb-6">
+                        <button onclick="adjustLens(1)" class="lens-control bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold text-xl">+1.00</button>
+                        <button onclick="adjustLens(0.5)" class="lens-control bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold text-xl">+0.50</button>
+                        <button onclick="adjustLens(0.25)" class="lens-control bg-blue-600 hover:bg-blue-500 p-4 rounded-lg font-bold text-xl">+0.25</button>
+                        <button onclick="adjustLens(-1)" class="lens-control bg-purple-600 hover:bg-purple-500 p-4 rounded-lg font-bold text-xl">-1.00</button>
+                        <button onclick="adjustLens(-0.5)" class="lens-control bg-purple-600 hover:bg-purple-500 p-4 rounded-lg font-bold text-xl">-0.50</button>
+                        <button onclick="adjustLens(-0.25)" class="lens-control bg-purple-600 hover:bg-purple-500 p-4 rounded-lg font-bold text-xl">-0.25</button>
+                    </div>
+                    
+                    <button onclick="resetLens()" class="w-full bg-gray-600 hover:bg-gray-500 p-3 rounded-lg mb-4 flex items-center justify-center">
+                        <i data-feather="refresh-cw" class="inline mr-2"></i> Réinitialiser
+                    </button>
+                    
+                    <button id="diagnose-btn" onclick="requestDiagnostic()" class="w-full bg-blue-700 hover:bg-blue-600 p-3 rounded-lg mb-4 flex items-center justify-center font-bold" disabled>
+                        <i data-feather="edit" class="inline mr-2"></i> Poser le diagnostic
+                    </button>
+
+                    <button onclick="newPatient()" class="w-full bg-green-600 hover:bg-green-500 p-3 rounded-lg flex items-center justify-center">
+                        <i data-feather="user-plus" class="inline mr-2"></i> Nouveau Patient
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-12 text-center text-blue-200">
+            <p>Score : <span id="score" class="font-bold">0</span> diagnostics corrects</p>
+            <button onclick="downloadResults()" class="mt-4 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm flex items-center justify-center mx-auto">
+                <i data-feather="download" class="inline mr-2 h-4 w-4"></i> Télécharger les résultats (CSV)
+            </button>
+        </div>
+    </div>
+    
+    <div id="success-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gradient-to-br from-green-600 to-blue-600 p-8 rounded-xl max-w-md text-center">
+            <i data-feather="check-circle" class="w-16 h-16 mx-auto text-white mb-4"></i>
+            <h3 class="text-2xl font-bold mb-4">Vision Parfaite !</h3>
+            <p id="success-message" class="text-lg mb-6">"Je vois clairement maintenant ! Merci docteur !"</p>
+            <button onclick="openDiagnosticModal()" class="bg-white text-green-700 px-6 py-2 rounded-lg font-bold">Continuer vers le diagnostic</button>
+        </div>
+    </div>
+
+    <div id="diagnostic-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 bg-opacity-90 backdrop-blur-lg rounded-xl p-8 max-w-lg text-center w-full">
+            <h3 class="text-2xl font-bold mb-6 text-purple-200">Quel est votre diagnostic ?</h3>
+            <div id="diagnostic-form" class="space-y-4">
+                <div class="grid grid-cols-4 gap-2 items-center">
+                    <span class="text-right font-semibold text-blue-200">Myopie</span>
+                    <div><input type="radio" name="diagnostic" value="myopie-legere" id="d1" class="hidden"><label for="d1" class="diagnostic-radio block">Légère</label></div>
+                    <div><input type="radio" name="diagnostic" value="myopie-moyenne" id="d2" class="hidden"><label for="d2" class="diagnostic-radio block">Moyenne</label></div>
+                    <div><input type="radio" name="diagnostic" value="myopie-severe" id="d3" class="hidden"><label for="d3" class="diagnostic-radio block">Sévère</label></div>
+                </div>
+                <div class="grid grid-cols-4 gap-2 items-center">
+                    <span class="text-right font-semibold text-blue-200">Hypermétropie</span>
+                    <div><input type="radio" name="diagnostic" value="hypermetropie-legere" id="d4" class="hidden"><label for="d4" class="diagnostic-radio block">Légère</label></div>
+                    <div><input type="radio" name="diagnostic" value="hypermetropie-moyenne" id="d5" class="hidden"><label for="d5" class="diagnostic-radio block">Moyenne</label></div>
+                    <div><input type="radio" name="diagnostic" value="hypermetropie-severe" id="d6" class="hidden"><label for="d6" class="diagnostic-radio block">Sévère</label></div>
+                </div>
+                 <div class="grid grid-cols-4 gap-2 items-center">
+                    <span class="text-right font-semibold text-blue-200"></span>
+                    <div class="col-span-3"><input type="radio" name="diagnostic" value="vision-normale" id="d7" class="hidden"><label for="d7" class="diagnostic-radio block">Vision Normale (Emmétropie)</label></div>
+                </div>
+                
+                <div class="border-t border-gray-600 pt-4 mt-4">
+                    <p class="font-semibold text-blue-200 mb-2">Type de lentille correctrice</p>
+                    <div class="flex justify-center gap-4">
+                        <div>
+                            <input type="radio" name="lens-type" value="convergente" id="lt1" class="hidden">
+                            <label for="lt1" class="diagnostic-radio block px-6">Convergente</label>
+                        </div>
+                        <div>
+                            <input type="radio" name="lens-type" value="divergente" id="lt2" class="hidden">
+                            <label for="lt2" class="diagnostic-radio block px-6">Divergente</label>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            <p id="diagnostic-feedback" class="mt-4 h-6"></p>
+            <button onclick="checkDiagnostic()" class="mt-4 bg-indigo-600 hover:bg-indigo-500 px-8 py-3 rounded-lg font-bold">Valider le Diagnostic</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
+    <script>
+        // Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
+        let currentLens = 0;
+        let requiredCorrection = 0;
+        let score = 0;
+        let currentPatient = 1;
+        let diagnosticResults = [];
+        
+        VANTA.GLOBE({ el: "#vanta-bg", mouseControls: true, touchControls: true, gyroControls: false, minHeight: 200.00, minWidth: 200.00, scale: 1.00, scaleMobile: 1.00, color: 0x5e6fff, backgroundColor: 0x0, size: 0.8 });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            feather.replace();
+            generateNewPatient();
+        });
+        
+        function generateNewPatient() {
+            let steps = Math.floor(Math.random() * 65) - 32;
+            requiredCorrection = steps * 0.25;
+            
+            document.getElementById('patient-id').textContent = `#${currentPatient.toString().padStart(4, '0')}`;
+            document.getElementById('required-correction').textContent = '???.?? δ';
+            document.getElementById('diagnose-btn').disabled = true;
+            
+            resetLens();
+        }
+        
+        function adjustLens(adjustment) {
+            currentLens = Math.max(-10, Math.min(10, currentLens + adjustment));
+            currentLens = parseFloat(currentLens.toFixed(2));
+            
+            document.getElementById('current-lens').textContent = `${currentLens >= 0 ? '+' : ''}${currentLens.toFixed(2)} δ`;
+            
+            const difference = Math.abs(requiredCorrection - currentLens);
+            const blurAmount = Math.min(50, difference * 10);
+            document.getElementById('retina').style.filter = `blur(${blurAmount}px)`;
+            
+            if (Math.abs(requiredCorrection - currentLens) < 0.01) {
+                document.getElementById('diagnose-btn').disabled = false;
+            } else {
+                document.getElementById('diagnose-btn').disabled = true;
+            }
+        }
+        
+        function resetLens() {
+            currentLens = 0;
+            document.getElementById('current-lens').textContent = '0.00 δ';
+            document.getElementById('retina').style.filter = 'blur(50px)';
+            document.getElementById('diagnose-btn').disabled = true;
+        }
+
+        function requestDiagnostic() {
+            showSuccess();
+        }
+        
+        function showSuccess() {
+            document.getElementById('required-correction').textContent = `${requiredCorrection >= 0 ? '+' : ''}${requiredCorrection.toFixed(2)} δ`;
+            
+            const messages = ["Je vois clairement maintenant ! Merci docteur !", "Le monde est si net ! Travail incroyable !", "Tout est net maintenant. Vous êtes brillant !"];
+            document.getElementById('success-message').textContent = `"${messages[Math.floor(Math.random() * messages.length)]}"`;
+            
+            document.getElementById('success-modal').classList.remove('hidden');
+        }
+        
+        function openDiagnosticModal() {
+            document.getElementById('success-modal').classList.add('hidden');
+            
+            const diagRadios = document.getElementsByName('diagnostic');
+            for (let i = 0; i < diagRadios.length; i++) diagRadios[i].checked = false;
+            
+            // Réinitialiser aussi les boutons du type de lentille
+            const lensRadios = document.getElementsByName('lens-type');
+            for (let i = 0; i < lensRadios.length; i++) lensRadios[i].checked = false;
+
+            document.getElementById('diagnostic-feedback').textContent = '';
+            document.getElementById('diagnostic-modal').classList.remove('hidden');
+        }
+        
+        function getCorrectDiagnosis(correction) {
+            const absCorrection = Math.abs(correction);
+            if (correction < -0.24) {
+                if (absCorrection <= 2.00) return 'myopie-legere';
+                if (absCorrection <= 5.00) return 'myopie-moyenne';
+                return 'myopie-severe';
+            } else if (correction > 0.24) {
+                if (absCorrection <= 2.00) return 'hypermetropie-legere';
+                if (absCorrection <= 5.00) return 'hypermetropie-moyenne';
+                return 'hypermetropie-severe';
+            } else {
+                return 'vision-normale';
+            }
+        }
+        
+        function checkDiagnostic() {
+            const selectedRadio = document.querySelector('input[name="diagnostic"]:checked');
+            if (!selectedRadio) {
+                document.getElementById('diagnostic-feedback').textContent = "Veuillez sélectionner un diagnostic.";
+                document.getElementById('diagnostic-feedback').style.color = '#f87171';
+                return;
+            }
+
+            // Capturer le choix du type de lentille
+            const selectedLensRadio = document.querySelector('input[name="lens-type"]:checked');
+            const userLensType = selectedLensRadio ? selectedLensRadio.value : "non sélectionné";
+
+            const userDiagnosis = selectedRadio.value;
+            const correctDiagnosis = getCorrectDiagnosis(requiredCorrection);
+            const isCorrect = userDiagnosis === correctDiagnosis;
+            const feedbackEl = document.getElementById('diagnostic-feedback');
+
+            // Ajouter le type de lentille à l'objet des résultats
+            diagnosticResults.push({
+                patientId: `#${currentPatient.toString().padStart(4, '0')}`,
+                requiredCorrection: `${requiredCorrection.toFixed(2)} δ`,
+                userDiagnosis: userDiagnosis.replace('-', ' '),
+                userLensType: userLensType, // NOUVELLE LIGNE
+                correctDiagnosis: correctDiagnosis.replace('-', ' '),
+                result: isCorrect ? "Correct" : "Incorrect"
+            });
+
+            if (isCorrect) {
+                feedbackEl.textContent = "Correct ! Passage au patient suivant...";
+                feedbackEl.style.color = '#4ade80';
+                score++;
+                document.getElementById('score').textContent = score;
+            } else {
+                feedbackEl.textContent = `Incorrect. Le bon diagnostic était : ${correctDiagnosis.replace('-', ' ')}.`;
+                feedbackEl.style.color = '#f87171';
+            }
+
+            setTimeout(() => {
+                document.getElementById('diagnostic-modal').classList.add('hidden');
+                currentPatient++;
+                generateNewPatient();
+            }, isCorrect ? 1500 : 2500);
+        }
+
+        function downloadResults() {
+            if (diagnosticResults.length === 0) {
+                alert("Aucun diagnostic n'a encore été enregistré.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            // Ajouter le nouvel en-tête pour le CSV
+            const headers = ["ID Patient", "Correction Requise", "Diagnostic Utilisateur", "Type de Lentille (Utilisateur)", "Diagnostic Correct", "Résultat"];
+            csvContent += headers.join(",") + "\r\n";
+
+            diagnosticResults.forEach(row => {
+                // Ajouter la nouvelle donnée à la ligne du CSV
+                let rowArray = [row.patientId, row.requiredCorrection, row.userDiagnosis, row.userLensType, row.correctDiagnosis, row.result];
+                csvContent += rowArray.join(",") + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "resultats_diagnostic.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function newPatient() {
+            currentPatient++;
+            generateNewPatient();
+        }
+        
+    </script>
+</body>
+</html>
