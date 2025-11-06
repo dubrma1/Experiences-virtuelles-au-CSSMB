@@ -306,6 +306,18 @@
     </div>
 
     <script>
+
+ /*
+ * =============================================================
+ * Application Éducative : Laboratoire Solubilité
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Produire des données de solubilité de sels communs pour tracer des courbes dans un tableur
+ * =============================================================
+*/
+
+		
         // --- DONNÉES SCIENTIFIQUES ---
         const solubilityData = {
             "NaCl":   [[0, 35.7], [20, 35.9], [100, 39.8]],
@@ -325,6 +337,7 @@
         let recordedData = [];
 
         // Variables d'animation
+	
         const beakerCanvas = document.getElementById('beakerCanvas');
         const beakerCtx = beakerCanvas.getContext('2d');
         let saltGrains = [];
@@ -546,6 +559,25 @@
                 }
             });
         };
+
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
     </script>
 </body>
 </html>
