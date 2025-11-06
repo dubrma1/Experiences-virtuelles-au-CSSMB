@@ -183,6 +183,15 @@
     </div>
 
     <script>
+      /*
+ * =============================================================
+ * Application Éducative : Jeu_Equilibre_Chimique
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Modifier les coefficients pour équilibrer les atomes présents dans les réactifs et les produits
+ * =============================================================
+*/   
         const equations = [
             { reactants: [{ formula: "H2O" }], products: [{ formula: "H2" }, { formula: "O2" }] , description: "Décomposition de l'eau" },
             { reactants: [{ formula: "N2" }, { formula: "H2" }], products: [{ formula: "NH3" }], description: "Synthèse de l'ammoniac" },
@@ -443,6 +452,41 @@
             modalCloseBtn.addEventListener('click', () => modal.classList.add('hidden'));
             setupEquation();
         });
+    // Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
     </script>
 </body>
 </html>
