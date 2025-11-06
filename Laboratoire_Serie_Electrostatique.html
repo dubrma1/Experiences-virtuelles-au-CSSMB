@@ -313,6 +313,16 @@
     </div>
 
 <script>
+ /*
+ * =============================================================
+ * Application Éducative : LAboratoire Série Électrostatique
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Frotter des matériaux isolants deux à deux pour déduire une série électrostatique
+ * =============================================================
+*/
+
 // (1) Ajout de commentaires détaillés
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -555,6 +565,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DÉMARRAGE DE L'APPLICATION ---
     init();
 });
+
+
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
 </script>
 
 </body>
