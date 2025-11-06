@@ -59,6 +59,15 @@
     </div>
 
     <script>
+     /*
+ * =============================================================
+ * Application Éducative : Jeu Billard Réflexion
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: Placer l'image du trou, viser le trou et rentrer la balle à tous les coups dans le trou.
+ * =============================================================
+*/
         // Références et configuration (inchangées)
         const gameWorldContainer = document.getElementById('game-world-container');
         const minigolfCanvas = document.getElementById('minigolfCanvas');
@@ -291,6 +300,24 @@
 
         resetButton.addEventListener('click', initGame);
         window.addEventListener('load', initGame);
+    // Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
     </script>
 </body>
 </html>
