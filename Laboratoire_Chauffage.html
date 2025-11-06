@@ -332,6 +332,16 @@
     </div>
 
     <script>
+	 /*
+ * =============================================================
+ * Application Éducative : Laboratoire Chauffage
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Produire des données de température et de temps de chauffage dans différentes conditions pour importer dans un tableur.
+ * =============================================================
+*/
+		
         // Propriétés des substances (capacités thermiques massiques, points d'ébullition et densités)
         const substances = {
             water: { 
@@ -885,5 +895,22 @@
             });
         };
     </script>
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
 </body>
 </html>
