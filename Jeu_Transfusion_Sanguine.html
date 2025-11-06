@@ -127,6 +127,15 @@
     </div>
 
     <script>
+     /*
+ * =============================================================
+ * Application Éducative : Jeu Transfusion Sanguine
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: L'élève se construit un tableau de compatibilité en faisant des tests d'agglutination.
+ * =============================================================
+*/
         const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
         const patientNames = ["Alice Dubois", "Benoît Tremblay", "Carole Gagnon", "Denis Roy", "Émilie Côté", "François Lavoie", "Ginette Bouchard", "Henri Gagné"];
 
@@ -305,6 +314,24 @@
         }
 
         document.addEventListener('DOMContentLoaded', setupNewGame);
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
     </script>
 </body>
 </html>
