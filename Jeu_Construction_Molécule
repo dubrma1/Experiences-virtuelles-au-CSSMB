@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constructeur Moléculaire - Jeu de Chimie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.26/dist/interact.min.js"></script>
+    <style>
+        .atom {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            cursor: move;
+            user-select: none;
+            position: absolute;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid rgba(0,0,0,0.2);
+            overflow: visible;
+            transition: transform 0.3s ease;
+            touch-action: none;
+            z-index: 5;
+        }
+
+        .atom.bg-white { color: #333; }
+
+        .handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #374151; /* gray-700 */
+            background-color: white;
+            cursor: crosshair;
+            z-index: 10;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .handle:hover {
+            background-color: #dbeafe; /* blue-100 */
+            transform: scale(1.1);
+        }
+        
+        .handle.drop-target { background-color: #6ee7b7; } /* green-300 */
+
+        .bond {
+            stroke: #4b5563; /* gray-600 */
+            stroke-width: 3px;
+            cursor: pointer;
+            pointer-events: auto; /* Permet le double-clic */
+            transition: all 0.2s ease;
+        }
+        .bond:hover { stroke: #ef4444; } /* red-500 */
+        
+        #temp-line {
+            stroke: #374151;
+            stroke-width: 2px;
+            stroke-dasharray: 6, 4;
+            display: none;
+        }
+
+        .work-area {
+            position: relative;
+            min-height: 400px;
+            border: 2px dashed #ccc;
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+        
+        #main-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .success { animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(4, 120, 87, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-800">Constructeur Moléculaire</h1>
+            <p class="text-gray-600 mt-2 text-lg">Glisse les atomes dont tu as besoin dans la zone de travail.<BR> Relie des petits cercles blancs pour former des liens chimiques entre les atomes.</p>
+        </header>
+        
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-6xl mx-auto">
+             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="lg:col-span-2">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h2 class="text-xl font-semibold text-blue-700 mb-2">Construis cette molécule!</h2>
+                        <div id="current-molecule" class="text-2xl font-bold text-center py-4 text-gray-800"></div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span id="current-attempt" class="font-bold text-gray-600 text-lg">Essai: 1/5</span>
+                            <span id="total-score" class="font-bold text-green-600 text-lg">Score: 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col">
+                    <div class="work-area rounded-lg mb-4 flex-grow" id="work-area">
+                        <svg id="main-svg">
+                            <line id="temp-line"></line>
+                        </svg>
+                    </div>
+                     <div class="flex justify-between mt-auto">
+                        <button id="validate-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Valider</button>
+                        <button id="reset-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg shadow-md">Réinitialiser</button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col gap-4">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-700 mb-3">Banque d'Atomes</h2>
+                        <div class="flex flex-wrap gap-3 justify-center min-h-[80px]" id="atom-pool"></div>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h2 class="text-xl font-semibold text-yellow-800 mb-2">Infos du Jeu</h2>
+                        <div class="mb-4">
+                            <ul style="list-style-type:square;" class="ml-4">
+                                <li>Glisse les atomes dont tu as besoin dans la zone de travail.</li>
+                                <li> Relie des petits cercles blancs pour former des liens chimiques entre les atomes.</li>
+                            </UL>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-yellow-200">
+                            <h3 class="font-semibold text-yellow-800 mb-2">Couleurs des Atomes (CPK) :</h3>
+                            <ul class="text-sm grid grid-cols-4 gap-x-4 gap-y-1">
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-black rounded-full mr-2 border"></span> C</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-white border rounded-full mr-2"></span> H</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-red-500 rounded-full mr-2"></span> O</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-blue-500 rounded-full mr-2"></span> N</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-purple-500 rounded-full mr-2"></span> P</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-yellow-500 rounded-full mr-2"></span> S</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-green-500 rounded-full mr-2"></span> Cl</li>
+                                <li class="flex items-center"><span class="inline-block w-4 h-4 bg-indigo-500 rounded-full mr-2"></span> Na</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
+            <div class="bg-white rounded-lg p-8 max-w-sm w-full shadow-2xl">
+                <h2 class="text-2xl font-bold mb-4" id="result-title">Résultat</h2>
+                <p class="mb-6" id="result-message"></p>
+                <div class="flex justify-end">
+                    <button id="next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Prochain Défi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+ /*
+ * =============================================================
+ * Application Éducative : Jeu de Construction de Molécules
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: L'élève construit des molécules comme avec un ensemble boules et batonnets
+ * =============================================================
+*/
+        // --- CONSTANTES ET ÉTAT DU JEU ---
+        const ATOM_DIAMETER = 40;
+        const ATOM_RADIUS = ATOM_DIAMETER / 2;
+        const BOND_LENGTH = 60; 
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        const gameState = {
+            currentAttempt: 1, totalScore: 0, currentMolecule: null, currentPoints: 0,
+            placedAtoms: new Map(),
+            bonds: []
+        };
+
+        const molecules = [
+            { formula: "H₂O", name: "Eau", structure: [{ element: "O", bonds: 2 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }] },
+            { formula: "CO₂", name: "Dioxyde de Carbone", structure: [{ element: "C", bonds: 4 }, { element: "O", bonds: 2 }, { element: "O", bonds: 2 }] },
+            { formula: "NH₃", name: "Ammoniac", structure: [{ element: "N", bonds: 3 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }] },
+            { formula: "CH₄", name: "Méthane", structure: [{ element: "C", bonds: 4 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 }] },
+            { formula: "H₂SO₄", name: "Acide Sulfurique", structure: [ { element: "S", bonds: 6 }, { element: "O", bonds: 2 }, { element: "O", bonds: 2 }, { element: "O", bonds: 2 }, { element: "O", bonds: 2 }, { element: "H", bonds: 1 }, { element: "H", bonds: 1 } ]}
+        ];
+
+        const atomColors = { "H": "bg-white", "C": "bg-black", "O": "bg-red-500", "N": "bg-blue-500", "P": "bg-purple-500", "S": "bg-yellow-500", "Cl": "bg-green-500", "Na": "bg-indigo-500" };
+        const getDefaultBonds = (element) => ({ "H": 1, "Na": 1, "Cl": 1, "O": 2, "S": 6, "N": 3, "P": 3, "C": 4 }[element] || 1);
+
+        // --- INITIALISATION ---
+        function initGame() {
+            document.getElementById('validate-btn').addEventListener('click', validateMolecule);
+            document.getElementById('reset-btn').addEventListener('click', resetWorkArea);
+            document.getElementById('next-btn').addEventListener('click', nextChallenge);
+            loadNewMolecule();
+            setupHandleInteraction();
+        }
+
+        // --- GESTION DE L'UI ET DU FLUX DE JEU ---
+        function loadNewMolecule() {
+            if (gameState.currentAttempt > molecules.length) {
+                return gameOver();
+            }
+            gameState.currentMolecule = molecules[gameState.currentAttempt - 1];
+            gameState.currentPoints = gameState.currentAttempt * 2;
+            document.getElementById('current-molecule').innerHTML = `${gameState.currentMolecule.formula} <span class="text-lg font-normal">(${gameState.currentMolecule.name})</span>`;
+            resetWorkArea();
+            setupAtomPool();
+            setupAtomDragAndDrop();
+            updateGameInfo();
+        }
+
+        function setupAtomPool() {
+            const atomPool = document.getElementById('atom-pool');
+            atomPool.innerHTML = '';
+            const requiredAtoms = gameState.currentMolecule.structure.reduce((acc, atom) => ({ ...acc, [atom.element]: (acc[atom.element] || 0) + 1 }), {});
+            const extraAtoms = ['C', 'H', 'O', 'N'];
+            for(let i=0; i<3; i++) {
+                const randomElement = extraAtoms[Math.floor(Math.random() * extraAtoms.length)];
+                requiredAtoms[randomElement] = (requiredAtoms[randomElement] || 0) + 1;
+            }
+            for (const element in requiredAtoms) {
+                for (let i = 0; i < requiredAtoms[element]; i++) {
+                    atomPool.appendChild(createAtomElement(element, i));
+                }
+            }
+        }
+        
+        function createAtomElement(element, index) {
+            const atom = document.createElement('div');
+            atom.className = `atom ${atomColors[element]}`;
+            atom.dataset.element = element;
+            atom.dataset.id = `${element}-${Date.now()}-${index}`;
+            return atom;
+        }
+
+        function resetWorkArea() {
+            const svg = document.getElementById('main-svg');
+            Array.from(gameState.placedAtoms.values()).forEach(returnToPool);
+            Array.from(svg.querySelectorAll('.bond')).forEach(bondEl => bondEl.remove());
+            gameState.placedAtoms.clear();
+            gameState.bonds = [];
+        }
+
+        function returnToPool(atom) {
+            if (!atom) return;
+            removeBondsForAtom(atom.dataset.id);
+            atom.style.transform = 'translate(0px, 0px)';
+            atom.removeAttribute('data-x');
+            atom.removeAttribute('data-y');
+            document.getElementById('atom-pool').appendChild(atom);
+            gameState.placedAtoms.delete(atom.dataset.id);
+            removeHandles(atom);
+        }
+        
+        // --- GESTION DES ATOMES ET POIGNÉES ---
+        function addHandlesToAtom(atom) {
+            removeHandles(atom);
+            const bondCount = getDefaultBonds(atom.dataset.element);
+            const currentBonds = countBondsForAtom(atom.dataset.id);
+            const availableHandles = bondCount - currentBonds;
+            for (let i = 0; i < availableHandles; i++) {
+                const handle = document.createElement('div');
+                handle.className = 'handle';
+                const angle = (2 * Math.PI / availableHandles) * i - (Math.PI / 4);
+                const x = ATOM_RADIUS + Math.cos(angle) * ATOM_RADIUS * 1.5 - 7;
+                const y = ATOM_RADIUS + Math.sin(angle) * ATOM_RADIUS * 1.5 - 7;
+                handle.style.left = `${x}px`;
+                handle.style.top = `${y}px`;
+                handle.dataset.atomId = atom.dataset.id;
+                atom.appendChild(handle);
+            }
+        }
+
+        function removeHandles(atom) {
+            Array.from(atom.querySelectorAll('.handle')).forEach(h => h.remove());
+        }
+
+        // --- GESTION DES INTERACTIONS ---
+        function setupAtomDragAndDrop() {
+            interact('.atom').draggable({
+                inertia: true,
+                listeners: {
+                    move(event) {
+                        const target = event.target;
+                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                        target.style.transform = `translate(${x}px, ${y}px)`;
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
+                        updateBondsForAtom(target.dataset.id);
+                    },
+                    end(event) {
+                        const target = event.target;
+                        const workArea = document.getElementById('work-area');
+                        const workAreaRect = workArea.getBoundingClientRect();
+                        const atomRect = target.getBoundingClientRect();
+                        
+                        const isOverWorkArea = 
+                            (atomRect.left + ATOM_RADIUS) > workAreaRect.left &&
+                            (atomRect.right - ATOM_RADIUS) < workAreaRect.right &&
+                            (atomRect.top + ATOM_RADIUS) > workAreaRect.top &&
+                            (atomRect.bottom - ATOM_RADIUS) < workAreaRect.bottom;
+
+                        if (isOverWorkArea) {
+                            if (!gameState.placedAtoms.has(target.dataset.id)) {
+                                const newX = atomRect.left - workAreaRect.left;
+                                const newY = atomRect.top - workAreaRect.top;
+                                target.setAttribute('data-x', newX);
+                                target.setAttribute('data-y', newY);
+                                workArea.appendChild(target);
+                                target.style.transform = `translate(${newX}px, ${newY}px)`;
+                                gameState.placedAtoms.set(target.dataset.id, target);
+                                addHandlesToAtom(target);
+                            }
+                        } else {
+                            if (gameState.placedAtoms.has(target.dataset.id)) {
+                                returnToPool(target);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function setupHandleInteraction() {
+            const tempLine = document.getElementById('temp-line');
+            interact('.handle').draggable({
+                listeners: {
+                    start(event) {
+                        const handle = event.target;
+                        const atom = handle.parentElement;
+                        const x = (parseFloat(atom.getAttribute('data-x')) || 0) + ATOM_RADIUS;
+                        const y = (parseFloat(atom.getAttribute('data-y')) || 0) + ATOM_RADIUS;
+                        tempLine.setAttribute('x1', x);
+                        tempLine.setAttribute('y1', y);
+                        tempLine.setAttribute('x2', x);
+                        tempLine.setAttribute('y2', y);
+                        tempLine.style.display = 'block';
+                        event.interaction.startAtomId = handle.dataset.atomId;
+                    },
+                    move(event) {
+                        const workAreaRect = document.getElementById('work-area').getBoundingClientRect();
+                        tempLine.setAttribute('x2', event.clientX - workAreaRect.left);
+                        tempLine.setAttribute('y2', event.clientY - workAreaRect.top);
+                    },
+                    end(event) {
+                        tempLine.style.display = 'none';
+                        const endHandle = event.relatedTarget;
+                        if (endHandle && endHandle.classList.contains('handle')) {
+                            const startAtomId = event.interaction.startAtomId;
+                            const endAtomId = endHandle.dataset.atomId;
+                            if (startAtomId !== endAtomId) {
+                                createBond(startAtomId, endAtomId);
+                            }
+                        }
+                    }
+                }
+            });
+
+            interact('.handle').dropzone({
+                accept: '.handle',
+                overlap: 'pointer',
+                ondragenter: event => event.target.classList.add('drop-target'),
+                ondragleave: event => event.target.classList.remove('drop-target'),
+            });
+        }
+
+        // --- GESTION DES LIAISONS ---
+        function createBond(atom1Id, atom2Id) {
+            const atom1 = getAtomById(atom1Id);
+            const atom2 = getAtomById(atom2Id);
+            if (!atom1 || !atom2 || !canBond(atom1) || !canBond(atom2)) return;
+            
+            const sortedIds = [atom1Id, atom2Id].sort();
+            const bondId = `bond-${sortedIds[0]}-${sortedIds[1]}-${Date.now()}`;
+            
+            const svg = document.getElementById('main-svg');
+            const bondEl = document.createElementNS(SVG_NS, 'line');
+            bondEl.setAttribute('class', 'bond');
+            bondEl.dataset.bondId = bondId;
+            bondEl.addEventListener('dblclick', () => removeBond(bondId));
+            svg.appendChild(bondEl);
+
+            const newBond = { id: bondId, atom1Id: sortedIds[0], atom2Id: sortedIds[1], element: bondEl };
+            gameState.bonds.push(newBond);
+            
+            pullAtomsTogether(atom1, atom2);
+            updateBondsForAtom(atom1Id);
+            updateBondsForAtom(atom2Id);
+            updateAllHandles();
+        }
+
+        function removeBond(bondId) {
+            const bondIndex = gameState.bonds.findIndex(b => b.id === bondId);
+            if (bondIndex === -1) return;
+            const bond = gameState.bonds[bondIndex];
+            const { atom1Id, atom2Id } = bond;
+            bond.element.remove();
+            gameState.bonds.splice(bondIndex, 1);
+            updateBondsForAtom(atom1Id);
+            updateBondsForAtom(atom2Id);
+            updateAllHandles();
+        }
+
+        function pullAtomsTogether(atom1, atom2) {
+            let x1 = parseFloat(atom1.getAttribute('data-x')) || 0;
+            let y1 = parseFloat(atom1.getAttribute('data-y')) || 0;
+            let x2 = parseFloat(atom2.getAttribute('data-x')) || 0;
+            let y2 = parseFloat(atom2.getAttribute('data-y')) || 0;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.hypot(dx, dy);
+            
+            if (distance > BOND_LENGTH) {
+                const moveFactor = (distance - BOND_LENGTH) / distance / 2;
+                x1 += dx * moveFactor;
+                y1 += dy * moveFactor;
+                x2 -= dx * moveFactor;
+                y2 -= dy * moveFactor;
+
+                atom1.style.transform = `translate(${x1}px, ${y1}px)`;
+                atom1.setAttribute('data-x', x1);
+                atom1.setAttribute('data-y', y1);
+                atom2.style.transform = `translate(${x2}px, ${y2}px)`;
+                atom2.setAttribute('data-x', x2);
+                atom2.setAttribute('data-y', y2);
+            }
+        }
+        
+        function updateBondPosition(bond, bondIndex, totalParallel) {
+            const atom1 = getAtomById(bond.atom1Id);
+            const atom2 = getAtomById(bond.atom2Id);
+            if (!atom1 || !atom2) return;
+            
+            const x1 = (parseFloat(atom1.getAttribute('data-x')) || 0) + ATOM_RADIUS;
+            const y1 = (parseFloat(atom1.getAttribute('data-y')) || 0) + ATOM_RADIUS;
+            const x2 = (parseFloat(atom2.getAttribute('data-x')) || 0) + ATOM_RADIUS;
+            const y2 = (parseFloat(atom2.getAttribute('data-y')) || 0) + ATOM_RADIUS;
+
+            if (totalParallel > 1) {
+                const angle = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+                const offset = (bondIndex - (totalParallel - 1) / 2) * 6;
+
+                bond.element.setAttribute('x1', x1 + offset * Math.cos(angle));
+                bond.element.setAttribute('y1', y1 + offset * Math.sin(angle));
+                bond.element.setAttribute('x2', x2 + offset * Math.cos(angle));
+                bond.element.setAttribute('y2', y2 + offset * Math.sin(angle));
+            } else {
+                bond.element.setAttribute('x1', x1);
+                bond.element.setAttribute('y1', y1);
+                bond.element.setAttribute('x2', x2);
+                bond.element.setAttribute('y2', y2);
+            }
+        }
+
+        function updateBondsForAtom(atomId) {
+            const partners = new Set(gameState.bonds.filter(b => b.atom1Id === atomId || b.atom2Id === atomId).map(b => b.atom1Id === atomId ? b.atom2Id : b.atom1Id));
+            partners.forEach(partnerId => {
+                const sortedPairIds = [atomId, partnerId].sort();
+                const parallelBonds = gameState.bonds.filter(b => b.atom1Id === sortedPairIds[0] && b.atom2Id === sortedPairIds[1]);
+                parallelBonds.forEach((bond, index) => updateBondPosition(bond, index, parallelBonds.length));
+            });
+        }
+
+        function removeBondsForAtom(atomId) {
+            [...gameState.bonds].filter(b => b.atom1Id === atomId || b.atom2Id === atomId).forEach(bond => removeBond(bond.id));
+        }
+        function updateAllHandles() { gameState.placedAtoms.forEach(addHandlesToAtom); }
+
+        // --- FONCTIONS UTILITAIRES ---
+        const getAtomById = (id) => gameState.placedAtoms.get(id);
+        const countBondsForAtom = (atomId) => gameState.bonds.filter(b => b.atom1Id === atomId || b.atom2Id === atomId).length;
+        const canBond = (atom) => atom && countBondsForAtom(atom.dataset.id) < getDefaultBonds(atom.dataset.element);
+        
+        // --- VALIDATION ET FLUX DE JEU ---
+        function compareCounts(counts1, counts2) {
+            const keys1 = Object.keys(counts1);
+            const keys2 = Object.keys(counts2);
+            if (keys1.length !== keys2.length) return false;
+            for (const key of keys1) {
+                if (counts1[key] !== counts2[key]) return false;
+            }
+            return true;
+        }
+
+        function validateMolecule() {
+            const placedAtomElements = Array.from(gameState.placedAtoms.values());
+            const requiredCounts = gameState.currentMolecule.structure.reduce((acc, atom) => ({ ...acc, [atom.element]: (acc[atom.element] || 0) + 1 }), {});
+            const placedCounts = placedAtomElements.reduce((acc, atom) => ({ ...acc, [atom.dataset.element]: (acc[atom.dataset.element] || 0) + 1 }), {});
+
+            if (!compareCounts(requiredCounts, placedCounts)) {
+                return showResult(false, "La composition atomique est incorrecte. Vérifiez le nombre de chaque type d'atome.");
+            }
+
+            for (const atom of placedAtomElements) {
+                const requiredBonds = getDefaultBonds(atom.dataset.element);
+                const currentBonds = countBondsForAtom(atom.dataset.id);
+                if (currentBonds !== requiredBonds) {
+                    return showResult(false, `L'atome de ${atom.dataset.element} n'a pas le bon nombre de liaisons. (Attendu: ${requiredBonds}, Actuel: ${currentBonds})`);
+                }
+            }
+            
+            if (placedAtomElements.length > 1) {
+                 const adjList = new Map(Array.from(gameState.placedAtoms.keys()).map(id => [id, []]));
+                 gameState.bonds.forEach(bond => {
+                     const { atom1Id, atom2Id } = bond;
+                     if (adjList.has(atom1Id) && adjList.has(atom2Id)) {
+                        adjList.get(atom1Id).push(atom2Id);
+                        adjList.get(atom2Id).push(atom1Id);
+                     }
+                 });
+                 const visited = new Set();
+                 const queue = [placedAtomElements[0].dataset.id];
+                 visited.add(queue[0]);
+                 let head = 0;
+                 while(head < queue.length) {
+                     const neighbors = adjList.get(queue[head++]);
+                     if(neighbors) {
+                       neighbors.forEach(neighborId => {
+                           if (!visited.has(neighborId)) {
+                               visited.add(neighborId);
+                               queue.push(neighborId);
+                           }
+                       });
+                     }
+                 }
+                 if (visited.size !== gameState.placedAtoms.size) {
+                     return showResult(false, "Tous les atomes ne sont pas connectés en une seule molécule.");
+                 }
+            }
+            
+            gameState.totalScore += gameState.currentPoints;
+            showResult(true, `Correct ! Vous avez gagné ${gameState.currentPoints} points.`);
+        }
+        
+        function showResult(success, message) {
+            const modal = document.getElementById('result-modal');
+            modal.classList.remove('hidden');
+            msg.textContent = message;
+            if (success) {
+                title.textContent = "Succès !";
+                title.className = "text-2xl font-bold mb-4 text-green-600";
+                document.getElementById('work-area').classList.add('success');
+            } else {
+                title.textContent = "Essayez Encore";
+                title.className = "text-2xl font-bold mb-4 text-red-600";
+            }
+        }
+
+        function nextChallenge() {
+            const modal = document.getElementById('result-modal');
+            modal.classList.add('hidden');
+            document.getElementById('work-area').classList.remove('success');
+            if (document.getElementById('next-btn').textContent === "Rejouer") return restartGame();
+            gameState.currentAttempt++;
+            loadNewMolecule();
+        }
+        
+        function gameOver() {
+            const totalPossiblePoints = molecules.reduce((sum, _, i) => sum + (i + 1) * 2, 0);
+            showResult(true, `Partie terminée ! Votre score final est de ${gameState.totalScore} / ${totalPossiblePoints}. Bravo !`);
+            document.getElementById('result-title').textContent = "Partie Terminée";
+            document.getElementById('next-btn').textContent = "Rejouer";
+        }
+
+        function restartGame() {
+            gameState.currentAttempt = 1;
+            gameState.totalScore = 0;
+            document.getElementById('next-btn').textContent = "Prochain Défi";
+            loadNewMolecule();
+        }
+        
+        function updateGameInfo() {
+            document.getElementById('current-attempt').textContent = `Essai: ${gameState.currentAttempt}/5`;
+            document.getElementById('total-score').textContent = `Score: ${gameState.totalScore}`;
+            // CORRECTION : La ligne qui causait l'erreur a été supprimée.
+        }
+        const title = document.getElementById('result-title');
+        const msg = document.getElementById('result-message');
+        document.addEventListener('DOMContentLoaded', initGame);
+
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
+    </script>
+</body>
+</html>
