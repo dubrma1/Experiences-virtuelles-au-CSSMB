@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu: Notation de Lewis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Fond plus clair, similaire à Bohr */
+        }
+        .font-Roboto {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* --- STYLES DU JEU LEWIS --- */
+        .dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #FBBF24; /* Amber-400 */
+            border-radius: 50%;
+            box-shadow: 0 0 8px #F59E0B; /* Amber-500 */
+        }
+        .final-grid-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: #1F2937;
+            border-radius: 50%;
+        }
+        #drawing-area {
+            background-color: #f9fafb; /* Fond clair pour la zone de dessin */
+            border-color: #d1d5db; /* Bordure grise */
+        }
+        #element-symbol {
+            color: #111827; /* Symbole sombre */
+        }
+
+        /* --- STYLES DU TABLEAU PÉRIODIQUE (importés de Bohr) --- */
+        #periodic-table-container {
+            display: grid;
+            grid-template-columns: repeat(18, minmax(0, 1fr));
+            gap: 2px;
+            width: 100%;
+            max-width: 600px; /* Limite la largeur du tableau */
+            margin: 0 auto; /* Centre le tableau */
+        }
+        .pt-header {
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            color: #4b5563;
+        }
+        .pt-cell {
+            aspect-ratio: 1 / 1;
+            border: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            border-radius: 4px;
+            position: relative;
+            font-family: monospace;
+            font-size: clamp(6px, 1.5vw, 10px);
+        }
+        .pt-cell.active {
+            /* Style pour l'élément sélectionné */
+            background-color: #e0f2fe;
+            border: 2px solid #7dd3fc;
+            display: flex;
+            flex-direction: column;
+            padding: 2px;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            z-index: 10;
+        }
+        .pt-atomic-number { font-weight: bold; }
+        .pt-symbol { font-size: 1.5em; font-weight: 800; text-align: center; margin: auto 0; }
+        .pt-name { text-align: center; font-size: 0.8em; line-height: 1; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8 text-center border border-gray-200">
+        
+        <header>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 font-orbitron">NOTATION DE LEWIS</h1>
+            <p class="mt-2 text-gray-600">Utilisez le tableau pour trouver l'élément. Cliquez autour du symbole pour ajouter les électrons de valence.</p>
+        </header>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 items-start">
+            
+            <div class="w-full">
+                <h2 class="text-xl font-semibold mb-4">Tableau Périodique</h2>
+                <div id="periodic-table-container">
+                    </div>
+            </div>
+
+            <div class="w-full max-w-lg mx-auto">
+                <h2 class="text-xl font-semibold mb-4">Élément</h2>
+                <main>
+                    <p id="question-text" class="text-lg text-gray-600 mb-4 h-14 flex items-center justify-center">Construire la notation de Lewis pour: <strong class="text-blue-600 text-xl ml-2">...</strong></p>
+                    
+                    <div id="drawing-area" class="relative w-48 h-48 md:w-56 md:h-56 rounded-full mx-auto cursor-pointer border-4 border-dashed flex items-center justify-center" style="cursor: pointer;">
+                        <span id="element-symbol" class="text-5xl md:text-6xl font-bold select-none font-orbitron">H</span>
+                    </div>
+
+                    <div id="feedback-message" class="mt-4 h-10 text-lg font-medium rounded-md flex items-center justify-center">&nbsp;</div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <button id="check-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                            VÉRIFIER
+                        </button>
+                        <button id="clear-btn" class="w-full bg-gray-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-400 transition-transform transform hover:scale-105">
+                            EFFACER
+                        </button>
+                    </div>
+                     <button id="next-btn" class="mt-4 w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-transform transform hover:scale-105 hidden">
+                        ÉLÉMENT SUIVANT
+                    </button>
+                </main>
+            </div>
+            
+        </div>
+    </div>
+    
+    <div id="final-screen" class="hidden w-full max-w-4xl mx-auto bg-gray-800 rounded-2xl shadow-2xl p-8 text-center border border-green-500">
+        <h1 class="text-3xl font-bold text-green-400 font-orbitron">MISSION ACCOMPLIE !</h1>
+        <p class="mt-2 text-gray-300">Vous avez déverrouillé la base de données. Voici les notations de Lewis pour les 20 premiers éléments.</p>
+        <div id="results-grid" class="mt-8 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+            </div>
+        <button id="restart-btn" class="mt-8 bg-cyan-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-cyan-700 focus:outline-none focus:ring-4 focus:ring-cyan-300 transition-transform transform hover:scale-105">
+            RECOMMENCER
+        </button>
+    </div>
+
+
+    <script>
+	
+/*
+ * =============================================================
+ * Application Éducative : Jeu_Notation de Lewis
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: En se basant sur la position de l'élément dans le tableau périodique, l'utilisateur dessine des électrons de valence
+ * =============================================================
+*/  
+        document.addEventListener('DOMContentLoaded', () => {
+            // Données du tableau périodique (Source: Fichier Bohr)
+            const periodicTableData = [
+                null, 
+                { name: "Hydrogène", symbol: "H", atomicNumber: 1, period: 1, group: 1 },
+                { name: "Hélium", symbol: "He", atomicNumber: 2, period: 1, group: 18 },
+                { name: "Lithium", symbol: "Li", atomicNumber: 3, period: 2, group: 1 },
+                { name: "Béryllium", symbol: "Be", atomicNumber: 4, period: 2, group: 2 },
+                { name: "Bore", symbol: "B", atomicNumber: 5, period: 2, group: 13 },
+                { name: "Carbone", symbol: "C", atomicNumber: 6, period: 2, group: 14 },
+                { name: "Azote", symbol: "N", atomicNumber: 7, period: 2, group: 15 },
+                { name: "Oxygène", symbol: "O", atomicNumber: 8, period: 2, group: 16 },
+                { name: "Fluor", symbol: "F", atomicNumber: 9, period: 2, group: 17 },
+                { name: "Néon", symbol: "Ne", atomicNumber: 10, period: 2, group: 18 },
+                { name: "Sodium", symbol: "Na", atomicNumber: 11, period: 3, group: 1 },
+                { name: "Magnésium", symbol: "Mg", atomicNumber: 12, period: 3, group: 2 },
+                { name: "Aluminium", symbol: "Al", atomicNumber: 13, period: 3, group: 13 },
+                { name: "Silicium", symbol: "Si", atomicNumber: 14, period: 3, group: 14 },
+                { name: "Phosphore", symbol: "P", atomicNumber: 15, period: 3, group: 15 },
+                { name: "Soufre", symbol: "S", atomicNumber: 16, period: 3, group: 16 },
+                { name: "Chlore", symbol: "Cl", atomicNumber: 17, period: 3, group: 17 },
+                { name: "Argon", symbol: "Ar", atomicNumber: 18, period: 3, group: 18 },
+                { name: "Potassium", symbol: "K", atomicNumber: 19, period: 4, group: 1 },
+                { name: "Calcium", symbol: "Ca", atomicNumber: 20, period: 4, group: 2 },
+            ];
+
+            // Fonction pour obtenir les électrons de valence (Source: Fichier Bohr)
+            const getValenceElectronsFromGroup = (group) => {
+                if (group <= 2) return group;
+                if (group >= 13) return group - 10;
+                return 0; // Pour les groupes du milieu (non utilisés ici)
+            };
+
+            // Éléments du DOM
+            const gameContainer = document.getElementById('game-container');
+            const finalScreen = document.getElementById('final-screen');
+            const questionTextEl = document.getElementById('question-text');
+            const drawingAreaEl = document.getElementById('drawing-area');
+            const elementSymbolEl = document.getElementById('element-symbol');
+            const feedbackMessageEl = document.getElementById('feedback-message');
+            const checkBtn = document.getElementById('check-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const resultsGridEl = document.getElementById('results-grid');
+            const periodicTableContainer = document.getElementById('periodic-table-container');
+
+            let shuffledElements = [];
+            let currentElementIndex = 0;
+            let userDots = [];
+            
+            // Positions des points (N, E, S, O, et paires)
+            const dotPositions = [
+                { x: '47%', y: '20%' }, // 0: Top
+                { x: '80%', y: '47%' }, // 1: Right
+                { x: '47%', y: '80%' }, // 2: Bottom
+                { x: '20%', y: '47%' }, // 3: Left
+                { x: '53%', y: '20%' }, // 4: Top pair
+                { x: '80%', y: '53%' }, // 5: Right pair
+                { x: '53%', y: '80%' }, // 6: Bottom pair
+                { x: '20%', y: '53%' }, // 7: Left pair
+            ];
+
+            // Fonction pour initialiser le tableau (Source: Fichier Bohr)
+            function setupPeriodicTable() {
+                periodicTableContainer.innerHTML = '';
+                const groupsA = { 1: '1A', 2: '2A', 13: '3A', 14: '4A', 15: '5A', 16: '6A', 17: '7A', 18: '8A' };
+                
+                for (let col = 1; col <= 18; col++) {
+                    const header = document.createElement('div');
+                    header.className = 'pt-header';
+                    if (groupsA[col]) {
+                        header.textContent = groupsA[col];
+                    }
+                    periodicTableContainer.appendChild(header);
+                }
+                
+                for (let row = 1; row <= 4; row++) {
+                    for (let col = 1; col <= 18; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'pt-cell';
+                        if ((row === 2 || row === 3) && (col > 2 && col < 13)) {
+                           cell.style.visibility = 'hidden';
+                        }
+                         if (row === 1 && (col > 1 && col < 18)) {
+                           cell.style.visibility = 'hidden';
+                        }
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        periodicTableContainer.appendChild(cell);
+                    }
+                }
+            }
+
+            function startQuiz() {
+                gameContainer.classList.remove('hidden');
+                finalScreen.classList.add('hidden');
+                // Mélange et prend 8 éléments
+                shuffledElements = [...periodicTableData.slice(1)].sort(() => Math.random() - 0.5).slice(0, 8);
+                currentElementIndex = 0;
+                loadNextElement();
+            }
+
+            function loadNextElement() {
+                if (currentElementIndex >= shuffledElements.length) {
+                    showFinalResults();
+                    return;
+                }
+
+                const currentElement = shuffledElements[currentElementIndex];
+                questionTextEl.innerHTML = `Construire la notation de Lewis pour: <strong class="text-blue-600 text-xl ml-2">${currentElement.name}</strong>`;
+                elementSymbolEl.textContent = currentElement.symbol;
+                
+                // --- NOUVEAU: Mettre à jour le tableau Périodique ---
+                const oldActive = document.querySelector('.pt-cell.active');
+                if(oldActive) {
+                    oldActive.classList.remove('active');
+                    oldActive.innerHTML = ''; // Vide la cellule précédente
+                }
+                
+                const newActiveCell = document.querySelector(`.pt-cell[data-row='${currentElement.period}'][data-col='${currentElement.group}']`);
+                if(newActiveCell) {
+                    newActiveCell.classList.add('active');
+                    // Remplit la cellule active avec les infos
+                    newActiveCell.innerHTML = `
+                        <div class="pt-atomic-number">${currentElement.atomicNumber}</div>
+                        <div class="pt-symbol">${currentElement.symbol}</div>
+                        <div class="pt-name">${currentElement.name}</div>
+                    `;
+                }
+                // --- FIN DE LA MISE À JOUR DU TABLEAU ---
+
+                clearCanvas();
+                resetFeedback();
+                
+                drawingAreaEl.style.cursor = 'pointer';
+                checkBtn.disabled = false;
+                clearBtn.disabled = false;
+                checkBtn.classList.remove('hidden');
+                clearBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+            }
+
+            function handleCanvasClick(event) {
+                if (userDots.length >= 8 || checkBtn.disabled) return;
+                
+                const rect = drawingAreaEl.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                let bestPosition = null;
+                let minDistance = Infinity;
+
+                dotPositions.forEach((pos, index) => {
+                    const posX = parseFloat(pos.x) / 100 * rect.width;
+                    const posY = parseFloat(pos.y) / 100 * rect.height;
+                    const distance = Math.sqrt(Math.pow(x - posX, 2) + Math.pow(y - posY, 2));
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestPosition = index;
+                    }
+                });
+                
+                if (userDots.length < 4 && bestPosition >= 4) {
+                    feedbackMessageEl.textContent = "Placez les 4 premiers électrons sur les côtés d'abord.";
+                    feedbackMessageEl.classList.add('text-yellow-500');
+                    setTimeout(resetFeedback, 2000);
+                    return;
+                }
+
+                if (bestPosition !== null && !userDots.includes(bestPosition)) {
+                    userDots.push(bestPosition);
+                    drawDots();
+                }
+            }
+            
+            function drawDots(container = drawingAreaEl, dotClass = 'dot', positions = userDots) {
+                container.querySelectorAll(`.${dotClass}`).forEach(dot => dot.remove());
+                positions.forEach(positionIndex => {
+                    const pos = dotPositions[positionIndex];
+                    const dotEl = document.createElement('div');
+                    dotEl.className = dotClass;
+                    dotEl.style.left = `calc(${pos.x} - 6px)`;
+                    dotEl.style.top = `calc(${pos.y} - 6px)`;
+                    container.appendChild(dotEl);
+                });
+            }
+
+            function clearCanvas() {
+                userDots = [];
+                drawDots();
+                resetFeedback();
+            }
+
+            function resetFeedback() {
+                feedbackMessageEl.innerHTML = '&nbsp;'; // Espace pour garder la hauteur
+                feedbackMessageEl.classList.remove('text-green-600', 'text-red-600', 'text-yellow-500');
+            }
+            
+            function checkAnswer() {
+                const currentElement = shuffledElements[currentElementIndex];
+                const correctValence = getValenceElectronsFromGroup(currentElement.group);
+
+                if (userDots.length === correctValence) {
+                    feedbackMessageEl.textContent = "Correct!";
+                    feedbackMessageEl.classList.add('text-green-600');
+                    disableActions();
+                } else {
+                    // Logique de "non-échec" (Req 2)
+                    feedbackMessageEl.textContent = `Incorrect. Cet élément a ${correctValence} électron(s) de valence.`;
+                    feedbackMessageEl.classList.add('text-red-600');
+                    // On ne désactive rien, l'utilisateur doit effacer
+                }
+            }
+            
+            function disableActions(){
+                checkBtn.disabled = true;
+                clearBtn.disabled = true;
+                drawingAreaEl.style.cursor = 'default';
+                checkBtn.classList.add('hidden');
+                clearBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+            }
+            
+            function showFinalResults() {
+                gameContainer.classList.add('hidden');
+                finalScreen.classList.remove('hidden');
+                resultsGridEl.innerHTML = '';
+                
+                // Utilise les données du tableau périodique
+                periodicTableData.slice(1).forEach(el => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-700 p-2 rounded-lg aspect-square flex flex-col items-center justify-center';
+                    const structure = document.createElement('div');
+                    structure.className = 'relative w-16 h-16 flex items-center justify-center';
+                    const symbol = document.createElement('span');
+                    symbol.className = 'text-2xl font-bold text-cyan-300';
+                    symbol.textContent = el.symbol;
+                    structure.appendChild(symbol);
+                    
+                    const valence = getValenceElectronsFromGroup(el.group);
+                    
+                    const finalDots = [];
+                    // Logique pour dessiner les points sur la grille finale
+                    for(let i=0; i < valence; i++){
+                        if (i < 4) {
+                            finalDots.push(i); // Ajoute 0, 1, 2, 3
+                        } else {
+                            finalDots.push(i - 4 + 4); // Ajoute 4, 5, 6, 7
+                        }
+                    }
+                    
+                    // Ajustement visuel pour la grille finale (paire en haut, puis les autres)
+                    let dotMap = [];
+                    if (valence === 1) dotMap = [0];
+                    else if (valence === 2) dotMap = [0, 2]; // ou [0, 4] pour Be, mais [0,2] est commun
+                    else if (valence === 3) dotMap = [0, 1, 2];
+                    else if (valence === 4) dotMap = [0, 1, 2, 3];
+                    else if (valence === 5) dotMap = [0, 1, 2, 3, 4];
+                    else if (valence === 6) dotMap = [0, 1, 2, 3, 4, 6];
+                    else if (valence === 7) dotMap = [0, 1, 2, 3, 4, 5, 6];
+                    else if (valence === 8) dotMap = [0, 1, 2, 3, 4, 5, 6, 7];
+                    
+                    // Cas spécial Hélium
+                    if (el.symbol === 'He') dotMap = [0, 4]; // Paire en haut
+                    
+                    dotMap.forEach(i => {
+                         const pos = dotPositions[i];
+                         const dotEl = document.createElement('div');
+                         dotEl.className = 'final-grid-dot';
+                         dotEl.style.left = `calc(${pos.x} - 3px)`;
+                         dotEl.style.top = `calc(${pos.y} - 3px)`;
+                         structure.appendChild(dotEl);
+                    });
+
+                    const name = document.createElement('p');
+                    name.className = 'mt-2 text-sm text-gray-400';
+                    name.textContent = el.name;
+
+                    card.appendChild(structure);
+                    card.appendChild(name);
+                    resultsGridEl.appendChild(card);
+                });
+            }
+
+            // --- Écouteurs d'Événements ---
+            drawingAreaEl.addEventListener('click', handleCanvasClick);
+            checkBtn.addEventListener('click', checkAnswer);
+            clearBtn.addEventListener('click', () => {
+                if(!checkBtn.disabled) clearCanvas();
+            });
+            nextBtn.addEventListener('click', () => {
+                currentElementIndex++;
+                loadNextElement();
+            });
+            restartBtn.addEventListener('click', startQuiz);
+
+            // --- Initialisation ---
+            setupPeriodicTable(); // Construit le tableau
+            startQuiz(); // Lance le jeu
+        });
+		
+	// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
+    </script>
+
+</body>
+</html>
