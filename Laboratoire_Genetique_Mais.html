@@ -315,6 +315,15 @@
     </div>
 
     <script>
+	     /*
+ * =============================================================
+ * Application Éducative : Laboratoire Genetique Mais
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: Choisir un trait, puis un croisement: le phénotype des parents. Compiler tous le phénotype des F1 pour déduire le génotype des parents.
+ * =============================================================
+*/
         document.addEventListener('DOMContentLoaded', () => {
 
             const SVG_NS = "http://www.w3.org/2000/svg";
@@ -685,6 +694,24 @@
             setTrait(); 
             
         });
+    // Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+		
     </script>
 
 </body>
