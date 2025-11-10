@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire : Génétique du Maïs (Traits Monohybrides)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #212529;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        h1, h2, h3 {
+            color: #343a40;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        /* Section de Configuration réorganisée */
+        .setup-section {
+            background-color: #f1f3f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        #setup-controls {
+            flex: 2; /* Colonne de droite, alignée sur 'counting-section' */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #setup-display {
+            flex: 3; /* Colonne de gauche, alignée sur 'ear-canvas' */
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            text-align: center;
+        }
+
+        .setup-section label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .setup-section select {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%;
+        }
+        
+        #generate-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            margin-top: 15px;
+            width: 100%;
+        }
+        
+        #parent-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .small-ear-svg {
+            width: 100px; /* Horizontal */
+            height: 50px; /* Horizontal */
+            border: 1px solid #adb5bd;
+            border-radius: 10px;
+            background-color: #ced4da;
+        }
+        
+        /* Section de Simulation */
+        .simulation-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        #ear-canvas {
+            flex: 3; /* Colonne de gauche */
+            min-width: 400px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #ced4da;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #ear-canvas-svg-wrapper {
+            flex-grow: 1;
+            min-height: 200px;
+        }
+
+        #ear-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #ear-canvas p {
+            font-style: italic;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 0;
+        }
+
+        .kernel {
+            cursor: pointer;
+            transition: opacity 0.3s ease, transform 0.1s ease;
+            stroke-width: 1px;
+            stroke: rgba(0,0,0,0.5);
+        }
+        
+        .kernel:hover {
+            stroke-width: 2px;
+            stroke: #000;
+            transform: scale(1.05);
+        }
+
+        .kernel.counted {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        /* Section de Comptage Actif */
+        #counting-section {
+            flex: 2; /* Colonne de droite */
+        }
+        
+        #counting-section h3 {
+            margin-top: 0;
+        }
+        
+        #phenotype-containers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-content: flex-start;
+        }
+
+        .phenotype-bucket {
+            background-color: #fdfdfd;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .phenotype-bucket h3 { margin-top: 0; border: none; font-size: 1.1em; }
+        .phenotype-bucket .count { font-size: 2em; font-weight: bold; color: #007bff; }
+        
+        .results-table-live { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .results-table-live th, .results-table-live td { border: 1px solid #dee2e6; padding: 12px; }
+        .results-table-live th { background-color: #f1f3f5; }
+        .results-table-live tfoot td { font-weight: bold; }
+
+        /* Section du Journal de Bord */
+        .logbook-section { 
+            margin-top: 30px; 
+            width: 100%;
+        }
+        .logbook-section table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .logbook-section th, .logbook-section td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
+        .logbook-section th { background-color: #e9ecef; }
+        .logbook-section td:first-child { text-align: left; }
+        
+        #log-result-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .export-buttons { margin-top: 20px; }
+        .export-buttons button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #17a2b8; color: white; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Laboratoire : Génétique du Maïs (Traits Monohybrides)</h1>
+        
+        <div class="setup-section">
+            
+            <div id="setup-display" class="info-box">
+			<p align=left><b>Parents</b></p>
+                <div id="parent-display">
+                </div>
+                <button id="generate-btn">Générer l'épi de descendance</button>
+            </div>
+            
+            <div id="setup-controls">
+                <div>
+                    <label for="trait-select">Choisir un Trait :</label>
+                    <select id="trait-select">
+                        <option value="color">Couleur (Violet/Jaune)</option>
+                        <option value="texture">Texture (Lisse/Ridé)</option>
+                        <option value="waxy">Texture (Amidonné/Ciré)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="cross-select">Choisir un croisement de Parents (P) :</label>
+                    <select id="cross-select">
+                    </select>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="simulation-section">
+            <div id="ear-canvas">
+                <p><b>Épi fille (F1)</b><br>Clique sur les grains pour les compter. Tu peux enregistrer tes données dans un tableau. Que peux-tu déduire sur le génotype des parents ?</b></p>
+
+                <svg style="height: 0; width: 0; position: absolute; overflow: hidden;">
+                    <defs>
+                        <pattern id="shrunken-grain-pattern" patternUnits="userSpaceOnUse" width="4" height="4">
+                            <rect x="0" y="0" width="4" height="4" fill="#F0E442"/>
+                            <rect x="0" y="0" width="2" height="2" fill="#D4BB2E"/> 
+                            <rect x="2" y="2" width="2" height="2" fill="#D4BB2E"/>
+                        </pattern>
+                    </defs>
+                </svg>
+            
+                <div id="ear-canvas-svg-wrapper">
+                    <svg id="ear-svg" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet">
+                    </svg>
+                </div>
+            </div>
+            
+            <div id="counting-section">
+                <h3>Comptage de la descendance</h3>
+                <div id="phenotype-containers">
+                </div>
+                
+                <table class="results-table-live">
+                    <thead> <tr> <th>Phénotype</th> <th>%</th> </tr> </thead>
+                    <tbody id="percent-tbody">
+                    </tbody>
+                    <tfoot>
+                        <tr> <td><strong>Total</strong></td> <td id="total-count"><strong>0</strong></td> </tr>
+                    </tfoot>
+                </table>
+                
+                <button id="log-result-btn">Enregistrer ce résultat &darr;</button>
+            </div>
+        </div>
+
+        <div class="logbook-section">
+            <h2>Journal de Bord des Croisements</h2>
+            <p>Ici s'afficheront tous vos résultats enregistrés.</p>
+            <table id="logbook-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Phénotype des Parents</th>
+                        <th colspan="2" id="logbook-header-phenotypes">Nombre de Grains</th>
+                    </tr>
+                    <tr>
+                        <th id="logbook-header-p1">Phéno 1</th>
+                        <th id="logbook-header-p2">Phéno 2</th>
+                    </tr>
+                </thead>
+                <tbody id="logbook-tbody">
+                </tbody>
+            </table>
+            
+            <div class="export-buttons">
+                <button id="export-csv-btn">Exporter le Journal (CSV)</button>
+                <button id="export-xlsx-btn">Exporter le Journal (XLSX)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const SVG_NS = "http://www.w3.org/2000/svg";
+            const KERNEL_ROWS = 5;
+            const KERNEL_COLS = 10;
+            const TOTAL_KERNELS = KERNEL_ROWS * KERNEL_COLS; // 50 grains
+
+            const TRAIT_CONFIG = {
+                'color': {
+                    phenotypes: {
+                        'purple': { id: 'purple', name: 'Violet', style: { fill: '#5D3A9B' } },
+                        'yellow': { id: 'yellow', name: 'Jaune',  style: { fill: '#F0E442' } }
+                    },
+                    crosses: {
+                        'RRxRR': { p1: 'purple', p2: 'purple', ratio: [1], phenos: ['purple'] },
+                        'RrxRr': { p1: 'purple', p2: 'purple', ratio: [3, 1], phenos: ['purple', 'yellow'] },
+                        'RRxrr': { p1: 'purple', p2: 'yellow', ratio: [1], phenos: ['purple'] },
+                        'Rrxrr': { p1: 'purple', p2: 'yellow', ratio: [1, 1], phenos: ['purple', 'yellow'] },
+                        'rrxrr': { p1: 'yellow', p2: 'yellow', ratio: [1], phenos: ['yellow'] }
+                    },
+                    options: [
+                        ['RRxRR', 'Croisement #1: Violet x Violet'],
+                        ['RrxRr', 'Croisement #2: Violet x Violet'],
+                        ['RRxrr', 'Croisement #3: Violet x Jaune'],
+                        ['Rrxrr', 'Croisement #4: Violet x Jaune'],
+                        ['rrxrr', 'Croisement #5: Jaune x Jaune']
+                    ],
+                    type: 'visual'
+                },
+                'texture': {
+                    phenotypes: {
+                        'smooth':   { id: 'smooth',   name: 'Lisse',   style: { fill: '#F0E442' } },
+                        'shrunken': { id: 'shrunken', name: 'Ridé',    style: { fill: 'url(#shrunken-grain-pattern)', transform: 'scale(0.85)' } } 
+                    },
+                    crosses: {
+                        'SuSuxSuSu': { p1: 'smooth', p2: 'smooth', ratio: [1], phenos: ['smooth'] },
+                        'SusuxSusu': { p1: 'smooth', p2: 'smooth', ratio: [3, 1], phenos: ['smooth', 'shrunken'] },
+                        'SuSuxsusu': { p1: 'smooth', p2: 'shrunken', ratio: [1], phenos: ['smooth'] },
+                        'Susuxsusu': { p1: 'smooth', p2: 'shrunken', ratio: [1, 1], phenos: ['smooth', 'shrunken'] },
+                        'susuxsusu': { p1: 'shrunken', p2: 'shrunken', ratio: [1], phenos: ['shrunken'] }
+                    },
+                    options: [
+                        ['SuSuxSuSu', 'Croisement #1: Lisse x Lisse'],
+                        ['SusuxSusu', 'Croisement #2: Lisse x Lisse'],
+                        ['SuSuxsusu', 'Croisement #3: Lisse x Ridé'],
+                        ['Susuxsusu', 'Croisement #4: Lisse x Ridé'],
+                        ['susuxsusu', 'Croisement #5: Ridé x Ridé']
+                    ],
+                    type: 'visual'
+                },
+                'waxy': {
+                    phenotypes: {
+                        'starchy': { id: 'starchy', name: 'Amidonné (Bleu)', style: { fill: '#00008B' } }, // Bleu foncé
+                        'waxy':    { id: 'waxy',    name: 'Ciré (Brun-rouge)', style: { fill: '#A52A2A' } }  // Brun-rouge
+                    },
+                    crosses: {
+                        'WxWxxWxWx': { p1: 'starchy', p2: 'starchy', ratio: [1], phenos: ['starchy'] },
+                        'WxwxxWxwX': { p1: 'starchy', p2: 'starchy', ratio: [3, 1], phenos: ['starchy', 'waxy'] },
+                        'WxWxxwxwx': { p1: 'starchy', p2: 'waxy',    ratio: [1], phenos: ['starchy'] },
+                        'Wxwxxwxwx': { p1: 'starchy', p2: 'waxy',    ratio: [1, 1], phenos: ['starchy', 'waxy'] },
+                        'wxwxxwxwx': { p1: 'waxy',    p2: 'waxy',    ratio: [1], phenos: ['waxy'] }
+                    },
+                    options: [
+                        ['WxWxxWxWx', 'Croisement #1: Amidonné x Amidonné'],
+                        ['WxwxxWxwX', 'Croisement #2: Amidonné x Amidonné'],
+                        ['WxWxxwxwx', 'Croisement #3: Amidonné x Ciré'],
+                        ['Wxwxxwxwx', 'Croisement #4: Amidonné x Ciré'],
+                        ['wxwxxwxwx', 'Croisement #5: Ciré x Ciré']
+                    ],
+                    type: 'lugol-test' 
+                }
+            };
+
+            // --- ÉLÉMENTS DU DOM ---
+            const traitSelect = document.getElementById('trait-select');
+            const crossSelect = document.getElementById('cross-select');
+            const generateBtn = document.getElementById('generate-btn');
+            const parentDisplay = document.getElementById('parent-display');
+            const earSvg = document.getElementById('ear-svg');
+            const bucketContainer = document.getElementById('phenotype-containers');
+            const percentTbody = document.getElementById('percent-tbody');
+            const totalCountEl = document.getElementById('total-count');
+            const logResultBtn = document.getElementById('log-result-btn');
+            const logbookTbody = document.getElementById('logbook-tbody');
+            const logbookHeaderP1 = document.getElementById('logbook-header-p1');
+            const logbookHeaderP2 = document.getElementById('logbook-header-p2');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+            const exportXlsxBtn = document.getElementById('export-xlsx-btn');
+
+            let counts = {};
+            let currentTraitConfig;
+            let logbookData = []; 
+
+            // --- NOUVELLES FONCTIONS DE TRAIT ---
+
+            function setTrait() {
+                const traitKey = traitSelect.value;
+                currentTraitConfig = TRAIT_CONFIG[traitKey];
+                
+                populateCrossSelect();
+                updateLogbookHeader();
+                
+                resetSimulation();
+            }
+
+            function populateCrossSelect() {
+                crossSelect.innerHTML = '';
+                currentTraitConfig.options.forEach(opt => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt[0];
+                    optionEl.textContent = opt[1];
+                    crossSelect.appendChild(optionEl);
+                });
+            }
+            
+            function updateLogbookHeader() {
+                const phenoNames = Object.values(currentTraitConfig.phenotypes).map(p => p.name);
+                logbookHeaderP1.textContent = phenoNames[0];
+                logbookHeaderP2.textContent = phenoNames[1];
+                
+                const logbookHeaderPhenotypes = document.getElementById('logbook-header-phenotypes');
+                if (currentTraitConfig.type === 'lugol-test') {
+                    logbookHeaderPhenotypes.textContent = 'Nombre de Grains (après test Lugol)';
+                } else {
+                    logbookHeaderPhenotypes.textContent = 'Nombre de Grains (Descendance)';
+                }
+            }
+            
+            function resetSimulation() {
+                updateParentDisplay();
+                const oldKernels = earSvg.querySelectorAll('.kernel');
+                oldKernels.forEach(kernel => kernel.remove());
+                setupBuckets();
+            }
+
+            // --- FONCTIONS DE SIMULATION (MISES À JOUR) ---
+
+            function initializeSimulation() {
+                const crossKey = crossSelect.value;
+                const crossData = currentTraitConfig.crosses[crossKey];
+                
+                const kernelList = createKernelList(crossData.ratio, crossData.phenos);
+                drawEarSVG(kernelList);
+                setupBuckets();
+            }
+            
+            function updateParentDisplay() {
+                const crossKey = crossSelect.value;
+                const crossData = currentTraitConfig.crosses[crossKey];
+                
+                parentDisplay.innerHTML = '';
+                const svg1 = createSmallEar(crossData.p1, currentTraitConfig.phenotypes);
+                const svg2 = createSmallEar(crossData.p2, currentTraitConfig.phenotypes);
+                const xSpan = document.createElement('span');
+                xSpan.textContent = 'X';
+                parentDisplay.append(svg1, xSpan, svg2);
+            }
+
+            function createSmallEar(phenoId, phenotypes) {
+                const svg = document.createElementNS(SVG_NS, 'svg');
+                svg.setAttribute('viewBox', '0 0 100 50');
+                svg.classList.add('small-ear-svg');
+                
+                const phenoData = phenotypes[phenoId];
+                
+                for (let r = 0; r < 3; r++) { 
+                    for (let c = 0; c < 5; c++) {
+                        const kernel = document.createElementNS(SVG_NS, 'rect');
+                        kernel.setAttribute('x', 5 + c * 18);
+                        kernel.setAttribute('y', 5 + r * 13);
+                        kernel.setAttribute('width', 16);
+                        kernel.setAttribute('height', 11);
+                        kernel.setAttribute('fill', phenoData.style.fill);
+                        
+                        if (phenoData.style.transform) {
+                             kernel.setAttribute('transform', phenoData.style.transform);
+                             const centerX = 5 + c * 18 + 16 / 2;
+                             const centerY = 5 + r * 13 + 11 / 2;
+                             kernel.setAttribute('transform-origin', `${centerX}px ${centerY}px`);
+                        }
+                        kernel.setAttribute('rx', 3);
+                        kernel.setAttribute('stroke', 'rgba(0,0,0,0.3)');
+                        svg.appendChild(kernel);
+                    }
+                }
+                return svg;
+            }
+
+            function createKernelList(ratio, pheno_ids) {
+                const list = [];
+                const totalRatio = ratio.reduce((a, b) => a + b, 0);
+
+                ratio.forEach((r, index) => {
+                    const phenoId = pheno_ids[index];
+                    const numKernels = Math.round((r / totalRatio) * TOTAL_KERNELS);
+                    for (let i = 0; i < numKernels; i++) { list.push(phenoId); }
+                });
+
+                while (list.length < TOTAL_KERNELS) { list.push(pheno_ids[0]); }
+                list.length = TOTAL_KERNELS; 
+                
+                for (let i = list.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [list[i], list[j]] = [list[j], list[i]];
+                }
+                return list;
+            }
+
+            function drawEarSVG(kernelList) {
+                const oldKernels = earSvg.querySelectorAll('.kernel');
+                oldKernels.forEach(kernel => kernel.remove());
+                
+                const earWidth = 580, earHeight = 280, earX = 10, earY = 10;
+                const colMargin = 4, rowMargin = 4;
+                const kernelWidth = (earWidth - (KERNEL_COLS + 1) * colMargin) / KERNEL_COLS;
+                const kernelHeight = (earHeight - (KERNEL_ROWS + 1) * rowMargin) / KERNEL_ROWS;
+
+                let k_index = 0;
+                for (let r = 0; r < KERNEL_ROWS; r++) { 
+                    for (let c = 0; c < KERNEL_COLS; c++) {
+                        if (k_index >= kernelList.length) break;
+                        
+                        const phenoId = kernelList[k_index++];
+                        const phenoData = currentTraitConfig.phenotypes[phenoId];
+                        
+                        const xOffset = (r % 2 === 0) ? 0 : (kernelWidth / 2);
+                        const x = earX + colMargin + c * (kernelWidth + colMargin) + xOffset;
+                        const y = earY + rowMargin + r * (kernelHeight + rowMargin);
+
+                        const kernel = document.createElementNS(SVG_NS, 'rect');
+                        kernel.setAttribute('x', x);
+                        kernel.setAttribute('y', y);
+                        kernel.setAttribute('width', kernelWidth);
+                        kernel.setAttribute('height', kernelHeight);
+                        kernel.setAttribute('fill', phenoData.style.fill);
+                        
+                        if (phenoData.style.transform) {
+                             const centerX = x + kernelWidth / 2;
+                             const centerY = y + kernelHeight / 2;
+                             kernel.setAttribute('transform-origin', `${centerX}px ${centerY}px`);
+                             kernel.setAttribute('transform', phenoData.style.transform);
+                        }
+
+                        kernel.setAttribute('rx', 8); 
+                        kernel.setAttribute('class', 'kernel');
+                        kernel.dataset.phenotype = phenoId;
+                        kernel.addEventListener('click', onKernelClick);
+                        earSvg.appendChild(kernel);
+                    }
+                }
+            }
+
+            function setupBuckets() {
+                bucketContainer.innerHTML = '';
+                percentTbody.innerHTML = '';
+                counts = {};
+                
+                for (const phenoId in currentTraitConfig.phenotypes) {
+                    const phenoData = currentTraitConfig.phenotypes[phenoId];
+                    counts[phenoId] = 0;
+                    
+                    const bucket = document.createElement('div');
+                    bucket.className = 'phenotype-bucket';
+                    bucket.innerHTML = `<h3>${phenoData.name}</h3><div class="count" id="count-${phenoId}">0</div>`;
+                    bucketContainer.appendChild(bucket);
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${phenoData.name}</td><td id="percent-${phenoId}">0.0%</td>`;
+                    percentTbody.appendChild(row);
+                }
+                updateTable();
+            }
+
+            function onKernelClick(event) {
+                const kernel = event.target;
+                if (kernel.classList.contains('counted')) return;
+                kernel.classList.add('counted');
+                const phenoId = kernel.dataset.phenotype;
+                counts[phenoId]++;
+                document.getElementById(`count-${phenoId}`).textContent = counts[phenoId];
+                updateTable();
+            }
+
+            function updateTable() {
+                let total = 0;
+                for (const phenoId in counts) {
+                    total += counts[phenoId];
+                }
+                totalCountEl.textContent = total;
+                
+                for (const phenoId in counts) {
+                    let perc = (total === 0) ? 0 : (counts[phenoId] / total) * 100;
+                    document.getElementById(`percent-${phenoId}`).textContent = perc.toFixed(1) + '%';
+                }
+            }
+            
+            function logResult() {
+                let total = 0;
+                for (const phenoId in counts) { total += counts[phenoId]; }
+
+                if (total === 0) {
+                    alert("Veuillez d'abord compter des grains avant d'enregistrer.");
+                    return;
+                }
+                
+                const selectedOption = crossSelect.options[crossSelect.selectedIndex].text;
+                const parentPhenotype = selectedOption.split(': ')[1];
+                
+                const phenoIds = Object.keys(counts);
+                const logEntry = {
+                    parents: parentPhenotype,
+                    p1_count: counts[phenoIds[0]],
+                    p2_count: counts[phenoIds[1]]
+                };
+                logbookData.push(logEntry);
+                
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td>${logEntry.parents}</td>
+                    <td>${logEntry.p1_count}</td>
+                    <td>${logEntry.p2_count}</td>
+                `;
+                logbookTbody.appendChild(newRow);
+            }
+
+            function exportData(format) {
+                if (logbookData.length === 0) {
+                    alert("Le journal de bord est vide. Veuillez d'abord enregistrer des résultats.");
+                    return;
+                }
+                
+                const p1_name = logbookHeaderP1.textContent;
+                const p2_name = logbookHeaderP2.textContent;
+                const data = [ ["Phénotype des Parents", p1_name, p2_name] ];
+                
+                logbookData.forEach(entry => {
+                    data.push([entry.parents, entry.p1_count, entry.p2_count]);
+                });
+                
+                const filename = `journal_${traitSelect.value}`;
+
+                if (format === 'csv') {
+                    let csvContent = "data:text/csv;charset=utf-8," + data.map(e => e.join(",")).join("\n");
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodeURI(csvContent));
+                    link.setAttribute("download", `${filename}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else if (format === 'xlsx') {
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [ { wch: 30 }, { wch: 15 }, { wch: 15 } ];
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Journal");
+                    XLSX.writeFile(wb, `${filename}.xlsx`);
+                }
+            }
+            
+            // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+            generateBtn.addEventListener('click', initializeSimulation);
+            logResultBtn.addEventListener('click', logResult);
+            crossSelect.addEventListener('change', updateParentDisplay);
+            traitSelect.addEventListener('change', setTrait); 
+            exportCsvBtn.addEventListener('click', () => exportData('csv'));
+            exportXlsxBtn.addEventListener('click', () => exportData('xlsx'));
+            
+            // --- INITIALISATION AU CHARGEMENT ---
+            setTrait(); 
+            
+        });
+    </script>
+
+</body>
+</html>
