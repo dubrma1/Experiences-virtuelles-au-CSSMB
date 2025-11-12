@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Triangle de Feu - Jeu Sérieux</title>
+    <!-- Chargement de Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bibliothèque pour l'export XLSX --><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* Styles personnalisés pour le glisser-déposer */
+        .drop-zone {
+            border-style: dashed;
+            transition: background-color 0.3s;
+            position: relative; /* Pour positionner le contenu à l'intérieur */
+            min-height: 100px; /* Assure une hauteur minimale pour les zones */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .drop-zone.hovered {
+            background-color: #d1f3ff; /* Bleu clair au survol */
+        }
+        .draggable {
+            touch-action: none; /* Pour une meilleure expérience mobile */
+            cursor: grab;
+        }
+        .draggable.dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            cursor: grabbing;
+        }
+        .correct {
+            background-color: #d1f3d1 !important; /* Vert léger */
+            border-color: #4ade80 !important;
+            border-style: solid;
+        }
+        .correct-label {
+            opacity: 1; /* Rendre l'étiquette correcte entièrement visible */
+            cursor: default;
+            background-color: #e2e8f0; /* Couleur neutre pour les étiquettes fixes */
+            border-color: #94a3b8;
+        }
+
+        /* Styles pour la disposition du triangle */
+        #triangle-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Ajustez selon vos préférences */
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 150px; /* Espace pour la base du triangle */
+        }
+
+        #triangle-base {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            padding: 0 5%; /* Légère marge sur les côtés */
+            box-sizing: border-box;
+        }
+        
+        /* Ajustements pour les labels des coins du triangle */
+        .triangle-corner-label {
+            position: absolute;
+            font-bold;
+            text-lg;
+            color: #333;
+            white-space: nowrap; /* Empêche le retour à la ligne */
+            pointer-events: none; /* Ne doit pas interférer avec le drop */
+        }
+        /* Labels de coin génériques */
+        #label-corner-top { top: -30px; left: 50%; transform: translateX(-50%); }
+        #label-corner-bottom-left { bottom: -30px; left: 0%; transform: translateX(-50%); }
+        #label-corner-bottom-right { bottom: -30px; right: 0%; transform: translateX(50%); }
+
+
+        /* Animation de feu (pure CSS) */
+        .fire-container {
+            width: 150px;
+            height: 150px;
+            position: absolute; /* Positionner au centre du triangle */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.3s ease-in-out;
+            pointer-events: none; /* Ne doit pas bloquer les interactions */
+            z-index: 10; /* S'assurer qu'il est au-dessus des zones de dépôt */
+        }
+        .fire-container.burning {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .flame {
+            position: absolute;
+            bottom: 0;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            background: #ffc107; /* Jaune */
+            box-shadow: 0 0 10px #ffc107, 0 0 20px #ffc107, 0 0 30px #ff8f00, 0 0 40px #ff8f00; /* Lueur */
+            animation: flicker 1s infinite alternate;
+        }
+        .flame-main {
+            width: 60px;
+            height: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff8f00; /* Orange */
+        }
+        .flame-red {
+            width: 40px;
+            height: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e53935; /* Rouge */
+            animation-delay: 0.2s;
+        }
+        .flame-yellow {
+            width: 30px;
+            height: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffeb3b; /* Jaune vif */
+            animation-delay: 0.4s;
+        }
+        @keyframes flicker {
+            0% { transform: translateX(-50%) scaleY(1) scaleX(1); opacity: 0.9; }
+            50% { transform: translateX(-52%) scaleY(1.1) scaleX(1.05); opacity: 1; }
+            100% { transform: translateX(-48%) scaleY(0.95) scaleX(0.95); opacity: 0.8; }
+        }
+        .log {
+            width: 100px;
+            height: 20px;
+            background: #795548; /* Marron */
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px;
+        }
+
+        /* Styles pour le slider de température (simplifié) */
+        #simulation-controls {
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans p-6 md:p-10 min-h-screen flex items-center justify-center">
+
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl p-6 md:p-8">
+        
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-800">Le Triangle de Feu</h1>
+        </header>
+
+        <main id="game-main">
+            <!-- Instructions --><div id="instructions" class="bg-blue-50 p-4 rounded-lg text-center mb-6">
+                <p class="text-lg text-gray-600 mt-2"><b>Trouve la température d'ignition des réactifs.</b><br>Avant, identifie les composantes du triangle du feu.<br>Après, enregistre des observations dans le tableau de résultats.</p>
+            </div>
+
+            <!-- Conteneur pour le triangle --><div id="triangle-container" class="relative bg-gray-50 border-2 border-gray-300 rounded-lg p-8">
+                <!-- Labels des coins du triangle (maintenant génériques) -->
+                <span id="label-corner-top" class="triangle-corner-label font-bold text-lg text-gray-800">...</span>
+                <span id="label-corner-bottom-left" class="triangle-corner-label font-bold text-lg text-gray-800">...</span>
+                <span id="label-corner-bottom-right" class="triangle-corner-label font-bold text-lg text-gray-800">...</span>
+                
+                <!-- Lignes de fond du triangle (SVG) -->
+                <div class="absolute inset-0 z-0 pointer-events-none">
+                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" class="overflow-visible">
+                        <!-- Lignes grises en pointillé -->
+                        <line x1="50%" y1="30%" x2="25%" y2="80%" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6"/>
+                        <line x1="50%" y1="30%" x2="75%" y2="80%" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6"/>
+                        <line x1="25%" y1="80%" x2="75%" y2="80%" stroke="#cbd5e1" stroke-width="3" stroke-dasharray="6 6"/>
+                    </svg>
+                </div>
+
+                <!-- Zones de Dépôt (maintenant génériques) -->
+                <div id="slot-top" class="drop-zone bg-gray-100 p-4 rounded-lg border-2 border-gray-300 w-1/2 mx-auto mb-4">
+                    <!-- Contenu sera ajouté par JS -->
+                </div>
+
+                <div id="triangle-base" class="mt-auto">
+                    <!-- Zone Bas-Gauche -->
+                    <div id="slot-bottom-left" class="drop-zone bg-gray-100 p-4 rounded-lg border-2 border-gray-300 w-[calc(50%-10px)]">
+                        <!-- Contenu sera ajouté par JS -->
+                    </div>
+                    <!-- Zone Bas-Droite -->
+                    <div id="slot-bottom-right" class="drop-zone bg-gray-100 p-4 rounded-lg border-2 border-gray-300 w-[calc(50%-10px)]">
+                        <!-- Contenu sera ajouté par JS -->
+                    </div>
+                </div>
+
+                <!-- Visualisation du Feu (au centre du triangle) --><div id="fire-animation" class="fire-container">
+                    <div class="flame flame-main"></div>
+                    <div class="flame flame-red"></div>
+                    <div class="flame flame-yellow"></div>
+                    <div class="log"></div>
+                </div>
+            </div>
+
+            <!-- Conteneur pour les étiquettes ET le slider -->
+            <div class="mt-8 mb-4 p-4 bg-gray-50 rounded-lg shadow-inner min-h-[100px] flex justify-center items-center">
+                
+                <!-- Étiquettes (visible au début) -->
+                <div id="labels-to-drag" class="flex flex-wrap justify-center gap-4">
+                    <div id="label-draggable-combustible" data-type="combustible" draggable="true" class="draggable bg-yellow-300 p-4 rounded-lg shadow font-bold text-center border-2 border-yellow-400">
+                        Combustible
+                    </div>
+                    <div id="label-draggable-comburant" data-type="comburant" draggable="true" class="draggable bg-blue-300 p-4 rounded-lg shadow font-bold text-center border-2 border-blue-400">
+                        Comburant
+                    </div>
+                    <div id="label-draggable-temp" data-type="temp" draggable="true" class="draggable bg-red-300 p-4 rounded-lg shadow font-bold text-center border-2 border-red-400">
+                        Température d'ignition
+                    </div>
+                </div>
+
+                <!-- Slider (caché au début, remplace les étiquettes) -->
+                <div id="simulation-part" class="hidden w-full max-w-md">
+                    <div id="simulation-controls" class="text-center w-full"> 
+                        <label for="temp-slider" class="block text-center font-medium text-lg mb-2">
+                            Température Actuelle: <span id="temp-value" class="font-bold text-blue-600">20°C</span>
+                        </label>
+                        <input id="temp-slider" type="range" min="0" max="500" value="20" class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg">
+                        <div class="flex justify-between text-xs text-gray-500 px-1 mt-1">
+                            <span>0°C</span>
+                            <span>500°C</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Message --><div id="feedback" class="text-center font-semibold text-lg min-h-[2em] mb-6"></div>
+
+            <!-- Boutons d'action -->
+            <div class="flex flex-wrap justify-center gap-4 mt-4">
+                <button id="save-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow hover:bg-green-700 transition duration-300" disabled>
+                    Sauvegarder
+                </button>
+                <button id="next-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow hover:bg-blue-700 transition duration-300">
+                    Scénario Suivant
+                </button>
+            </div>
+
+            <!-- Tableau de résultats -->
+            <div id="results-container" class="mt-10">
+                <h2 class="text-2xl font-bold text-center text-gray-700 mb-4">Résultats Sauvegardés</h2>
+                
+                <div class="overflow-x-auto bg-white rounded-lg shadow">
+                    <table id="results-table" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Combustible</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comburant</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">T° d'ignition (°C)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-tbody" class="bg-white divide-y divide-gray-200">
+                            <!-- Les lignes seront ajoutées ici -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Boutons d'export déplacés sous le tableau -->
+                <div class="flex justify-end gap-2 mt-4">
+                    <button id="export-csv-btn" class="bg-gray-500 text-white text-sm py-2 px-4 rounded-lg hover:bg-gray-600">Export CSV</button>
+                    <button id="export-xlsx-btn" class="bg-gray-500 text-white text-sm py-2 px-4 rounded-lg hover:bg-gray-600">Export XLSX</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="text/javascript">
+	/*
+ * =============================================================
+ * Application Éducative : Jeu_Triangle du feu
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: Après avoir catégorisé les 3 composantes, augmente la température pour provoquer une combustion vive.
+ * =============================================================
+*/ 
+	
+        // --- DONNÉES DU JEU ---
+        const combustibles = [
+            { name: "Charbon de bois", ignition: 350 },
+            { name: "Chiffon + Huile de lin", ignition: 100 },
+            { name: "Farine de poisson", ignition: 140 },
+            { name: "Tissus imprégnés d'huile", ignition: 120 },
+            { name: "Foin (sec)", ignition: 260 },
+            { name: "Papier", ignition: 230 },
+            { name: "Huile de maïs", ignition: 360 },
+            { name: "Huile de soya", ignition: 450 },
+			{ name: "Acétaldéhyde", ignition: 175 },
+            { name: "Graines de coton", ignition: 400 },
+            { name: "Térébenthine", ignition: 250 },
+            { name: "Phosphore blanc", ignition: 30 },
+            { name: "Huile de foie de morue", ignition: 250 },
+			{ name: "Silane", ignition: 20 },
+            { name: "Huile de poisson", ignition: 255 },
+            { name: "Déchets de poisson", ignition: 160 },
+            { name: "Huile de lin (pure)", ignition: 343 },
+            { name: "Farine de noix de tung", ignition: 105 },
+            { name: "Tégument d'arachide", ignition: 200 },
+            { name: "Pigments à l'huile", ignition: 150 },
+            { name: "Nourriture (semoule de maïs)", ignition: 380 },
+            { name: "Aliments pour animaux", ignition: 300 },
+            { name: "Caoutchouc mousse", ignition: 280 },
+            { name: "Poudre de magnésium", ignition: 473 },
+			{ name: "Éther diéthylique", ignition: 160 },
+            { name: "Charbon bitumineux", ignition: 400 },
+            { name: "Écorce de noix de coco", ignition: 220 },
+            { name: "Fumier (sec)", ignition: 90 },
+            { name: "Grains de distillerie", ignition: 210 },
+            { name: "Huile de baleine", ignition: 250 },
+            { name: "Huile de coton", ignition: 360 },
+            { name: "Huile de pin", ignition: 300 },
+            { name: "Huile de tung", ignition: 290 },
+            { name: "Huile de palme (non raffinée)", ignition: 300 },
+            { name: "Feutre pour toiture", ignition: 250 },
+            { name: "Peinture à l'huile", ignition: 200 },
+            { name: "Résidus de caoutchouc", ignition: 280 },
+            { name: "Huile de moutarde", ignition: 315 },
+            { name: "Huile d'arachide", ignition: 280 },
+            { name: "Disulfure de carbone", ignition: 90 }
+        ];
+
+        let currentScenario = null;
+        let currentTemp = 20;
+        let labelsCorrect = 0;
+        let droppedLabels = {};
+        let savedResults = []; // Pour le tableau
+
+        // --- ÉLÉMENTS DU DOM ---
+        const feedback = document.getElementById('feedback');
+        const nextBtn = document.getElementById('next-btn');
+        const saveBtn = document.getElementById('save-btn');
+        
+        // Drag & Drop
+        const labelsToDragContainer = document.getElementById('labels-to-drag');
+        let draggables = [];
+        const dropZones = document.querySelectorAll('.drop-zone');
+        
+        // Slots
+        const slotTop = document.getElementById('slot-top');
+        const slotBottomLeft = document.getElementById('slot-bottom-left');
+        const slotBottomRight = document.getElementById('slot-bottom-right');
+        const slotElements = [slotTop, slotBottomLeft, slotBottomRight];
+        const labelCornerTop = document.getElementById('label-corner-top');
+        const labelCornerBottomLeft = document.getElementById('label-corner-bottom-left');
+        const labelCornerBottomRight = document.getElementById('label-corner-bottom-right');
+        const labelElements = [labelCornerTop, labelCornerBottomLeft, labelCornerBottomRight];
+        
+        // Simulation
+        const simulationPart = document.getElementById('simulation-part');
+        const tempSlider = document.getElementById('temp-slider');
+        const tempValue = document.getElementById('temp-value');
+        const fireAnimation = document.getElementById('fire-animation');
+
+        // Tableau
+        const resultsTbody = document.getElementById('results-tbody');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const exportXlsxBtn = document.getElementById('export-xlsx-btn');
+
+        // --- FONCTION UTILITAIRE ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- LOGIQUE DU JEU ---
+        function loadScenario() {
+            // 1. Réinitialiser l'état
+            labelsCorrect = 0;
+            currentTemp = 20;
+            droppedLabels = {};
+            
+            // 2. Choisir un combustible aléatoire
+            currentScenario = combustibles[Math.floor(Math.random() * combustibles.length)];
+
+            // 3. Définir les types et les mélanger
+            const types = ['combustible', 'comburant', 'temp'];
+            shuffleArray(types);
+
+            // 4. Réinitialiser les zones de dépôt
+            dropZones.forEach((zone, index) => {
+                zone.classList.remove('correct');
+                zone.innerHTML = '';
+                
+                const currentType = types[index];
+                const currentLabel = labelElements[index];
+                
+                zone.dataset.type = currentType; 
+
+                // 5. Remplir le slot (les labels de coin sont maintenant vides)
+                if (currentType === 'combustible') {
+                    zone.innerHTML = `<span class="font-semibold text-xl text-gray-800">${currentScenario.name}</span>`;
+                    currentLabel.textContent = ''; // Vide
+                } else if (currentType === 'comburant') {
+                    zone.innerHTML = `<span class="font-semibold text-xl text-gray-800">Oxygène</span>`;
+                    currentLabel.textContent = ''; // Vide
+                } else if (currentType === 'temp') {
+                    // MODIFICATION: Ne plus afficher la température, juste le mot "Chaleur"
+                    zone.innerHTML = `<span class="font-semibold text-xl text-gray-800">Chaleur</span>`;
+                    currentLabel.textContent = ""; // Vide
+                }
+            });
+
+            // 6. Réinitialiser les étiquettes à glisser
+            labelsToDragContainer.innerHTML = `
+                <div id="label-draggable-combustible" data-type="combustible" draggable="true" class="draggable bg-yellow-300 p-4 rounded-lg shadow font-bold text-center border-2 border-yellow-400">Combustible</div>
+                <div id="label-draggable-comburant" data-type="comburant" draggable="true" class="draggable bg-blue-300 p-4 rounded-lg shadow font-bold text-center border-2 border-blue-400">Comburant</div>
+                <div id="label-draggable-temp" data-type="temp" draggable="true" class="draggable bg-red-300 p-4 rounded-lg shadow font-bold text-center border-2 border-red-400">Température d'ignition</div>
+            `;
+            labelsToDragContainer.classList.remove('hidden'); // Afficher les étiquettes
+            addDragListeners();
+            
+            // 7. Cacher et réinitialiser la simulation
+            simulationPart.classList.add('hidden'); // Cacher le slider
+            tempSlider.value = 20;
+            tempSlider.disabled = true; // Désactivé jusqu'à ce que la partie 1 soit finie
+            tempValue.textContent = "20°C";
+            fireAnimation.classList.remove('burning');
+            
+            // 8. Réinitialiser les boutons et feedback
+            feedback.textContent = "";
+            saveBtn.disabled = true; // Désactiver "Sauvegarder"
+        }
+
+        // --- Drag & Drop ---
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.dataTransfer.setData('label-type', e.target.dataset.type);
+            setTimeout(() => e.target.classList.add('dragging'), 0);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            this.classList.add('hovered');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('hovered');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('hovered');
+
+            const labelId = e.dataTransfer.getData('text/plain');
+            const labelType = e.dataTransfer.getData('label-type');
+            const droppedLabel = document.getElementById(labelId);
+            const dropZoneType = this.dataset.type;
+
+            if (this.classList.contains('correct')) return;
+
+            if (labelType === dropZoneType) {
+                // Correct
+                this.classList.add('correct');
+                this.innerHTML = '';
+                this.appendChild(droppedLabel);
+                
+                droppedLabel.classList.add('correct-label');
+                droppedLabel.classList.remove('draggable');
+                droppedLabel.setAttribute('draggable', false);
+                
+                labelsCorrect++;
+                droppedLabels[dropZoneType] = droppedLabel;
+                // showFeedback("C'est correct !", "green"); // Supprimé (Demande 3)
+                
+                if (labelsCorrect === 3) {
+                    handleIdentificationComplete();
+                }
+            } else {
+                // Incorrect
+                showFeedback("Oups ! Essaye encore.", "red");
+            }
+        }
+
+        function showFeedback(message, color) {
+            feedback.textContent = message;
+            feedback.style.color = color;
+            setTimeout(() => {
+                if (feedback.textContent === message) {
+                    feedback.textContent = "";
+                }
+            }, 2000);
+        }
+
+        /**
+         * S'exécute lorsque les 3 étiquettes sont correctes.
+         */
+        function handleIdentificationComplete() {
+            // showFeedback("Bravo ! Triangle identifié !", "blue"); // Supprimé (Demande 3)
+            
+            // Cacher les étiquettes (Demande 2)
+            labelsToDragContainer.classList.add('hidden');
+            
+            // Afficher et activer le slider (Demande 1 & 2)
+            simulationPart.classList.remove('hidden');
+            tempSlider.disabled = false;
+
+            // Mettre à jour les zones de drop pour qu'elles n'affichent que le label correct
+            dropZones.forEach(zone => {
+                const type = zone.dataset.type;
+                if (droppedLabels[type]) {
+                    zone.innerHTML = '';
+                    zone.appendChild(droppedLabels[type]);
+                    droppedLabels[type].classList.remove('p-4', 'bg-yellow-300', 'bg-blue-300', 'bg-red-300');
+                    droppedLabels[type].classList.add('text-lg', 'font-bold');
+                    droppedLabels[type].style.backgroundColor = 'transparent';
+                    droppedLabels[type].style.borderColor = 'transparent';
+                    droppedLabels[type].style.boxShadow = 'none';
+                }
+            });
+            
+            // Vérifier l'état du feu immédiatement
+            checkFireState();
+
+            // Activer le bouton "Sauvegarder" (Demande 4)
+            saveBtn.disabled = false;
+        }
+
+        // --- Simulation ---
+        function handleSliderChange(e) {
+            currentTemp = parseInt(e.target.value);
+            tempValue.textContent = `${currentTemp}°C`;
+            checkFireState();
+        }
+
+        function checkFireState() {
+            const ignitionPoint = currentScenario.ignition;
+            
+            // Le feu ne s'allume QUE si les 3 étiquettes sont correctes ET la temp est suffisante
+            if (currentTemp >= ignitionPoint && labelsCorrect === 3) {
+                fireAnimation.classList.add('burning');
+            } else {
+                fireAnimation.classList.remove('burning');
+            }
+        }
+
+        function addDragListeners() {
+            draggables = document.querySelectorAll('.draggable');
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', handleDragStart);
+                draggable.addEventListener('dragend', handleDragEnd);
+            });
+        }
+
+        // --- Tableau et Export (Demande 4) ---
+
+        /**
+         * Sauvegarde le scénario actuel dans le tableau.
+         */
+        function handleSave() {
+            const data = {
+                combustible: currentScenario.name,
+                comburant: "Oxygène",
+                ignition: currentScenario.ignition
+            };
+
+            // Éviter les doublons
+            const isDuplicate = savedResults.some(
+                item => item.combustible === data.combustible
+            );
+
+            if (!isDuplicate) {
+                savedResults.push(data);
+                renderTable();
+                showFeedback("Observation sauvegardée !", "green");
+            } else {
+                showFeedback("Cette observation est déjà sauvegardée.", "blue");
+            }
+        }
+
+        /**
+         * Met à jour le tableau HTML avec les données sauvegardées.
+         */
+        function renderTable() {
+            resultsTbody.innerHTML = ""; // Vider le tableau
+            savedResults.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.combustible}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.comburant}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.ignition}</td>
+                `;
+                resultsTbody.appendChild(row);
+            });
+        }
+
+        /**
+         * Exporte les données en CSV.
+         */
+        function exportCSV() {
+            if (savedResults.length === 0) {
+                alert("Aucune donnée à exporter.");
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,Combustible;Comburant;Temperature d'ignition (C)\n";
+            savedResults.forEach(item => {
+                csvContent += `${item.combustible};${item.comburant};${item.ignition}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "resultats_triangle_feu.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        /**
+         * Exporte les données en XLSX.
+         */
+        function exportXLSX() {
+            if (savedResults.length === 0) {
+                alert("Aucune donnée à exporter.");
+                return;
+            }
+            // Renommer les clés pour l'export (enlever les accents)
+            const dataToExport = savedResults.map(item => ({
+                "Combustible": item.combustible,
+                "Comburant": item.comburant,
+                "Temperature d'ignition (C)": item.ignition
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Resultats");
+            XLSX.writeFile(wb, "resultats_triangle_feu.xlsx");
+        }
+
+        // --- INITIALISATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Drag & Drop
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+            });
+
+            // Simulation
+            tempSlider.addEventListener('input', handleSliderChange);
+            
+            // Boutons
+            nextBtn.addEventListener('click', loadScenario);
+            saveBtn.addEventListener('click', handleSave);
+            exportCsvBtn.addEventListener('click', exportCSV);
+            exportXlsxBtn.addEventListener('click', exportXLSX);
+
+            // Charger le premier scénario
+            loadScenario();
+        });
+		
+			// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+    </script>
+
+</body>
+</html>
