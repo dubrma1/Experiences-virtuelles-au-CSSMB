@@ -160,7 +160,7 @@
 
         <main id="game-main">
             <!-- Instructions --><div id="instructions" class="bg-blue-50 p-4 rounded-lg text-center mb-6">
-                <p class="text-lg text-gray-600 mt-2"><b>Trouve la température d'ignition des réactifs.</b><br>Avant, identifie les composantes du triangle du feu.<br>Après, enregistre des observations dans le tableau de résultats.</p>
+                <p class="text-lg text-gray-600 mt-2">1) Identifie les composantes du triangle du feu.<br>2) Trouve la température d'ignition des réactifs.<br>3) Enregistre des observations dans le tableau de résultats.</p>
             </div>
 
             <!-- Conteneur pour le triangle --><div id="triangle-container" class="relative bg-gray-50 border-2 border-gray-300 rounded-lg p-8">
@@ -204,7 +204,7 @@
             </div>
 
             <!-- Conteneur pour les étiquettes ET le slider -->
-            <div class="mt-8 mb-4 p-4 bg-gray-50 rounded-lg shadow-inner min-h-[100px] flex justify-center items-center">
+            <div class="mt-8 mb-8 p-4 bg-gray-50 rounded-lg shadow-inner min-h-[100px] flex justify-center items-center">
                 
                 <!-- Étiquettes (visible au début) -->
                 <div id="labels-to-drag" class="flex flex-wrap justify-center gap-4">
@@ -237,7 +237,7 @@
             <!-- Feedback Message --><div id="feedback" class="text-center font-semibold text-lg min-h-[2em] mb-6"></div>
 
             <!-- Boutons d'action -->
-            <div class="flex flex-wrap justify-center gap-4 mt-4">
+            <div class="flex flex-wrap justify-center gap-4 mt-8">
                 <button id="save-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow hover:bg-green-700 transition duration-300" disabled>
                     Sauvegarder
                 </button>
@@ -274,7 +274,7 @@
     </div>
 
     <script type="text/javascript">
-	/*
+/*
  * =============================================================
  * Application Éducative : Jeu_Triangle du feu
  * Auteur: Mathieu Dubreuil
@@ -283,7 +283,6 @@
  * Description: Après avoir catégorisé les 3 composantes, augmente la température pour provoquer une combustion vive.
  * =============================================================
 */ 
-	
         // --- DONNÉES DU JEU ---
         const combustibles = [
             { name: "Charbon de bois", ignition: 350 },
@@ -294,45 +293,14 @@
             { name: "Papier", ignition: 230 },
             { name: "Huile de maïs", ignition: 360 },
             { name: "Huile de soya", ignition: 450 },
-			{ name: "Acétaldéhyde", ignition: 175 },
             { name: "Graines de coton", ignition: 400 },
-            { name: "Térébenthine", ignition: 250 },
-            { name: "Phosphore blanc", ignition: 30 },
-            { name: "Huile de foie de morue", ignition: 250 },
-			{ name: "Silane", ignition: 20 },
-            { name: "Huile de poisson", ignition: 255 },
-            { name: "Déchets de poisson", ignition: 160 },
-            { name: "Huile de lin (pure)", ignition: 343 },
-            { name: "Farine de noix de tung", ignition: 105 },
-            { name: "Tégument d'arachide", ignition: 200 },
-            { name: "Pigments à l'huile", ignition: 150 },
-            { name: "Nourriture (semoule de maïs)", ignition: 380 },
-            { name: "Aliments pour animaux", ignition: 300 },
-            { name: "Caoutchouc mousse", ignition: 280 },
-            { name: "Poudre de magnésium", ignition: 473 },
-			{ name: "Éther diéthylique", ignition: 160 },
-            { name: "Charbon bitumineux", ignition: 400 },
-            { name: "Écorce de noix de coco", ignition: 220 },
-            { name: "Fumier (sec)", ignition: 90 },
-            { name: "Grains de distillerie", ignition: 210 },
-            { name: "Huile de baleine", ignition: 250 },
-            { name: "Huile de coton", ignition: 360 },
-            { name: "Huile de pin", ignition: 300 },
-            { name: "Huile de tung", ignition: 290 },
-            { name: "Huile de palme (non raffinée)", ignition: 300 },
-            { name: "Feutre pour toiture", ignition: 250 },
-            { name: "Peinture à l'huile", ignition: 200 },
-            { name: "Résidus de caoutchouc", ignition: 280 },
-            { name: "Huile de moutarde", ignition: 315 },
-            { name: "Huile d'arachide", ignition: 280 },
-            { name: "Disulfure de carbone", ignition: 90 }
+            { name: "Térébenthine", ignition: 250 }
         ];
 
         let currentScenario = null;
         let currentTemp = 20;
         let labelsCorrect = 0;
-        let droppedLabels = {};
-        let savedResults = []; // Pour le tableau
+        // let droppedLabels = {}; // Supprimé - nous n'en avons plus besoin
 
         // --- ÉLÉMENTS DU DOM ---
         const feedback = document.getElementById('feedback');
@@ -378,7 +346,7 @@
             // 1. Réinitialiser l'état
             labelsCorrect = 0;
             currentTemp = 20;
-            droppedLabels = {};
+            // droppedLabels = {}; // Supprimé
             
             // 2. Choisir un combustible aléatoire
             currentScenario = combustibles[Math.floor(Math.random() * combustibles.length)];
@@ -460,22 +428,37 @@
             const labelType = e.dataTransfer.getData('label-type');
             const droppedLabel = document.getElementById(labelId);
             const dropZoneType = this.dataset.type;
+            
+            // --- MODIFICATION ---
+            // Capturer le contenu initial (ex: "Papier", "Chaleur")
+            const initialContent = this.textContent.trim();
 
             if (this.classList.contains('correct')) return;
 
             if (labelType === dropZoneType) {
                 // Correct
-                this.classList.add('correct');
-                this.innerHTML = '';
-                this.appendChild(droppedLabel);
                 
-                droppedLabel.classList.add('correct-label');
-                droppedLabel.classList.remove('draggable');
-                droppedLabel.setAttribute('draggable', false);
+                // Capturer le texte de l'étiquette (ex: "Combustible")
+                const labelText = droppedLabel.textContent.trim();
+                
+                this.classList.add('correct');
+                this.innerHTML = ''; // Vider la zone
+
+                // Construire le nouveau contenu HTML
+                const newHtml = `
+                    <div class="flex flex-col items-center p-2 text-center">
+                        <span class="font-bold text-gray-800 text-lg">${labelText}</span>
+                        <span class="text-gray-500 text-xs">:</span>
+                        <span class="font-semibold text-blue-700 text-lg">${initialContent}</span>
+                    </div>
+                `;
+                this.innerHTML = newHtml; // Insérer le nouveau contenu
+                
+                // Supprimer l'étiquette originale du conteneur "labels-to-drag"
+                droppedLabel.remove(); 
                 
                 labelsCorrect++;
-                droppedLabels[dropZoneType] = droppedLabel;
-                // showFeedback("C'est correct !", "green"); // Supprimé (Demande 3)
+                // droppedLabels[dropZoneType] = droppedLabel; // Supprimé
                 
                 if (labelsCorrect === 3) {
                     handleIdentificationComplete();
@@ -500,16 +483,17 @@
          * S'exécute lorsque les 3 étiquettes sont correctes.
          */
         function handleIdentificationComplete() {
-            // showFeedback("Bravo ! Triangle identifié !", "blue"); // Supprimé (Demande 3)
-            
-            // Cacher les étiquettes (Demande 2)
+            // Cacher les étiquettes
             labelsToDragContainer.classList.add('hidden');
             
-            // Afficher et activer le slider (Demande 1 & 2)
+            // Afficher et activer le slider
             simulationPart.classList.remove('hidden');
             tempSlider.disabled = false;
 
-            // Mettre à jour les zones de drop pour qu'elles n'affichent que le label correct
+            // --- SUPPRESSION ---
+            // Le bloc ci-dessous est supprimé car le texte est déjà
+            // correctement formaté par handleDrop.
+            /*
             dropZones.forEach(zone => {
                 const type = zone.dataset.type;
                 if (droppedLabels[type]) {
@@ -522,6 +506,8 @@
                     droppedLabels[type].style.boxShadow = 'none';
                 }
             });
+            */
+            // --- FIN SUPPRESSION ---
             
             // Vérifier l'état du feu immédiatement
             checkFireState();
@@ -662,7 +648,6 @@
             // Charger le premier scénario
             loadScenario();
         });
-		
 			// Message de signature dans la console
         (function() {
             const styles = [
@@ -680,6 +665,7 @@
             );
             console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
         })();
+
     </script>
 
 </body>
