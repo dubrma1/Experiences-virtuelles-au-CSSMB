@@ -7,6 +7,7 @@
     <!-- Chargement de Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
     <!-- Bibliothèque pour l'export XLSX --><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* ... (Styles CSS identiques) ... */
         /* Styles personnalisés pour le glisser-déposer */
         .drop-zone {
             border-style: dashed;
@@ -159,6 +160,7 @@
         </header>
 
         <main id="game-main">
+            <!-- ... (HTML identique) ... -->
             <!-- Instructions --><div id="instructions" class="bg-blue-50 p-4 rounded-lg text-center mb-6">
                 <p class="text-lg text-gray-600 mt-2">1) Identifie les composantes du triangle du feu.<br>2) Trouve la température d'ignition des réactifs.<br>3) Enregistre des observations dans le tableau de résultats.</p>
             </div>
@@ -284,6 +286,7 @@
  * =============================================================
 */ 
         // --- DONNÉES DU JEU ---
+        // ****** CORRECTION ICI: Liste mise à jour avec 40 combustibles ******
         const combustibles = [
             { name: "Charbon de bois", ignition: 350 },
             { name: "Chiffon + Huile de lin", ignition: 100 },
@@ -294,16 +297,50 @@
             { name: "Huile de maïs", ignition: 360 },
             { name: "Huile de soya", ignition: 450 },
             { name: "Graines de coton", ignition: 400 },
-            { name: "Térébenthine", ignition: 250 }
+            { name: "Térébenthine", ignition: 250 },
+            // --- 25 ajouts ---
+            { name: "Huile de foie de morue", ignition: 250 },
+            { name: "Huile de poisson", ignition: 255 },
+            { name: "Déchets de poisson", ignition: 160 },
+            { name: "Huile de lin (pure)", ignition: 343 },
+            { name: "Farine de noix de tung", ignition: 105 },
+            { name: "Tégument d'arachide", ignition: 200 },
+            { name: "Pigments à l'huile", ignition: 150 },
+            { name: "Nourriture (semoule de maïs)", ignition: 380 },
+            { name: "Aliments pour animaux", ignition: 300 },
+            { name: "Caoutchouc mousse", ignition: 280 },
+            { name: "Poudre de magnésium", ignition: 473 },
+            { name: "Charbon bitumineux", ignition: 400 },
+            { name: "Écorce de noix de coco", ignition: 220 },
+            { name: "Fumier (sec)", ignition: 90 },
+            { name: "Grains de distillerie", ignition: 210 },
+            { name: "Huile de baleine", ignition: 250 },
+            { name: "Huile de coton", ignition: 360 },
+            { name: "Huile de pin", ignition: 300 },
+            { name: "Huile de tung", ignition: 290 },
+            { name: "Huile de palme (non raffinée)", ignition: 300 },
+            { name: "Feutre pour toiture", ignition: 250 },
+            { name: "Peinture à l'huile", ignition: 200 },
+            { name: "Résidus de caoutchouc", ignition: 280 },
+            { name: "Huile de moutarde", ignition: 315 },
+            { name: "Huile d'arachide", ignition: 280 },
+            // --- 5 ajouts (très basse T°) ---
+            { name: "Phosphore blanc", ignition: 30 },
+            { name: "Disulfure de carbone", ignition: 90 },
+            { name: "Silane", ignition: 20 },
+            { name: "Éther diéthylique", ignition: 160 },
+            { name: "Acétaldéhyde", ignition: 175 }
         ];
+        // ****** FIN DE LA CORRECTION ******
 
         let currentScenario = null;
         let currentTemp = 20;
         let labelsCorrect = 0;
-        // let droppedLabels = {}; // Supprimé - nous n'en avons plus besoin
+        let savedResults = []; // Pour le tableau
 
         // --- ÉLÉMENTS DU DOM ---
         const feedback = document.getElementById('feedback');
+        // ... (Reste du JS identique) ...
         const nextBtn = document.getElementById('next-btn');
         const saveBtn = document.getElementById('save-btn');
         
@@ -346,7 +383,6 @@
             // 1. Réinitialiser l'état
             labelsCorrect = 0;
             currentTemp = 20;
-            // droppedLabels = {}; // Supprimé
             
             // 2. Choisir un combustible aléatoire
             currentScenario = combustibles[Math.floor(Math.random() * combustibles.length)];
@@ -458,7 +494,6 @@
                 droppedLabel.remove(); 
                 
                 labelsCorrect++;
-                // droppedLabels[dropZoneType] = droppedLabel; // Supprimé
                 
                 if (labelsCorrect === 3) {
                     handleIdentificationComplete();
@@ -489,25 +524,6 @@
             // Afficher et activer le slider
             simulationPart.classList.remove('hidden');
             tempSlider.disabled = false;
-
-            // --- SUPPRESSION ---
-            // Le bloc ci-dessous est supprimé car le texte est déjà
-            // correctement formaté par handleDrop.
-            /*
-            dropZones.forEach(zone => {
-                const type = zone.dataset.type;
-                if (droppedLabels[type]) {
-                    zone.innerHTML = '';
-                    zone.appendChild(droppedLabels[type]);
-                    droppedLabels[type].classList.remove('p-4', 'bg-yellow-300', 'bg-blue-300', 'bg-red-300');
-                    droppedLabels[type].classList.add('text-lg', 'font-bold');
-                    droppedLabels[type].style.backgroundColor = 'transparent';
-                    droppedLabels[type].style.borderColor = 'transparent';
-                    droppedLabels[type].style.boxShadow = 'none';
-                }
-            });
-            */
-            // --- FIN SUPPRESSION ---
             
             // Vérifier l'état du feu immédiatement
             checkFireState();
@@ -573,6 +589,9 @@
          */
         function renderTable() {
             resultsTbody.innerHTML = ""; // Vider le tableau
+            // Trier les résultats par ordre alphabétique de combustible
+            savedResults.sort((a, b) => a.combustible.localeCompare(b.combustible));
+
             savedResults.forEach(item => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -649,7 +668,7 @@
             loadScenario();
         });
 			// Message de signature dans la console
-        (function() {
+  	  (function() {
             const styles = [
                 'color: #007BFF',
                 'font-size: 1.1em',
@@ -660,7 +679,7 @@
             ].join(';');
 
             console.log(
-                '%cApplication créée par Mathieu Dubreuil', 
+                '%cApplication créée par Mathieu Dubreuil', 
                 styles
             );
             console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
