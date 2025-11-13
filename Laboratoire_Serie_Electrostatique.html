@@ -34,13 +34,14 @@
             width: 100%;
             max-width: 1200px;
             display: grid;
-            grid-template-columns: repeat(12, 1fr);
+            grid-template-columns: repeat(12, 1fr); /* Grille de 12 colonnes */
             gap: 20px;
         }
 
-        .header, .footer {
+        .header {
             grid-column: 1 / -1;
             text-align: center;
+            margin-bottom: 10px;
         }
 
         .app-section {
@@ -51,18 +52,27 @@
             border: 1px solid var(--border-color);
         }
 
+        /* --- Zone Gauche : Simulation (7 colonnes) --- */
         #simulation-section {
             grid-column: 1 / span 7;
             display: flex;
             flex-direction: column;
-            height: 600px;
+            height: 550px;
         }
         
+        /* --- Zone Droite : Contrôles (5 colonnes) --- */
         #controls-section {
             grid-column: 8 / -1;
             display: flex;
             flex-direction: column;
             gap: 20px;
+            height: fit-content;
+        }
+
+        /* --- Zone Bas : Résultats (Toute la largeur) --- */
+        #results-section {
+            grid-column: 1 / -1;
+            margin-top: 10px;
         }
 
         h1, h2, h3 {
@@ -70,7 +80,7 @@
             margin-top: 0;
         }
 
-        /* --- Zone de Simulation --- */
+        /* --- Styles de la Simulation --- */
         #simulation-area {
             flex-grow: 1;
             background: #e9ecef;
@@ -165,7 +175,6 @@
             height: 30px;
             background: radial-gradient(circle at 10px 10px, #a5d8ff, #007bff);
             border-radius: 50%;
-            /* (2) Styles pour afficher le signe moins */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -202,11 +211,12 @@
             left: calc(50% - 130px);
         }
 
-        /* --- Zone de Contrôles --- */
+        /* --- Contrôles --- */
         .control-group {
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 15px;
+            background: #fff;
         }
         label { display: block; margin-bottom: 5px; font-weight: 500; }
         select, button {
@@ -231,10 +241,35 @@
 
         /* Tableau d'observations */
         .observation-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .observation-table th, .observation-table td { border: 1px solid var(--border-color); padding: 8px; text-align: center; }
+        .observation-table th, .observation-table td { border: 1px solid var(--border-color); padding: 12px; text-align: center; vertical-align: middle; }
         .observation-table th { background-color: #e9ecef; }
-        .charge-pos { color: var(--accent-red); font-weight: bold; font-size: 1.5em; }
-        .charge-neg { color: var(--accent-blue); font-weight: bold; font-size: 1.5em; }
+        
+        /* Style du select dans le tableau */
+        .charge-select {
+            padding: 5px;
+            width: auto;
+            min-width: 80px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .select-correct {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background-color: #e8f5e9;
+        }
+        .select-wrong {
+            border-color: var(--accent-red);
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
 
         .hidden { display: none !important; }
     </style>
@@ -264,8 +299,8 @@
             </div>
         </section>
 
-        <section id="controls-section" class="app-section">
-            <div id="step-1-selection" class="control-group">
+        <section id="controls-section">
+            <div id="step-1-selection" class="app-section">
                 <h3>Étape 1 : Sélection</h3>
                 <div>
                     <label for="material-1-select">Premier matériau :</label>
@@ -278,7 +313,7 @@
                 <button id="rub-button">Frotter les matériaux</button>
             </div>
 
-            <div id="step-2-testing" class="control-group hidden">
+            <div id="step-2-testing" class="app-section hidden">
                 <h3>Étape 2 : Test</h3>
                 <p>Les matériaux ont été frottés. Approchez-les du pendule pour tester leur charge.</p>
                 <div class="test-buttons">
@@ -293,43 +328,39 @@
                     </div>
                 </div>
             </div>
+        </section>
 
-            <div id="step-3-results" class="control-group">
-                <h3>Étape 3 : Tableau des observations</h3>
-                <table class="observation-table">
-                    <thead>
-                        <tr>
-                            <th>Paire Frottée</th>
-                            <th>Matériau Testé</th>
-                            <th>Interaction</th>
-                            <th>Charge Déduite</th>
-                        </tr>
-                    </thead>
-                    <tbody id="observations-tbody"></tbody>
-                </table>
-                 <button id="reset-button" style="margin-top: 20px; background-color: #6c757d;">Réinitialiser</button>
-            </div>
+        <section id="results-section" class="app-section">
+            <h3>Étape 3 : Tableau des observations</h3>
+            <table class="observation-table">
+                <thead>
+                    <tr>
+                        <th>Paire Frottée</th>
+                        <th>Matériau Testé</th>
+                        <th>Interaction avec la boule négative</th>
+                        <th>Charge du matériau (Déduite)</th>
+                    </tr>
+                </thead>
+                <tbody id="observations-tbody"></tbody>
+            </table>
+             <button id="reset-button" style="margin-top: 20px; background-color: #6c757d; width: auto; padding: 10px 30px;">Réinitialiser la simulation (Nouvelle expérience)</button>
         </section>
     </div>
 
 <script>
- /*
+/*
  * =============================================================
- * Application Éducative : LAboratoire Série Électrostatique
+ * Application Éducative : Laboratoire Série Électrostatique
  * Auteur: Mathieu Dubreuil
  * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
  * Licence: MIT 
-  * Description: Frotter des matériaux isolants deux à deux pour déduire une série électrostatique
+ * Description: Frotter des matériaux isolants deux à deux pour déduire une série électrostatique
  * =============================================================
 */
 
-// (1) Ajout de commentaires détaillés
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- BASE DE DONNÉES ---
-    // Représente la série électrostatique.
-    // Un "power" plus bas signifie une plus faible attraction pour les électrons (devient positif).
-    // Un "power" plus élevé signifie une plus forte attraction (devient négatif).
     const materials = [
         { id: 'fourrure_lapin', nom: 'Fourrure de lapin', power: 10, color: 'var(--material-color-1)' },
         { id: 'verre', nom: 'Verre', power: 20, color: '#f8c471' },
@@ -345,7 +376,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // --- RÉFÉRENCES AUX ÉLÉMENTS DU DOM ---
-    // Raccourcis pour manipuler plus facilement les éléments de la page.
     const select1 = document.getElementById('material-1-select');
     const select2 = document.getElementById('material-2-select');
     const rubButton = document.getElementById('rub-button');
@@ -365,27 +395,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const observationsTbody = document.getElementById('observations-tbody');
     const resetButton = document.getElementById('reset-button');
     
-    // --- ÉTAT GLOBAL DE L'APPLICATION ---
-    // Un objet pour stocker les informations de la session en cours.
+    // --- ÉTAT GLOBAL ---
     let state = {
         material1: null,
         material2: null,
-        charge1: 'neutral', // 'positive', 'negative', ou 'neutral'
+        charge1: 'neutral',
         charge2: 'neutral',
-        testingMaterial: null // Le numéro (1 ou 2) du matériau en cours de test
+        testingMaterial: null
     };
 
-    // --- FONCTION D'INITIALISATION ---
-    // Se lance une seule fois au chargement de la page.
+    // --- INITIALISATION ---
     function init() {
-        // Peuple les listes déroulantes avec les matériaux disponibles.
         materials.forEach(material => {
             select1.innerHTML += `<option value="${material.id}">${material.nom}</option>`;
             select2.innerHTML += `<option value="${material.id}">${material.nom}</option>`;
         });
-        select2.selectedIndex = 1; // S'assure que deux matériaux différents sont sélectionnés au départ.
+        select2.selectedIndex = 1;
 
-        // Attache les fonctions aux événements des boutons.
         rubButton.addEventListener('click', handleRub);
         testMat1Button.addEventListener('click', () => prepareTest(1));
         testMat2Button.addEventListener('click', () => prepareTest(2));
@@ -393,28 +419,22 @@ document.addEventListener('DOMContentLoaded', () => {
         observeRepulsionBtn.addEventListener('click', () => recordObservation('Répulsion'));
         resetButton.addEventListener('click', resetSimulation);
         
-        // Réinitialise l'affichage au démarrage.
         resetSimulation();
     }
 
     // --- LOGIQUE PRINCIPALE ---
-
-    // Gère le clic sur le bouton "Frotter".
     function handleRub() {
         const id1 = select1.value;
         const id2 = select2.value;
 
-        // Validation simple.
         if (id1 === id2) {
             alert("Veuillez sélectionner deux matériaux différents.");
             return;
         }
 
-        // Récupère les objets complets des matériaux sélectionnés.
         state.material1 = materials.find(m => m.id === id1);
         state.material2 = materials.find(m => m.id === id2);
 
-        // Détermine les charges basées sur la valeur "power".
         if (state.material1.power < state.material2.power) {
             state.charge1 = 'positive';
             state.charge2 = 'negative';
@@ -423,84 +443,94 @@ document.addEventListener('DOMContentLoaded', () => {
             state.charge2 = 'positive';
         }
 
-        // Met à jour l'interface et lance l'animation.
         updateUIForRubbing();
         playRubbingAnimation();
     }
     
-    // Prépare la scène pour le test d'un matériau.
     function prepareTest(materialNumber) {
         state.testingMaterial = materialNumber;
         const material = (materialNumber === 1) ? state.material1 : state.material2;
         
-        // Met à jour l'apparence du matériau de test.
         testMaterialRep.textContent = material.nom;
         testMaterialRep.style.backgroundColor = material.color;
         
-        // Cache les boutons de choix pour ne garder que les boutons d'observation.
         testMat1Button.classList.add('hidden');
         testMat2Button.classList.add('hidden');
         
-        // Anime le matériau qui s'approche du pendule.
         testMaterialRep.classList.add('active');
         
-        // Simule l'interaction après que le matériau soit en place.
         setTimeout(() => {
             const charge = (materialNumber === 1) ? state.charge1 : state.charge2;
-            // La boule du pendule est négative par défaut.
             if (charge === 'positive') {
-                pendulumZone.classList.add('attract'); // Attraction si le matériau est positif.
+                pendulumZone.classList.add('attract'); 
             } else if (charge === 'negative') {
-                pendulumZone.classList.add('repel'); // Répulsion si le matériau est négatif.
+                pendulumZone.classList.add('repel'); 
             }
             observationButtonsDiv.classList.remove('hidden');
-        }, 1000); // Délai pour l'animation d'approche.
+        }, 1000);
     }
     
-    // Enregistre l'observation de l'utilisateur dans le tableau.
     function recordObservation(interaction) {
         const material = (state.testingMaterial === 1) ? state.material1 : state.material2;
         
-        // Déduit la charge à partir de l'observation.
-        let deducedCharge = '?';
-        let deducedChargeClass = '';
+        let correctCharge = '';
         if (interaction === 'Attraction') {
-            deducedCharge = '+';
-            deducedChargeClass = 'charge-pos';
+            correctCharge = '+'; 
         } else if (interaction === 'Répulsion') {
-            deducedCharge = '-';
-            deducedChargeClass = 'charge-neg';
+            correctCharge = '-'; 
         }
 
-        // Crée une nouvelle ligne dans le tableau des résultats.
+        // CRUCIAL : Utilisation de insertAdjacentHTML au lieu de innerHTML +=
+        // Cela empêche le navigateur de redessiner tout le tableau et donc de 
+        // réinitialiser les sélections faites dans les lignes précédentes.
         const newRow = `
             <tr>
                 <td>${state.material1.nom} & ${state.material2.nom}</td>
                 <td>${material.nom}</td>
                 <td>${interaction}</td>
-                <td class="${deducedChargeClass}">${deducedCharge}</td>
+                <td>
+                    <select class="charge-select" onchange="validateCharge(this, '${correctCharge}')">
+                        <option value="?">?</option>
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                    </select>
+                </td>
             </tr>
         `;
-        observationsTbody.innerHTML += newRow;
+        observationsTbody.insertAdjacentHTML('beforeend', newRow);
         
-        // Désactive le bouton du matériau qui vient d'être testé.
         const testedButton = (state.testingMaterial === 1) ? testMat1Button : testMat2Button;
         testedButton.disabled = true;
 
         resetAfterTest();
     }
 
-    // --- ANIMATIONS ET MISES À JOUR DE L'UI ---
+    // --- VALIDATION ---
+    window.validateCharge = function(selectElement, correctVal) {
+        const selectedVal = selectElement.value;
 
-    // Lance l'animation CSS de frottement.
+        if (selectedVal === '?') return;
+
+        if (selectedVal === correctVal) {
+            selectElement.classList.add('select-correct');
+            selectElement.classList.remove('select-wrong');
+        } else {
+            selectElement.classList.add('select-wrong');
+            setTimeout(() => {
+                selectElement.value = '?';
+                selectElement.classList.remove('select-wrong');
+            }, 400);
+        }
+    };
+
+    // --- ANIMATIONS ET UI ---
     function playRubbingAnimation() {
         rubbingZone.classList.add('rub-animation');
         setTimeout(() => {
             updateUIForTesting();
-        }, 1500); // Doit correspondre à la durée de l'animation CSS.
+        }, 1500);
     }
     
-    // Prépare l'UI pour la phase de frottement.
     function updateUIForRubbing() {
         rubButton.disabled = true;
         materialRep1.textContent = state.material1.nom;
@@ -509,10 +539,10 @@ document.addEventListener('DOMContentLoaded', () => {
         materialRep2.style.backgroundColor = state.material2.color;
     }
 
-    // Fait passer l'UI de la phase de frottement à la phase de test.
     function updateUIForTesting() {
-        step1Div.classList.add('hidden');
-        step2Div.classList.remove('hidden');
+        // Step 1 reste visible (Demande 2)
+        step2Div.classList.remove('hidden'); // Step 2 apparaît sous Step 1
+        
         rubbingZone.classList.add('hidden');
         pendulumZone.classList.remove('hidden');
         
@@ -520,33 +550,29 @@ document.addEventListener('DOMContentLoaded', () => {
         testMat2Button.textContent = `Tester ${state.material2.nom}`;
     }
     
-    // Réinitialise la zone de test après une observation.
     function resetAfterTest() {
         pendulumZone.classList.remove('attract', 'repel');
         testMaterialRep.classList.remove('active');
         observationButtonsDiv.classList.add('hidden');
         
-        // Si les deux matériaux ont été testés, on ne remontre pas les boutons de test.
         if(testMat1Button.disabled && testMat2Button.disabled) {
-             // L'expérience pour cette paire est terminée. L'utilisateur doit cliquer sur "Réinitialiser".
+             // Fin de la paire
         } else {
              testMat1Button.classList.remove('hidden');
              testMat2Button.classList.remove('hidden');
         }
     }
     
-    // Réinitialise complètement la simulation à son état initial.
     function resetSimulation() {
         state = { material1: null, material2: null, charge1: 'neutral', charge2: 'neutral', testingMaterial: null };
         
-        // Remet l'UI en mode "Étape 1".
-        step1Div.classList.remove('hidden');
+        // Step 2 est caché, mais Step 1 reste là pour la prochaine sélection
         step2Div.classList.add('hidden');
+        
         rubbingZone.classList.remove('hidden', 'rub-animation');
         pendulumZone.classList.add('hidden');
         pendulumZone.classList.remove('attract', 'repel');
         
-        // Réinitialise la position et le texte des blocs de matériaux.
         materialRep1.style.transform = 'translateX(-70px)';
         materialRep2.style.transform = 'translateX(70px)';
         materialRep1.textContent = '';
@@ -554,7 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         testMaterialRep.classList.remove('active');
         
-        // Réactive tous les boutons.
         testMat1Button.classList.remove('hidden');
         testMat2Button.classList.remove('hidden');
         testMat1Button.disabled = false;
@@ -562,28 +587,14 @@ document.addEventListener('DOMContentLoaded', () => {
         rubButton.disabled = false;
     }
 
-    // --- DÉMARRAGE DE L'APPLICATION ---
     init();
 });
 
-
-// Message de signature dans la console
-        (function() {
-            const styles = [
-                'color: #007BFF',
-                'font-size: 1.1em',
-                'font-weight: bold',
-                'background-color: #f0f0f0',
-                'padding: 4px 8px',
-                'border-radius: 4px'
-            ].join(';');
-
-            console.log(
-                '%cApplication créée par Mathieu Dubreuil', 
-                styles
-            );
-            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
-        })();
+(function() {
+    const styles = 'color: #007BFF; font-size: 1.1em; font-weight: bold; background-color: #f0f0f0; padding: 4px 8px; border-radius: 4px';
+    console.log('%cApplication créée par Mathieu Dubreuil', styles);
+    console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+})();
 </script>
 
 </body>
