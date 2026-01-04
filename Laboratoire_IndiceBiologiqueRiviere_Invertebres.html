@@ -948,72 +948,93 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 // Classe pour chaque bestiole
+// Remplacez votre classe Organism par celle-ci pour gérer le ratio
 class Organism {
-    constructor(type, x, y, size) {
+    constructor(type, x, y, sizeBase) {
         this.typeKey = type;
-        this.data = ORGANISM_TYPES[type];
+        this.data = ORGANISM_TYPES[type]; // Assurez-vous que ORGANISM_TYPES est défini plus haut
         this.x = x;
         this.y = y;
-        this.size = size; // On utilise la taille calculée à l'extérieur
+        this.sizeBase = sizeBase;
         this.rotation = Math.random() * Math.PI * 2;
         
-        // --- LOGIQUE IMAGE ---
+        // Dimensions par défaut (carré) avant chargement
+        this.width = sizeBase;
+        this.height = sizeBase;
+        
         this.imageLoaded = false;
         this.image = new Image();
-        
-        // 1. Choisir une image au hasard dans le tableau src
+
+        // Gestion du chargement de l'image
         if (this.data.src && this.data.src.length > 0) {
+            // Choix aléatoire d'une image dans la liste
             const randomSrc = this.data.src[Math.floor(Math.random() * this.data.src.length)];
             this.image.src = randomSrc;
-            
-            // 2. IMPORTANT : Quand l'image est chargée, on redessine le canvas
+
             this.image.onload = () => {
                 this.imageLoaded = true;
-                draw(); // Fonction globale de redessin
-            };
-            
-            // Gestion d'erreur (si le chemin est faux, on garde la forme géométrique)
-            this.image.onerror = () => {
-                console.error("Impossible de charger l'image : " + randomSrc);
-                this.imageLoaded = false;
+                
+                // --- CALCUL DU RATIO ---
+                const ratio = this.image.naturalWidth / this.image.naturalHeight;
+
+                // On ajuste les dimensions pour qu'elles rentrent dans la "sizeBase"
+                // tout en respectant les proportions
+                if (ratio >= 1) {
+                    // Plus large que haut
+                    this.width = this.sizeBase;
+                    this.height = this.sizeBase / ratio;
+                } else {
+                    // Plus haut que large
+                    this.height = this.sizeBase;
+                    this.width = this.sizeBase * ratio;
+                }
+                
+                // On redessine le canvas une fois l'image prête
+                if (typeof draw === 'function') draw(); 
             };
         }
     }
 
     draw(ctx) {
         ctx.save();
+        // Si vous avez du "Panning" (déplacement), ajoutez panX/panY ici :
+        // ctx.translate(this.x + panX, this.y + panY); 
+        // Sinon, gardez simplement :
         ctx.translate(this.x, this.y);
+        
         ctx.rotate(this.rotation);
+        
         if (this.imageLoaded) {
-             try { ctx.drawImage(this.image, -this.size/2, -this.size/2, this.size, this.size); } 
-             catch (e) { this.drawShape(ctx); }
-        } else { this.drawShape(ctx); }
+            // Dessin centré avec les dimensions calculées
+            try {
+                ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+            } catch (e) {
+                // Fallback si erreur
+                this.drawShape(ctx);
+            }
+        } else {
+            this.drawShape(ctx);
+        }
         ctx.restore();
     }
 
-    // Fonction séparée pour dessiner les formes de secours
     drawShape(ctx) {
+        // Forme de secours
         ctx.fillStyle = this.data.color;
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 2;
         ctx.beginPath();
-        if (this.typeKey === 'sensible') {
-            ctx.moveTo(0, -this.size/2);
-            ctx.lineTo(this.size/2, this.size/2);
-            ctx.lineTo(-this.size/2, this.size/2);
-        } else if (this.typeKey === 'moyen') {
-            ctx.rect(-this.size/2, -this.size/2, this.size, this.size);
-        } else {
-            ctx.arc(0, 0, this.size/2, 0, Math.PI * 2);
-        }
+        ctx.arc(0, 0, this.sizeBase / 2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
     }
 
+    // Détection de survol (Hitbox)
     isHovered(mx, my) {
+        // Distance entre la souris (mx, my) et le centre de l'objet (this.x, this.y)
+        // Note: Si vous avez du Panning, il faut ajuster mx/my avant d'appeler cette fonction
         const dx = this.x - mx;
         const dy = this.y - my;
-        return Math.sqrt(dx*dx + dy*dy) < (this.size / 2);
+        // On utilise la plus grande dimension pour faciliter le clic
+        const radius = Math.max(this.width, this.height) / 2;
+        return Math.sqrt(dx*dx + dy*dy) < radius;
     }
 }
 // --- FONCTION DE CALCUL DES POURCENTAGES ---
@@ -1312,7 +1333,60 @@ document.getElementById('btn-new').onclick = function() {
     // Réinitialise le select
     document.getElementById('diagnosis-select').selectedIndex = 0;
 };
+// --- GESTION DU CLIC POUR LE COMPTAGE ---
 
+canvas.addEventListener('click', (e) => {
+    // 1. Récupérer la position du clic relative au canvas
+    const rect = canvas.getBoundingClientRect();
+    let clickX = e.clientX - rect.left;
+    let clickY = e.clientY - rect.top;
+
+    // Si vous avez intégré la feature de déplacement (panX, panY) du jeu Diatomées :
+    // Il faut compenser le décalage pour trouver la "vraie" position dans le monde
+    if (typeof panX !== 'undefined' && typeof panY !== 'undefined') {
+        clickX -= panX;
+        clickY -= panY;
+    }
+
+    // 2. Chercher si on a cliqué sur un organisme
+    // On parcourt le tableau à l'envers pour cliquer sur celui du dessus en premier
+    for (let i = organisms.length - 1; i >= 0; i--) {
+        const org = organisms[i];
+        
+        if (org.isHovered(clickX, clickY)) {
+            // BINGO ! On a trouvé l'organisme
+
+            // 3. Identifier l'input à mettre à jour
+            let inputId = null;
+            if (org.typeKey === 'sensible') inputId = 'input-sensible';
+            else if (org.typeKey === 'moyen') inputId = 'input-moyen';
+            else if (org.typeKey === 'tolerant') inputId = 'input-tolerant';
+
+            // 4. Incrémenter la valeur
+            if (inputId) {
+                const inputEl = document.getElementById(inputId);
+                if (inputEl) {
+				
+                 //   let val = parseInt(inputEl.value) || 0;
+                 //   inputEl.value = val + 1;
+                    
+                    // Petit effet visuel optionnel (log console pour vérifier)
+                    console.log(`+1 pour ${org.typeKey}`);
+                    
+                    // 5. Mettre à jour les pourcentages (si la fonction existe)
+                   // if (typeof updatePercentages === 'function') {
+                   //     updatePercentages();
+                   // }
+                    
+                    // 6. Animation visuelle "Pop" (Feedback) sur l'organisme (Optionnel)
+                    // On peut augmenter légèrement sa taille temporairement ou jouer un son
+                    
+                    break; // On arrête la boucle pour ne pas cliquer sur 2 objets superposés
+                }
+            }
+        }
+    }
+});
 </script>
 </body>
 </html>
