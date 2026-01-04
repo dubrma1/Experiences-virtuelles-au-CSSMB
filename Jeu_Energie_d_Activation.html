@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jeu sérieux – Diagramme énergétique (Sec 5)</title>
+  <style>
+    :root{
+      /* THÈME CLAIR */
+      --bg: #f1f5f9;       /* Gris très léger (Slate 100) */
+      --panel: #ffffff;    
+      --border: #cbd5e1;   
+      
+      --text: #0f172a;     
+      --muted: #64748b;    
+      
+      --accent: #16a34a;   /* Vert */
+      --accent2: #2563eb;  /* Bleu */
+      --accent3: #d97706;  /* Orange */
+    }
+
+    html,body{ height:100%; }
+    body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui, -apple-system, sans-serif; }
+    
+    header{ padding:16px 20px; background:var(--panel); border-bottom:1px solid var(--border); }
+    h1{ font-size:clamp(20px,2.6vw,28px); margin:0 0 4px 0; color:var(--text); }
+    .subtitle{ color:var(--muted); font-size:0.9rem; }
+    
+    /* LAYOUT PRINCIPAL : 2 Colonnes (2/3 et 1/3) */
+    main{ 
+      display:grid; 
+      grid-template-columns: 2fr 1fr; 
+      gap:20px; 
+      padding:20px; 
+      max-width:1400px; 
+      margin:0 auto; 
+      align-items: start;
+    }
+    
+    /* Conteneur colonne gauche pour empiler Graphique + Paramètres */
+    .left-column { display:flex; flex-direction:column; gap:20px; }
+    
+    .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); overflow:hidden; }
+    .card h2{ margin:0; padding:12px 16px; border-bottom:1px solid var(--border); font-size:1rem; background:#f8fafc; font-weight:600; color:#334155; }
+    .content{ padding:20px; }
+    
+    /* Contrôles (Sliders) */
+    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .row:last-child { margin-bottom:0; }
+    .row label{ min-width:160px; color:var(--text); font-weight:500; font-size:0.95rem; }    
+    .row input[type=range]{ flex:1; cursor:pointer; }
+    
+    /* Boutons */
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--text); color:#fff; border:none; border-radius:6px; padding:8px 14px; font-weight:600; cursor:pointer; transition:opacity 0.2s; font-size:0.9rem; }
+    .btn:hover{ opacity:0.9; }
+    .btn.secondary{ background:#fff; color:var(--text); border:1px solid var(--border); } 
+    .btn.warning{ background:#f59e0b; color:#fff; } 
+    .btn.ghost{ background:transparent; color:var(--muted); border:1px dashed var(--border); }    
+    
+    /* Indicateurs KPI */
+    .kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:15px; margin-top:20px; border-top:1px solid #f1f5f9; padding-top:15px; }
+    .kpi .item{ text-align:center; }
+    .kpi .label{ color:var(--muted); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+    .kpi .value{ font-size:1.2rem; font-weight:700; color:var(--text); }
+    
+    /* Canvas */
+    canvas{ background:#fff; border-radius:8px; border:1px solid var(--border); width:100%; height:auto; display:block; }
+    
+    /* Légende (Maintenant au-dessus) */
+    .legend{ display:flex; gap:20px; align-items:center; justify-content:center; margin-bottom:15px; font-size:0.9rem; }
+    .pill{ display:inline-flex; gap:6px; align-items:center; background:#f1f5f9; border:1px solid var(--border); border-radius:20px; padding:4px 10px; }
+    .dot{ width:10px; height:10px; border-radius:50%; }
+    .dot.reactifs{ background:var(--accent2); } 
+    .dot.produits{ background:var(--accent); } 
+    .dot.ts{ background:var(--accent3); }    
+    
+    /* Zone Missions (Droite) */
+    .mission-card { position:sticky; top:20px; } /* Colle au scroll si la page est longue */
+    .mission{ background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:5px; margin-bottom:15px; }
+    .mission h3{ margin:0 0 8px 0; font-size:1rem; color:#1e40af; }
+    .mission p{ margin:0 0 10px 0; color:#1e3a8a; font-size:0.9rem; line-height:1.4; }
+    .choices{ display:flex; flex-direction:column; gap:8px; }
+    .choices button { width:100%; justify-content: flex-start; text-align:left; }
+    
+    .score-box { background:#fff; border:2px solid var(--accent); color:var(--accent); border-radius:8px; padding:10px; text-align:center; font-weight:bold; font-size:1.1rem; margin-bottom:20px; }
+
+    footer{ padding:20px; color:var(--muted); text-align:center; font-size:0.85rem; margin-top:40px; grid-column: 1 / -1; }
+    
+    @media(max-width:900px){ main{ grid-template-columns:1fr; } .mission-card{ position:static; } }
+  </style>
+</head>
+<body>
+  <header aria-label="En-tête">
+    <h1>Jeu sérieux: Diagramme énergétique</h1>
+  </header>
+
+  <main>
+    
+    <div class="left-column">
+        
+        <section class="card">
+            <h2>Diagramme énergétique</h2>
+            <div class="content">
+                <div class="legend" aria-label="Légende">
+                    <span class="pill"><span class="dot reactifs"></span>Réactifs (H<sub>r</sub>)</span>
+                    <span class="pill"><span class="dot ts"></span>Complexe activé (E<sub>a</sub>)</span>
+                    <span class="pill"><span class="dot produits"></span>Produits (H<sub>p</sub>)</span>
+                </div>
+
+                <canvas id="chart" width="720" height="400" role="img" aria-label="Diagramme énergétique"></canvas>               
+            </div>
+
+            <h2>Paramètres de la réaction</h2>
+            <div class="content">
+                <div class="row">
+                    <label for="hr">H Réactifs (kJ)</label>
+                    <input type="range" id="hr" min="50" max="350" step="5" value="150" />
+                    <strong id="hrOut" style="width:40px; text-align:right;">150</strong>
+                </div>
+                
+                <div class="row">
+                    <label for="hp">H Produits (kJ)</label>
+                    <input type="range" id="hp" min="50" max="350" step="5" value="150" />
+                    <strong id="hpOut" style="width:40px; text-align:right;">150</strong>
+                </div>
+                
+                <div class="row">
+                    <label for="ts">Complexe Activé (kJ)</label>
+                    <input type="range" id="ts" min="100" max="400" step="5" value="250" />
+                    <strong id="tsOut" style="width:40px; text-align:right;">250</strong>
+                </div>
+                
+                <div class="row" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #fed7aa; margin-top:15px;">
+                    <label for="catalyse" style="color:#9a3412; min-width:auto; margin-right:10px;">⚡ Catalyseur</label>
+                    <input type="checkbox" id="catalyse" style="flex:0; width:20px; height:20px; margin-right:15px;" />
+                    <label for="deltaCat" style="color:#9a3412; min-width:auto; font-size:0.85rem;">Force :</label>
+                    <input type="range" id="deltaCat" min="10" max="100" step="5" value="50" />
+                </div>
+            </div>
+        </section>
+		<section class="card">
+		<div class="kpi" aria-label="Indicateurs clés">
+                    <div class="item">
+                        <div class="label">ΔH (Enthalpie)</div>
+                        <div class="value" id="kpiDH">0 kJ</div>
+                    </div>
+                    <div class="item">
+                        <div class="label">E<sub>a</sub> Directe</div>
+                        <div class="value" id="kpiEaF">0 kJ</div>
+                    </div>
+                    <div class="item">
+                        <div class="label">E<sub>a</sub> Inverse</div>
+                        <div class="value" id="kpiEaR">0 kJ</div>
+                    </div>
+					<div class="row" style="margin-top:20px; justify-content:center; gap:10px;">
+                    <button class="btn secondary" id="btnPNG">📷 PNG</button>
+                    <button class="btn secondary" id="btnCSV">📄 CSV</button>
+                    <button class="btn ghost" id="btnReset">↺ Réinitialiser</button>
+					</div>
+                </div>
+		</section>		
+				
+
+    </div>
+
+    <div class="right-column">
+        <section class="card mission-card">
+            <h2>Analyse</h2>
+            <div class="content">
+                <div id="missionZone">
+                    <div class="mission" id="m1">
+                        <h3>1. Nature de la réaction</h3>
+                        <p>D'après le graphique actuel, la réaction est-elle exothermique ou endothermique ?</p>
+                        <div class="choices">
+                            <button class="btn secondary" data-choice="exo">Exothermique (ΔH < 0)</button>
+                            <button class="btn secondary" data-choice="endo">Endothermique (ΔH > 0)</button>
+                        </div>
+                        <p id="m1Feedback" style="font-weight:bold; margin-top:10px; min-height:1.2em;"></p>
+                    </div>
+
+                    <div class="mission" id="m2">
+                        <h3>2. Calculer ΔH</h3>
+                        <p>Quelle est la valeur de ΔH ?<br><small>(H<sub>produits</sub> − H<sub>réactifs</sub>)</small></p>
+                        <div class="row" style="margin:0; gap:5px;">
+                            <input type="number" id="inputDH" placeholder="-50" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:100%;" />
+                            <button class="btn" id="btnCheckDH">OK</button>
+                        </div>
+                        <p id="m2Feedback" style="font-weight:bold; margin-top:10px; min-height:1.2em;"></p>
+                    </div>
+                    
+                    <div class="mission" id="m4">
+                        <h3>3. Effet du Catalyseur</h3>
+                        <p>Activez le catalyseur. Quel est son effet sur la vitesse ?</p>
+                        <div class="choices">
+                            <button class="btn secondary" data-choice="plusRapide">Accélère la réaction</button>
+                            <button class="btn secondary" data-choice="plusLente">Ralentit la réaction</button>
+                        </div>
+                        <p id="m4Feedback" style="font-weight:bold; margin-top:10px; min-height:1.2em;"></p>
+                    </div>
+                </div>
+<div class="score-box">
+                    Score : <span id="score">0</span> / 3
+                </div>
+                <button class="btn warning" id="btnNouveau" style="width:100%; margin-top:10px;">🎲 Nouveau Scénario</button>
+            </div>
+        </section>
+    </div>
+  </main>
+
+<script>
+ /*
+ * =============================================================
+ * Application Éducative : Jeu d'analyse de graphique d'activation
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: L'élève analyse des graphiques d'énergie d'activation pour chiimie 5
+ * =============================================================
+*/
+
+// ============================
+// CONFIGURATION GRAPHIQUE
+// ============================
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+const W = canvas.width; 
+const H = canvas.height;
+const PAD = 50; 
+
+// Couleurs
+const C_AXIS = '#334155';
+const C_GRID = '#e2e8f0';
+const C_REAC = '#2563eb'; // Bleu
+const C_PROD = '#16a34a'; // Vert
+const C_CURVE = '#d97706'; // Orange
+const C_TEXT = '#0f172a';
+
+// Échelles
+const scaleY = (energy) => {
+  const minE = 0, maxE = 450; 
+  const usableH = H - 2*PAD;
+  return H - PAD - (energy / maxE) * usableH;
+};
+const scaleX = (factor) => PAD + factor * (W - 2*PAD);
+
+// ============================
+// DESSIN
+// ============================
+function drawProfile(Hr, Hp, TS) {
+  // Fond blanc pour export PNG
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grille
+  ctx.lineWidth = 1;
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#64748b';
+  
+  for(let e=0; e<=450; e+=50) {
+    const y = scaleY(e);
+    ctx.beginPath();
+    ctx.strokeStyle = (e===0) ? C_AXIS : C_GRID;
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W-PAD, y);
+    ctx.stroke();
+    if(e > 0) ctx.fillText(e, PAD-30, y+4);
+  }
+  
+  // Axes
+  ctx.strokeStyle = C_AXIS;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PAD, PAD); 
+  ctx.lineTo(PAD, H-PAD); 
+  ctx.lineTo(W-PAD, H-PAD); 
+  ctx.stroke();
+  
+  // Labels Axes
+  ctx.fillStyle = C_TEXT;
+  ctx.font = 'bold 14px sans-serif';
+  ctx.save();
+  ctx.translate(15, H/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText("H (kJ/mol)", 0, 0);
+  ctx.restore();
+  ctx.fillText("Progression de la réaction", W/2 - 80, H-15);
+
+  // Coordonnées
+  const yR = scaleY(Hr);
+  const yP = scaleY(Hp);
+  const yTS = scaleY(TS);
+  
+  const xR = scaleX(0.15); 
+  const xTS = scaleX(0.5); 
+  const xP = scaleX(0.85); 
+  const xEnd = scaleX(1);
+
+  // Plateaux
+  ctx.lineWidth = 4;
+  
+  // Réactifs
+  ctx.strokeStyle = C_REAC;
+  ctx.beginPath(); ctx.moveTo(PAD, yR); ctx.lineTo(xR, yR); ctx.stroke();
+  ctx.fillStyle = C_REAC; ctx.fillText(`Hr (${Hr})`, PAD+5, yR-10);
+  
+  // Produits
+  ctx.strokeStyle = C_PROD;
+  ctx.beginPath(); ctx.moveTo(xP, yP); ctx.lineTo(xEnd, yP); ctx.stroke();
+  ctx.fillStyle = C_PROD; ctx.fillText(`Hp (${Hp})`, xP+5, yP-10);
+
+  // Courbe
+  ctx.strokeStyle = C_CURVE;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(xR, yR);
+  ctx.quadraticCurveTo(scaleX(0.3), yTS, xTS, yTS);
+  ctx.quadraticCurveTo(scaleX(0.7), yTS, xP, yP);
+  ctx.stroke();
+
+  // Sommet
+  ctx.fillStyle = C_CURVE;
+  ctx.beginPath(); ctx.arc(xTS, yTS, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = C_TEXT;
+  ctx.fillText(`Ea (${TS-Hr})`, xTS-20, yTS-15);
+
+  // Pointillés Ea
+  ctx.setLineDash([5,5]);
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(xR, yR); ctx.lineTo(xTS, yR); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ============================
+// LOGIQUE
+// ============================
+const $ = (id) => document.getElementById(id);
+let score = 0;
+
+const ui = {
+  hr: $('hr'), hp: $('hp'), ts: $('ts'),
+  cat: $('catalyse'), dCat: $('deltaCat'),
+  hrOut: $('hrOut'), hpOut: $('hpOut'), tsOut: $('tsOut'),
+  kpiDH: $('kpiDH'), kpiEaF: $('kpiEaF'), kpiEaR: $('kpiEaR')
+};
+
+function getValues() {
+  let h_r = parseInt(ui.hr.value);
+  let h_p = parseInt(ui.hp.value);
+  let t_s = parseInt(ui.ts.value);
+  
+  if(ui.cat.checked) {
+    t_s -= parseInt(ui.dCat.value);
+  }
+
+  // Contrainte : TS toujours > Hr et Hp
+  let realTS = Math.max(t_s, Math.max(h_r, h_p) + 10);
+  
+  return { hr: h_r, hp: h_p, ts: realTS };
+}
+
+function update() {
+  const v = getValues();
+  
+  ui.hrOut.innerText = ui.hr.value;
+  ui.hpOut.innerText = ui.hp.value;
+  ui.tsOut.innerText = ui.ts.value;
+  
+  const dH = v.hp - v.hr;
+  const Ea = v.ts - v.hr;
+  const EaRev = v.ts - v.hp;
+  
+  ui.kpiDH.innerText = (dH > 0 ? "+" : "") + dH + " kJ";
+  ui.kpiDH.style.color = dH < 0 ? C_PROD : C_REAC;
+
+  ui.kpiEaF.innerText = Ea + " kJ";
+  ui.kpiEaR.innerText = EaRev + " kJ";
+  
+  drawProfile(v.hr, v.hp, v.ts);
+}
+
+// Listeners
+[ui.hr, ui.hp, ui.ts, ui.cat, ui.dCat].forEach(el => el.addEventListener('input', update));
+
+// Reset
+$('btnReset').onclick = () => {
+  ui.hr.value = 150; ui.hp.value = 150; ui.ts.value = 250;
+  ui.cat.checked = false;
+  resetMissions();
+  update();
+};
+
+// Nouveau Scénario (Aléatoire)
+$('btnNouveau').onclick = () => {
+  ui.hr.value = 50 + Math.floor(Math.random() * 200);
+  ui.hp.value = 50 + Math.floor(Math.random() * 200);
+  let minTS = Math.max(parseInt(ui.hr.value), parseInt(ui.hp.value)) + 50;
+  ui.ts.value = Math.min(400, minTS + Math.floor(Math.random() * 50));
+  resetMissions();
+  update();
+};
+
+// Export
+$('btnPNG').onclick = () => {
+  const link = document.createElement('a');
+  link.download = 'graphique_energie.png';
+  link.href = canvas.toDataURL();
+  link.click();
+};
+
+$('btnCSV').onclick = () => {
+    const v = getValues();
+    const csv = `Parametre,Valeur\nHr,${v.hr}\nHp,${v.hp}\nTS,${v.ts}\nDeltaH,${v.hp-v.hr}`;
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "donnees.csv";
+    link.click();
+};
+
+// --- Missions Logic ---
+function resetMissions() {
+  score = 0;
+  $('score').innerText = score;
+  ['m1Feedback', 'm2Feedback', 'm4Feedback'].forEach(id => $(id).innerText = '');
+  $('inputDH').value = '';
+  document.querySelectorAll('.mission .btn').forEach(b => b.disabled = false);
+}
+
+function addScore() {
+  score++;
+  $('score').innerText = score;
+}
+
+// M1
+document.querySelectorAll('#m1 .btn').forEach(btn => {
+  btn.onclick = function() {
+    const v = getValues();
+    const dH = v.hp - v.hr;
+    const isExo = dH < 0;
+    const choice = this.dataset.choice;
+    
+    if( (isExo && choice === 'exo') || (!isExo && choice === 'endo') ) {
+      $('m1Feedback').innerText = "✅ Bravo !";
+      $('m1Feedback').style.color = "green";
+      addScore();
+    } else {
+      $('m1Feedback').innerText = "❌ Incorrect. Regardez le signe de ΔH.";
+      $('m1Feedback').style.color = "red";
+    }
+  };
+});
+
+// M2
+$('btnCheckDH').onclick = () => {
+  const v = getValues();
+  const dH = v.hp - v.hr;
+  const input = parseInt($('inputDH').value);
+  if(input === dH) {
+    $('m2Feedback').innerText = "✅ Correct !";
+    $('m2Feedback').style.color = "green";
+    addScore();
+  } else {
+    $('m2Feedback').innerText = `❌ Non. La réponse est ${dH} kJ.`;
+    $('m2Feedback').style.color = "red";
+  }
+};
+
+// M3
+document.querySelectorAll('#m4 .btn').forEach(btn => {
+  btn.onclick = function() {
+    if(this.dataset.choice === 'plusRapide') {
+        $('m4Feedback').innerText = "✅ Exact !";
+        $('m4Feedback').style.color = "green";
+        addScore();
+        if(!ui.cat.checked) { ui.cat.checked = true; update(); }
+    } else {
+        $('m4Feedback').innerText = "❌ Faux. Le catalyseur abaisse la barrière.";
+        $('m4Feedback').style.color = "red";
+    }
+  };
+});
+
+update();
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+</script>
+</body>
+</html>
