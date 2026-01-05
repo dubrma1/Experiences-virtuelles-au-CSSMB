@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jeu sérieux — Soleil & Ombre (Mode Jour)</title>
+  <style>
+    :root{
+      /* THEME CLAIR (Day Mode) */
+      --bg: #f1f5f9;       /* Gris très pâle pour le fond de page */
+      --panel: #ffffff;    /* Blanc pur pour les cartes */
+      --border: #cbd5e1;   /* Bordures grises définies */
+      --text: #0f172a;     /* Texte bleu nuit très sombre */
+      --muted: #64748b;    /* Texte secondaire gris */
+      
+      --accent: #22c55e;   /* Vert succès */
+      --btn-bg: #e2e8f0;   /* Fond bouton par défaut */
+      --btn-txt: #334155;  /* Texte bouton par défaut */
+      --btn-hover: #cbd5e1;
+    }
+    
+    *{box-sizing:border-box}
+    body{margin:0; background:var(--bg); color:var(--text); font-family:'Segoe UI',Roboto,Helvetica,sans-serif; overflow-x:hidden}
+    
+    /* Header Blanc */
+    header{
+        padding:1rem; background:#ffffff; border-bottom:1px solid var(--border);
+        display:flex; justify-content:space-between; align-items:center;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+    h1{margin:0; font-size:1.25rem; font-weight:800; color:#1e293b}
+    .badge{background:#3b82f6; color:white; padding:2px 8px; border-radius:12px; font-size:0.75rem; vertical-align:middle; margin-left:8px}
+
+    main{display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(0, 0.9fr); gap:20px; padding:20px; max-width:1400px; margin:0 auto}
+    
+    /* Cartes Blanches */
+    .card{
+        background:var(--panel); border:1px solid var(--border); border-radius:12px; 
+        overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .card-header{
+        padding:12px 16px; background:#f8fafc; border-bottom:1px solid var(--border); 
+        font-weight:700; color:#334155; display:flex; justify-content:space-between;
+    }
+    .content{padding:20px}
+    
+    /* Zone Canvas */
+    .canvas-container{position:relative; border-radius:8px; overflow:hidden; border:1px solid #94a3b8; box-shadow:inner 0 0 10px rgba(0,0,0,0.1);}
+    canvas{display:block; width:100%; height:auto; background:#bae6fd; cursor:grab;} /* Background bleu ciel par défaut */
+    canvas:active{cursor:grabbing;}
+    
+    /* Overlay HUD (Reste sombre pour contraste sur le ciel) */
+    .hud-overlay {
+        position: absolute; bottom: 10px; left: 10px; 
+        pointer-events: none; display: flex; gap: 10px;
+    }
+    .hud-tag {
+        background: rgba(15, 23, 42, 0.75); color: white;
+        padding: 4px 10px; border-radius: 6px; 
+        font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(4px);
+    }
+
+    /* Contrôles */
+    .row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center}
+    
+    /* Boutons Mode Jour */
+    .btn{
+      border:1px solid transparent; border-radius:6px; padding:10px 14px; 
+      font-weight:600; font-size:0.9rem; cursor:pointer;
+      transition:all 0.2s; 
+      background: var(--btn-bg); color: var(--btn-txt);
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .btn:hover{background:var(--btn-hover); transform:translateY(-1px);}
+    
+    /* Boutons Actions Spéciaux */
+    .btn.warning{background:#fef3c7; color:#92400e; border:1px solid #fcd34d;}
+    .btn.warning:hover{background:#fde68a;}
+    
+    .btn.accent{background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe;}
+    .btn.accent:hover{background:#bfdbfe;}
+
+    /* État Sélectionné (Bleu Vif) */
+    .btn.selected {
+        background: #2563eb; color: #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        border-color: #1d4ed8;
+    }
+
+    /* Boites de Feedback */
+    .feedback-box {
+        background: #f8fafc; border-left: 4px solid var(--border); color: #475569;
+        padding: 12px; margin-bottom: 15px; font-size: 0.95rem; border-radius: 0 4px 4px 0;
+        min-height: 40px; display:flex; align-items:center;
+    }
+    .feedback-box.success { 
+        border-color: #22c55e; background: #dcfce7; color: #166534; 
+    }
+    .feedback-box.error { 
+        border-color: #ef4444; background: #fee2e2; color: #991b1b; 
+    }
+
+    /* Sections Missions (Fond gris clair pour séparer) */
+    .mission-card {
+        background:#f8fafc; border:1px solid #e2e8f0; 
+        border-radius:8px; padding:15px; margin-bottom:20px;
+    }
+    .mission-card h3 { margin:0 0 5px 0; font-size:1.1rem; color:#1e293b; }
+    .mission-card p { margin:0; color:#64748b; font-size:0.9rem; }
+
+    .score-display { font-size: 1.2rem; font-weight: 800; color: #2563eb; }
+    .label { font-weight: 600; margin-bottom: 6px; display: block; color: #334155; }
+    
+    @media(max-width:900px){main{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Jeu d'Orientation Solaire <span class="badge">Hémisphère Nord</span></h1>
+  </div>
+  <div class="score-display">Score: <span id="score">0</span>/4</div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="card-header">
+      <span id="modeTitle">Exploration</span>
+      <button class="btn warning" id="btnScenario" style="padding:4px 12px; font-size:0.8rem">🔄 Changer Scénario</button>
+    </div>
+    <div class="content">
+      <div class="canvas-container">
+        <canvas id="scene" width="900" height="600" aria-label="Vue 3D interactive"></canvas>
+        <div class="hud-overlay">
+           <div class="hud-tag">👀 <span id="kpiYaw">Nord</span></div>
+           <div class="hud-tag">☀️ Alt: <span id="kpiAlt">--</span></div>
+        </div>
+      </div>
+      <div style="margin-top:12px; font-size:0.9rem; color:var(--muted); text-align:center">
+        🖱️ Clic-gauche + Glisser pour tourner la tête • Regarde la boussole ↘
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="content">
+      
+      <div id="missionsSun">
+        <div class="mission-card" style="border-left:4px solid #3b82f6;">
+            <h1>Mission 1 : Cherche le Soleil</h1>
+            <ul><li>Sa hauteur et sa position permettent de déduire le moment de la journée.<li>Sa hauteur permet de déduire la saison.</ul>
+        </div>
+
+        <p class="label">1. Quel moment de la journée est-ce ?</p>
+        <div class="row">
+          <button class="btn" data-tod="AM">Matin (AM)</button>
+          <button class="btn" data-tod="NOON">Midi</button>
+          <button class="btn" data-tod="PM">Après-midi (PM)</button>
+        </div>
+        <div id="todFeedback" class="feedback-box"></div>
+
+        <p class="label">2. Quelle semble être la saison ?</p>
+        <div class="row">
+          <button class="btn" data-season="SPRING_AUTUMN">Printemps/Automne</button>
+          <button class="btn" data-season="SUMMER">Été</button>
+          <button class="btn" data-season="WINTER">Hiver</button>
+        </div>
+        <div id="seasonFeedback" class="feedback-box"></div>
+        
+        <p class="label">3. Dans quelle direction pointe ton ombre ?</p>
+        <div class="row">
+          <button class="btn" data-shadowDir="N">Nord</button>
+          <button class="btn" data-shadowDir="E">Est</button>
+          <button class="btn" data-shadowDir="S">Sud</button>
+          <button class="btn" data-shadowDir="W">Ouest</button>
+        </div>
+        <div id="shadowDirFeedback" class="feedback-box"></div>
+      </div>
+
+      <div id="missionsShadow" style="display:none">
+        <div class="mission-card" style="border-left:4px solid #a855f7;">
+            <h1>Mission 2 : Analyse ton ombre</h1>
+            <ul><li>Ton ombre apparaître comme comme une cercle attaché à un rectangle. <li>Utilise la boussole pour déduire la direction du Soleil.<li> Utilise la mesure Alt de l'alitude duSoleil pour déduire la taille de l'ombre.</pul>
+        </div>
+
+        <p class="label">1. Où est le Soleil (selon ton ombre) ?</p>
+        <div class="row">
+          <button class="btn" data-sunDir="N">Nord</button>
+          <button class="btn" data-sunDir="E">Est</button>
+          <button class="btn" data-sunDir="S">Sud</button>
+          <button class="btn" data-sunDir="W">Ouest</button>
+        </div>
+        <div id="sunDirFeedback" class="feedback-box"></div>
+
+        <p class="label">2. Taille de l'ombre ?</p>
+        <div class="row">
+          <button class="btn" data-shadow-size="ALLONGEE">Très allongée</button>
+          <button class="btn" data-shadow-size="COURTE">Courte / Moyenne</button>
+        </div>
+        <div id="shadowSizeFeedback" class="feedback-box"></div>
+        
+        <p class="label">3. Moment estimé ?</p>
+        <div class="row">
+            <button class="btn" data-tod2="AM">Matin</button>
+            <button class="btn" data-tod2="NOON">Midi</button>
+            <button class="btn" data-tod2="PM">Après-midi</button>
+        </div>
+        <div id="tod2Feedback" class="feedback-box"></div>
+      </div>
+
+      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:10px">
+        <button class="btn accent" id="btnReset">Réinitialiser la vue</button>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<div style="display:none">
+    <select id="selTOD"><option value="AM">AM</option><option value="NOON">NOON</option><option value="PM">PM</option></select>
+    <select id="selSeason"><option value="SPRING_AUTUMN">S/A</option><option value="SUMMER">S</option><option value="WINTER">W</option></select>
+</div>
+
+<script>
+
+ /*
+ * ========================================================= ====
+ * Application Éducative : Jeu : S'orienter à l'aide du Soleil et de son ombre
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Observer la position et la hauteur du Soleil pour déduire le moment de la journée et la saison
+ * =============================================================
+*/
+
+/* ============================
+   Configuration & Math
+   ============================ */
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+let W = canvas.width, H = canvas.height;
+
+const RAD = Math.PI/180, DEG = 180/Math.PI;
+const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+const wrapDeg = d => ((d%360)+360)%360;
+
+// État
+let mode = 'SUN';
+let yaw = 0, pitch = 0;
+let currentTOD = 'AM';
+let currentSeason = 'SPRING_AUTUMN';
+let score = 0;
+
+// Constantes Geo
+const LAT = 45 * RAD;
+const DECL = { SPRING_AUTUMN: 0, SUMMER: 23.44*RAD, WINTER: -23.44*RAD };
+const HOUR_ANGLE = { AM: -65*RAD, NOON: 0, PM: 65*RAD };
+
+const ui = {};
+['selTOD','selSeason','kpiYaw','kpiAlt','score','modeTitle','missionsSun','missionsShadow'].forEach(id=>ui[id]=document.getElementById(id));
+
+/* ============================
+   Calculs Solaires
+   ============================ */
+function getSunPosition(){
+    const decl = DECL[currentSeason];
+    const ha = HOUR_ANGLE[currentTOD];
+    
+    const sinAlt = Math.sin(LAT)*Math.sin(decl) + Math.cos(LAT)*Math.cos(decl)*Math.cos(ha);
+    const alt = Math.asin(clamp(sinAlt, -1, 1));
+    
+    const cosAz = (Math.sin(decl) - Math.sin(LAT)*Math.sin(alt)) / (Math.cos(LAT)*Math.cos(alt));
+    let az = Math.acos(clamp(cosAz, -1, 1));
+    if(Math.sin(ha) > 0) az = 2*Math.PI - az; 
+    
+    return { alt, az, azDeg: az*DEG };
+}
+
+/* ============================
+   Projection 3D
+   ============================ */
+const FOVx = 85, FOVy = 55;
+
+function project(azRad, altRad){
+    let dAz = (azRad*DEG - yaw);
+    while(dAz < -180) dAz += 360;
+    while(dAz > 180) dAz -= 360;
+
+    if(Math.abs(dAz) > FOVx/1.5) return null;
+
+    const x = W/2 + (dAz / (FOVx/2)) * (W/2);
+    const y = H/2 - ((altRad*DEG - pitch) / (FOVy/2)) * (H/2);
+    return {x,y, dAz};
+}
+
+/* ============================
+   Rendu Principal
+   ============================ */
+function render(){
+    // 1. Calculs
+    const sunPos = getSunPosition();
+    const sunScreen = project(sunPos.az, sunPos.alt);
+    const horizonY = H/2 + (pitch / (FOVy/2)) * (H/2); 
+
+    // 2. Ciel Infini
+    let skyGradient = ctx.createLinearGradient(0, 0, 0, H); 
+    let topColor = '#0f172a', midColor = '#3b82f6', botColor = '#bfdbfe'; 
+    if(currentTOD === 'NOON') { topColor='#172554'; midColor='#2563eb'; botColor='#dbeafe'; }
+    if(currentSeason === 'WINTER') { midColor='#60a5fa'; botColor='#e2e8f0'; } 
+    
+    skyGradient.addColorStop(0, topColor);
+    skyGradient.addColorStop(0.5, midColor);
+    skyGradient.addColorStop(1, botColor);
+    ctx.fillStyle = skyGradient;
+    ctx.fillRect(0,0,W,H);
+
+    // Halo Solaire (Atmosphère) - Visible seulement si mode SUN
+    if(sunScreen && mode === 'SUN'){
+        const distCenter = Math.abs(sunScreen.dAz);
+        const intensity = Math.max(0, 1 - distCenter/50);
+        if(intensity > 0){
+            const g = ctx.createRadialGradient(sunScreen.x, sunScreen.y, 10, sunScreen.x, sunScreen.y, 500);
+            g.addColorStop(0, `rgba(255,255,255,${0.5*intensity})`);
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0,0,W,H);
+        }
+    }
+
+    // 3. Sol Infini (avec Horizon)
+    if (horizonY < H) { 
+        const groundGrad = ctx.createLinearGradient(0, horizonY, 0, H);
+        groundGrad.addColorStop(0, '#14532d'); 
+        groundGrad.addColorStop(1, '#166534'); 
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, horizonY, W, H - horizonY);
+        
+        // Grille Perspective
+        ctx.strokeStyle = 'rgba(134, 239, 172, 0.2)'; 
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(let i=-800; i<=800; i+=100){
+            const xAtHorizon = W/2 + i - (wrapDeg(yaw)*2.5); 
+            ctx.moveTo(xAtHorizon, horizonY);
+            ctx.lineTo(W/2 + (i*6) - (wrapDeg(yaw)*12), H + 200); 
+        }
+        for(let j=0; j<25; j++){ 
+            const y = horizonY + Math.pow(j, 1.8)*3; 
+            if(y > H) break;
+            ctx.moveTo(0, y); ctx.lineTo(W, y);
+        }
+        ctx.stroke();
+    }
+
+    // 4. Ombre (Mode SHADOW uniquement)
+    if(mode === 'SHADOW'){
+        drawShadowArrow(sunPos, horizonY);
+    }
+
+    // 5. Soleil (Disque) - Visible seulement si mode SUN
+    if(sunScreen && mode === 'SUN'){
+        const {x,y} = sunScreen;
+        const r = 20;
+        const g = ctx.createRadialGradient(x, y, r*0.2, x, y, r*3);
+        g.addColorStop(0, 'rgba(255,255,200, 1)');
+        g.addColorStop(0.4, 'rgba(255,200,50, 0.6)');
+        g.addColorStop(1, 'rgba(255,200,50, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x,y,r*3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x,y,r*0.8,0,Math.PI*2); ctx.fill();
+    }
+
+    // 6. HUD
+    drawCompassHUD();
+    drawHorizonMarkers(horizonY);
+}
+
+function drawHorizonMarkers(y){
+    const cards = [{l:'N',a:0}, {l:'E',a:90}, {l:'S',a:180}, {l:'W',a:270}];
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    
+    cards.forEach(c => {
+        const proj = project(c.a*RAD, 0); 
+        if(proj){
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); ctx.moveTo(proj.x, y); ctx.lineTo(proj.x, y-15); ctx.stroke();
+            ctx.fillStyle = '#fff';
+            if(c.l === 'N') ctx.fillStyle = '#ef4444'; 
+            ctx.fillText(c.l, proj.x, y-20);
+        }
+    });
+}
+
+/* ============================
+   Dessin Ombre : Corps + Cercle
+   ============================ */
+function drawShadowArrow(sunPos, horizonY){
+    let shadowAzRel = (sunPos.azDeg + 180) - yaw; 
+    let diff = wrapDeg(shadowAzRel); 
+    if (diff > 180) diff -= 360; 
+
+    const angleRad = (diff * Math.PI) / 180;
+    const sunH = Math.max(0.02, sunPos.alt);
+    let shadowLenFactor = 1 / Math.tan(sunH); 
+    shadowLenFactor = Math.min(shadowLenFactor, 8.0); 
+
+    if(Math.abs(diff) < 100) {
+        ctx.save();
+        ctx.translate(W/2, H); 
+        ctx.rotate(angleRad);
+        
+        ctx.scale(1, 0.4); 
+        
+        const len = 100 * shadowLenFactor; 
+        const w = 15; 
+        const r = 35; 
+
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+
+        // Corps
+        ctx.beginPath();
+        ctx.moveTo(-w, 0); ctx.lineTo(w, 0); ctx.lineTo(w, -len); ctx.lineTo(-w, -len);
+        ctx.closePath(); ctx.fill();
+
+        // Tête (Cercle)
+        ctx.beginPath(); ctx.arc(0, -len, r, 0, Math.PI * 2); ctx.fill();
+        
+        ctx.restore();
+
+        // Label & Alerte
+        if(Math.abs(diff) < 80) {
+            const dist = Math.min(H-horizonY-20, 150 * shadowLenFactor);
+            const lx = W/2 + Math.sin(angleRad) * dist;
+            const ly = H - Math.cos(angleRad) * dist * 0.3;
+
+            if(ly > horizonY) {
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '12px sans-serif'; 
+                ctx.fillText("Votre Ombre", lx, ly);
+
+                if(Math.abs(diff) < 30){
+                    ctx.fillStyle = '#fbbf24'; 
+                    ctx.font = 'bold 13px sans-serif'; 
+                    ctx.fillText("⚠️ Le Soleil est à l'opposé !", lx, ly + 18);
+                }
+            }
+        }
+    }
+}
+
+
+function drawCompassHUD(){
+    const R = 28; const cx = W - 50, cy = H - 50; 
+    
+    // Boussole sombre pour contraste sur la 3D
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    
+    const yawRad = yaw * RAD;
+    const nx = cx + Math.sin(-yawRad)*R*0.8, ny = cy - Math.cos(-yawRad)*R*0.8;
+    const sx = cx - Math.sin(-yawRad)*R*0.8, sy = cy + Math.cos(-yawRad)*R*0.8;
+
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny); ctx.stroke();
+    ctx.strokeStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy); ctx.stroke();
+    
+    ctx.font = 'bold 10px sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('N', nx, ny);
+}
+
+/* ============================
+   Interactions & Contrôles
+   ============================ */
+let isDragging = false, lastX = 0, lastY = 0;
+
+canvas.addEventListener('mousedown', e => { isDragging=true; lastX=e.clientX; lastY=e.clientY; });
+window.addEventListener('mouseup', () => isDragging=false );
+window.addEventListener('mousemove', e => {
+    if(!isDragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+
+    yaw = wrapDeg(yaw - dx * 0.2); 
+    pitch = clamp(pitch + dy * 0.2, -30, 85);
+
+    render(); updateKPI();
+});
+
+// Mobile
+canvas.addEventListener('touchstart', e => { isDragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; });
+canvas.addEventListener('touchmove', e => {
+    if(!isDragging) return;
+    e.preventDefault(); 
+    const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+
+    yaw = wrapDeg(yaw - dx * 0.4); 
+    pitch = clamp(pitch + dy * 0.4, -30, 85); 
+
+    render(); updateKPI();
+});
+
+function updateKPI(){
+    const dirs = ['Nord','Nord-Est','Est','Sud-Est','Sud','Sud-Ouest','Ouest','Nord-Ouest'];
+    const idx = Math.round(yaw / 45) % 8;
+    ui.kpiYaw.textContent = dirs[idx];
+    const s = getSunPosition();
+    ui.kpiAlt.textContent = (s.alt*DEG).toFixed(0) + "°";
+}
+
+document.getElementById('btnScenario').addEventListener('click', generateScenario);
+document.getElementById('btnReset').addEventListener('click', ()=>{ yaw=0; render(); updateKPI(); });
+
+function generateScenario(){
+    mode = (mode === 'SUN') ? 'SHADOW' : 'SUN';
+    const seasons = ['SPRING_AUTUMN','SUMMER','WINTER'];
+    const tods = ['AM','NOON','PM'];
+    currentSeason = seasons[Math.floor(Math.random()*seasons.length)];
+    currentTOD = tods[Math.floor(Math.random()*tods.length)];
+    yaw = Math.random() * 360;
+    
+    ui.selTOD.value = currentTOD; ui.selSeason.value = currentSeason;
+    ui.modeTitle.textContent = (mode==='SUN') ? "🌞 Jeu 1 : Cherche le Soleil" : "👤 Jeu 2 : Cherche ton ombre";
+    ui.missionsSun.style.display = (mode==='SUN') ? 'block' : 'none';
+    ui.missionsShadow.style.display = (mode==='SHADOW') ? 'block' : 'none';
+    
+    // Reset feedbacks
+    document.querySelectorAll('.feedback-box').forEach(el => {
+        el.textContent = ''; el.className = 'feedback-box';
+    });
+    // Reset buttons
+    document.querySelectorAll('.btn.selected').forEach(b => b.classList.remove('selected'));
+
+    render(); updateKPI();
+}
+
+/* ============================
+   Validation
+   ============================ */
+function updateButtonSelection(btnGroup, selectedBtn) {
+    btnGroup.forEach(b => b.classList.remove('selected'));
+    selectedBtn.classList.add('selected');
+}
+
+function check(guess, truth, elId, successMsg, failMsg){
+    const el = document.getElementById(elId);
+    el.classList.remove('success', 'error');
+    if(guess === truth){
+        el.innerHTML = `✅ ${successMsg}`;
+        el.classList.add('success'); 
+        score = Math.min(score+1, 4); document.getElementById('score').textContent = score;
+    } else {
+        el.innerHTML = `❌ ${failMsg}`;
+        el.classList.add('error'); 
+    }
+}
+
+// Listeners Groupes de Boutons
+const groups = [
+  { sel:'[data-tod]', check: (b)=> check(b.dataset.tod, currentTOD, 'todFeedback', "Bravo !", "Regarde la direction du Soleil.") },
+  { sel:'[data-season]', check: (b)=> check(b.dataset.season, currentSeason, 'seasonFeedback', "Correct ! L'altitude est la clé.", "Hiver = Bas, Été = Haut.") },
+  { sel:'[data-tod2]', check: (b)=> check(b.dataset.tod2, currentTOD, 'tod2Feedback', "Exact ! Ombre opposée au Soleil.", "L'ombre pointe vers l'Ouest ? Le Soleil est à l'Est.") },
+  { sel:'[data-shadow-size]', check: (b)=> {
+      const s = getSunPosition();
+      const truth = ((s.alt*DEG) < 40) ? 'ALLONGEE' : 'COURTE';
+      check(b.dataset.shadowSize, truth, 'shadowSizeFeedback', "Bien vu !", "Soleil bas = Ombre longue.") 
+  }}
+];
+
+groups.forEach(g => {
+    const btns = document.querySelectorAll(g.sel);
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            updateButtonSelection(btns, btn);
+            g.check(btn);
+        });
+    });
+});
+
+// Validation Spéciale : Direction Ombre (Mission 1)
+const shadowDirBtns = document.querySelectorAll('[data-shadowDir]');
+shadowDirBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        updateButtonSelection(shadowDirBtns, btn);
+        const guess = btn.getAttribute('data-shadowDir');
+        
+        let currentYaw = (yaw % 360 + 360) % 360; 
+        let shadowAz = (currentYaw + 180) % 360;  
+        let truth = '';
+        if (shadowAz >= 315 || shadowAz < 45)       truth = 'N';
+        else if (shadowAz >= 45 && shadowAz < 135)  truth = 'E';
+        else if (shadowAz >= 135 && shadowAz < 225) truth = 'S';
+        else if (shadowAz >= 225 && shadowAz < 315) truth = 'W';
+        
+        const labels = {N:'Nord', E:'Est', S:'Sud', W:'Ouest'};
+        if(guess === truth){
+            check(truth, truth, 'shadowDirFeedback', `Exact ! Vers le <strong>${labels[truth]}</strong>.`, "");
+        } else {
+             check(guess, truth, 'shadowDirFeedback', "", "L'ombre est projetée dans ton dos.");
+        }
+    });
+});
+
+// Validation Spéciale : Direction Soleil (Mission 2)
+const sunDirBtns = document.querySelectorAll('[data-sunDir]');
+sunDirBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        updateButtonSelection(sunDirBtns, btn);
+        const guess = btn.getAttribute('data-sunDir');
+        
+        const s = getSunPosition();
+        let az = (s.azDeg % 360 + 360) % 360; 
+        let truth = '';
+        if (az >= 315 || az < 45)       truth = 'N';
+        else if (az >= 45 && az < 135)  truth = 'E';
+        else if (az >= 135 && az < 225) truth = 'S';
+        else if (az >= 225 && az < 315) truth = 'W';
+
+        const labels = {N:'Nord', E:'Est', S:'Sud', W:'Ouest'};
+        if(guess === truth){
+            check(truth, truth, 'sunDirFeedback', `Correct ! Soleil au <strong>${labels[truth]}</strong>.`, "");
+        } else {
+             check(guess, truth, 'sunDirFeedback', "", "L'ombre fuit le soleil (opposé).");
+        }
+    });
+});
+
+// Init
+generateScenario();
+setInterval(render, 100);
+
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+
+</script>
+</body>
+</html>
