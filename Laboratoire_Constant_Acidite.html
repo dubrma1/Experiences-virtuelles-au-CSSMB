@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labo Virtuel : Titrage & Ka</title>
+<style>
+        :root {
+            --bg-color: #f8fafc;
+            --stand-metal: #64748b;
+            --stand-base: #94a3b8;
+            --glass: rgba(255, 255, 255, 0.6);
+            --liquid-acid: #fef08a; /* Jaune */
+            --liquid-base: #3b82f6; /* Bleu */
+            --primary: #3b82f6;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 5px; color: #0f172a; }
+        .subtitle { color: #64748b; margin-bottom: 25px; font-style: italic; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 40px;
+            width: 100%;
+            max-width: 1200px;
+            align-items: start;
+        }
+
+        /* --- MONTAGE VISUEL --- */
+        .apparatus-container {
+            position: relative;
+            height: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        /* Support & Pince */
+        .stand-base {
+            position: absolute; bottom: 20px; left: 40px;
+            width: 160px; height: 15px;
+            background: var(--stand-base); border: 2px solid #475569; border-radius: 4px;
+        }
+        .stand-rod {
+            position: absolute; bottom: 35px; left: 60px;
+            width: 8px; height: 500px;
+            background: var(--stand-metal); border: 1px solid #475569; border-radius: 4px 4px 0 0;
+        }
+        .clamp-connector {
+            position: absolute; top: 180px; left: 55px;
+            width: 25px; height: 20px; background: #475569; border-radius: 4px;
+        }
+        .clamp-arm {
+            position: absolute; top: 188px; left: 75px;
+            width: 80px; height: 6px; background: var(--stand-metal); z-index: 1;
+        }
+        .clamp-holder {
+            position: absolute; top: 180px; left: 150px;
+            width: 20px; height: 22px; background: #475569; border-radius: 4px; z-index: 3;
+        }
+
+        /* Burette */
+        .burette {
+            position: absolute; top: 50px; left: 154px;
+            width: 12px; height: 350px;
+            background: linear-gradient(to right, rgba(255,255,255,0.8), rgba(255,255,255,0.3));
+            border: 1px solid #94a3b8; border-top: none; border-bottom: none;
+            z-index: 2; overflow: hidden;
+        }
+        .burette::after {
+            content: ''; position: absolute; top: 0; right: 0;
+            width: 6px; height: 100%;
+            background-image: repeating-linear-gradient(black 0 1px, transparent 1px 10px);
+            opacity: 0.5;
+        }
+        .burette-liquid {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            height: 90%; background: #bae6fd; transition: height 0.1s;
+        }
+        .burette-tip {
+            position: absolute; top: 400px; left: 154px;
+            width: 12px; height: 25px;
+            clip-path: polygon(0 0, 100% 0, 60% 100%, 40% 100%);
+            background: linear-gradient(to right, rgba(255,255,255,0.8), rgba(255,255,255,0.3));
+            border: 1px solid #94a3b8; border-top: none; z-index: 2;
+        }
+        .burette-tip::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #bae6fd; z-index: -1;
+        }
+
+        /* ANIMATION GOUTTE */
+        .drop {
+            position: absolute; 
+            top: 425px; /* Juste sous la pointe */
+            left: 157px; /* Centré (154 + 12/2 - 6/2) */
+            width: 6px; height: 6px;
+            background: #bae6fd;
+            border-radius: 50%;
+            opacity: 0; /* Invisible par défaut */
+            z-index: 10;
+            pointer-events: none;
+        }
+        /* Classe ajoutée en JS pour animer */
+        .animating-drop {
+            animation: dropFall 0.4s linear forwards;
+        }
+        @keyframes dropFall {
+            0% { top: 425px; opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 510px; opacity: 0; } /* Tombe dans le liquide */
+        }
+
+        /* Bécher */
+        .beaker {
+            position: absolute; bottom: 35px; left: 125px;
+            width: 70px; height: 90px;
+            background: var(--glass); border: 2px solid var(--stand-metal); border-top: none;
+            border-radius: 0 0 10px 10px; z-index: 2; overflow: hidden;
+        }
+        .beaker-content {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            height: 30px; background-color: var(--liquid-acid);
+            transition: height 0.2s, background-color 0.5s ease;
+        }
+        .beaker::before {
+            content: ''; position: absolute; left: 5px; bottom: 10px;
+            width: 10px; height: 60px;
+            background-image: repeating-linear-gradient(black 0 1px, transparent 1px 15px);
+            opacity: 0.3; z-index: 5;
+        }
+
+        /* pH Mètre */
+        .ph-device {
+            position: absolute; top: 50px; right: 50px;
+            width: 100px; height: 80px;
+            background: #334155; border-radius: 8px; padding: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column; align-items: center; z-index: 4;
+        }
+        .ph-screen {
+            width: 100%; height: 40px; background: #bef264;
+            font-family: 'Courier New', monospace; font-weight: bold; font-size: 1.4rem;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid #1e293b; margin-bottom: 10px; color: #1e293b;
+        }
+        .ph-probe {
+            position: absolute; bottom: 45px; left: 180px; 
+            width: 8px; height: 70px;
+            background: #64748b; border: 1px solid #475569; border-radius: 2px; z-index: 3;
+        }
+        .ph-wire {
+            position: absolute; top: 130px; right: 160px;
+            width: 1px; height: 350px;
+            border-right: 3px solid #1e293b; border-bottom: 3px solid #1e293b;
+            border-bottom-right-radius: 15px; pointer-events: none; z-index: 1;
+        }
+        
+		/* Styles pour la nouvelle barre d'actions sous le montage */
+		.experiment-actions {
+			margin-top: 15px;
+			display: flex;
+			flex-direction: column; /* Empilés ou row selon préférence */
+			gap: 10px;
+		}
+
+		.experiment-actions button {
+			width: 100%;
+			padding: 12px;
+			font-size: 1rem;
+			border: 1px solid #cbd5e1;
+		}
+
+		.btn-retry {
+			background-color: #f1f5f9;
+			color: #334155;
+		}
+		.btn-retry:hover {
+			background-color: #e2e8f0;
+			border-color: #94a3b8;
+		}
+
+		.btn-new {
+			background-color: #0f172a; /* Foncé pour action majeure */
+			color: white;
+			border: none;
+		}
+		.btn-new:hover {
+			background-color: #1e293b;
+			box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+		}
+
+        /* --- DASHBOARD --- */
+        .dashboard { display: flex; flex-direction: column; gap: 20px; }
+        
+        .chart-card {
+            background: white; padding: 15px; border-radius: 8px;
+            border: 1px solid #e2e8f0; position: relative;
+        }
+        canvas { width: 100%; height: 350px; cursor: crosshair; }
+        
+        /* Table de données */
+        .data-card {
+            background: white; padding: 0; border-radius: 8px;
+            border: 1px solid #e2e8f0; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .data-header {
+            padding: 10px 15px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .data-title { font-weight: bold; font-size: 0.9rem; color: #334155; }
+        .data-actions { display: flex; gap: 8px; }
+        .btn-small {
+            padding: 4px 8px; font-size: 0.8rem; background: white; border: 1px solid #cbd5e1;
+            border-radius: 4px; cursor: pointer; color: #475569;
+        }
+        .btn-small:hover { background: #f8fafc; color: var(--primary); border-color: var(--primary); }
+        
+        .table-wrapper {
+            max-height: 200px; overflow-y: auto;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background: #f8fafc; position: sticky; top: 0; text-align: left; padding: 8px 15px; color: #64748b; font-size: 0.8rem; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 6px 15px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        tr:nth-child(even) { background: #fcfcfc; }
+
+        #tooltip {
+            position: absolute; background: rgba(15, 23, 42, 0.9); color: white;
+            padding: 5px 10px; border-radius: 4px; font-size: 0.85rem;
+            pointer-events: none; display: none; z-index: 10;
+        }
+
+        .controls { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .btn-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        button {
+            padding: 8px 12px; border: none; border-radius: 6px;
+            cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s;
+        }
+        .btn-add { background: var(--primary); color: white; flex: 1; min-width: 60px; }
+        .btn-add:hover { background: #2563eb; }
+        .btn-add:active { transform: translateY(1px); }
+        .btn-reset { background: #ef4444; color: white; flex: 0; min-width: 80px;}
+
+        .analysis-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+        .analysis-text { font-size: 1rem; line-height: 1.5; color: #334155; margin-bottom: 10px; }
+        .input-group { display: flex; gap: 10px; align-items: center; }
+        input[type="number"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; width: 120px; }
+
+        #feedback { font-weight: bold; margin-top: 10px; min-height: 20px; }
+        .success { color: #16a34a; }
+        .error { color: #dc2626; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Expérience : Détermination du Ka</h1>
+    <p class="subtitle">Le bécher contient un acide inconnu. La burette contient du NaOH 0.1M. Du Bleu de Bromothymol a été ajouté à l'acide; sa zone de virage s'étend de pH 6,0 à 7,6.
+    Cliquer un des boutons bleus pour ajoutez un volume de la base.<br>Acide Inconnu (20 mL, 0.1 M) titré par NaOH (0.1 M).</p>
+
+<div class="workspace">
+        
+        <div>
+            <div class="apparatus-container">
+                <div class="ph-device">
+                    <div style="color:#94a3b8; font-size:0.7rem; margin-bottom:2px;">pH METRE</div>
+                    <div class="ph-screen" id="phScreen">--.--</div>
+                    <div style="width:10px; height:10px; background:#ef4444; border-radius:50%; margin-top:auto;"></div>
+                </div>
+                <div class="ph-wire"></div>
+                <div class="ph-probe"></div>
+
+                <div class="stand-rod"></div>
+                <div class="stand-base"></div>
+                <div class="clamp-holder"></div>
+                <div class="clamp-connector"></div>
+                <div class="clamp-arm"></div>
+
+                <div class="burette">
+                    <div class="burette-liquid" id="buretteLevel"></div>
+                </div>
+                <div class="burette-tip"></div>
+                <div class="drop" id="drop"></div>
+
+                <div class="beaker">
+                    <div class="beaker-content" id="beakerLiquid"></div>
+                </div>
+            </div>
+
+            <div class="experiment-actions">
+                <button class="btn-retry" onclick="resetSim()">Reprendre ce titrage (Même acide)</button>
+                <button class="btn-new" onclick="init()">Changer d'acide (Inconnu)</button>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            
+            <div class="controls">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <strong>Volume NaOH ajouté : <span id="volDisplay">0.00</span> mL</strong>
+                </div>
+                
+                <div class="btn-container">
+                    <button class="btn-add" onclick="titrate(5)">+ 5 mL</button>
+                    <button class="btn-add" onclick="titrate(1)">+ 1 mL</button>
+                    <button class="btn-add" onclick="titrate(0.5)">+ 0.5 mL</button>
+                    <button class="btn-add" onclick="titrate(0.1)">+ 0.1 mL</button>
+                    <button class="btn-add" onclick="titrate(0.05)">+ 0.05 mL</button>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <canvas id="titrationChart"></canvas>
+                <div id="tooltip"></div>
+            </div>
+
+            <div class="data-card">
+                <div class="data-header">
+                    <span class="data-title">Tableau de résultats</span>
+                    <div class="data-actions">
+                        <button class="btn-small" onclick="copyChartToClipboard()">Copier le graphique</button>
+                        <button class="btn-small" onclick="exportCSV()">Télécharger CSV</button>
+                        <button class="btn-small" onclick="copyToClipboard()">Copier (Excel)</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Vol. NaOH (mL)</th>
+                                <th>pH</th>
+                                <th>Volume d'acide inconnu (mL)</th> 
+                                <th>Couleur de l'indicateur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+<script>
+     /*
+ * =============================================================
+ * Application Éducative : Laboratoire Constante d'acidité
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: L'élève détermine le pKa et Ka de 11 acides communs par la méthode de la demi-équivalence (lecture graphique)
+ * =============================================================
+*/
+
+	// --- CONFIGURATION ---
+		const volAcid = 20; // mL
+		const concAcid = 0.1; // M
+		const concBase = 0.1; // M
+		let currentPKA = 0;
+		let volBase = 0;
+		let historyData = []; 
+
+		// Liste des pKa possibles
+		const acids = [
+			3.50, //Aspirine
+			3.75, //Formique
+			3.86, //Lactique
+			4.17, //Ascorbique
+			4.20, //Benzoïque
+			4.76, //Acétique
+			4.87, //Propanoïque
+			2.15, //Phosphorique
+			1.27, //Oxalique
+			6.35, //Carbonique
+			3.13  //Citrique
+		];
+
+    // Canvas
+    const canvas = document.getElementById('titrationChart');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    const tableBody = document.querySelector("#dataTable tbody");
+
+    // --- LOGIQUE ---
+
+function init() {
+        // Choix aléatoire d'un pKa dans la liste des acides réels
+        currentPKA = acids[Math.floor(Math.random() * acids.length)];
+        
+        console.log("Nouvel acide sélectionné. pKa secret :", currentPKA);
+        
+        // On lance la simulation
+        resetSim(); 
+    }
+
+    function calculatePH(vb) {
+        const veq = (concAcid * volAcid) / concBase; // 20 mL
+        let ph = 0;
+        
+        if (vb === 0) {
+            ph = 0.5 * (currentPKA - Math.log10(concAcid));
+        } else if (vb < veq) {
+            const ratio = vb / (veq - vb);
+            if(ratio <= 0) ph = 0.5 * (currentPKA - Math.log10(concAcid)); 
+            else ph = currentPKA + Math.log10(ratio);
+        } else if (Math.abs(vb - veq) < 0.001) {
+            ph = 7.0 + 0.5*(currentPKA + Math.log10(concBase));
+        } else {
+            const excessOhConc = (concBase * (vb - veq)) / (volAcid + vb);
+            const poh = -Math.log10(excessOhConc);
+            ph = 14 - poh;
+        }
+        return ph + (Math.random() * 0.02 - 0.01);
+    }
+
+    function getBromothymolColor(ph) {
+        if (ph <= 6.0) return '#fef08a'; 
+        if (ph >= 7.6) return '#3b82f6';
+        const t = (ph - 6.0) / (7.6 - 6.0); 
+        if (t < 0.5) {
+            const t2 = t * 2; 
+            return `rgb(${254 + (34-254)*t2}, ${240 + (197-240)*t2}, ${138 + (94-138)*t2})`;
+        } else {
+            const t2 = (t - 0.5) * 2;
+            return `rgb(${34 + (59-34)*t2}, ${197 + (130-197)*t2}, ${94 + (246-94)*t2})`;
+        }
+    }
+
+function getColorName(ph) {
+        if (ph <= 6.0) return "Jaune";
+        if (ph >= 7.6) return "Bleu";
+        return "Vert"; // Zone de virage
+    }
+	
+    function animateDrop() {
+        const drop = document.getElementById('drop');
+        drop.classList.remove('animating-drop');
+        void drop.offsetWidth; // Trigger reflow
+        drop.classList.add('animating-drop');
+    }
+
+    function titrate(amount) {
+        animateDrop(); 
+        
+        volBase += amount;
+        volBase = Math.round(volBase * 1000) / 1000;
+        
+        const ph = calculatePH(volBase);
+        historyData.push({v: volBase, ph: ph});
+        historyData.sort((a,b) => a.v - b.v); 
+
+        updateVisuals(ph);
+        updateTable();
+        drawChart();
+    }
+
+    function updateVisuals(ph) {
+        document.getElementById('phScreen').innerText = ph.toFixed(2);
+        
+        const color = getBromothymolColor(ph);
+        document.getElementById('beakerLiquid').style.backgroundColor = color;
+        
+        const percentBurette = 90 - (volBase * 1.5); 
+        document.getElementById('buretteLevel').style.height = Math.max(0, percentBurette) + "%";
+
+        const hBeaker = 30 + (volBase * 2); 
+        document.getElementById('beakerLiquid').style.height = Math.min(85, hBeaker) + "px";
+
+        document.getElementById('volDisplay').innerText = volBase.toFixed(2);
+    }
+
+function updateTable() {
+        tableBody.innerHTML = "";
+        historyData.forEach(pt => {
+            const row = document.createElement("tr");
+            
+            // Récupération couleur RGB et Nom
+            const colorBg = getBromothymolColor(pt.ph);
+            const colorName = getColorName(pt.ph);
+
+            row.innerHTML = `
+                <td>${pt.v.toFixed(2)}</td>
+                <td>${pt.ph.toFixed(2)}</td>
+                <td>${volAcid}</td> <td style="display:flex; align-items:center; gap:8px;">
+                    <span style="width:12px; height:12px; border-radius:50%; background-color:${colorBg}; border:1px solid #94a3b8;"></span>
+                    ${colorName}
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+        // Scroll automatique vers le bas du tableau
+        const wrapper = document.querySelector('.table-wrapper');
+        wrapper.scrollTop = wrapper.scrollHeight;
+    }
+	
+    function resetSim() {
+        volBase = 0;
+        historyData = [];
+        
+        const initPH = calculatePH(0);
+        historyData.push({v: 0, ph: initPH});
+        
+        updateVisuals(initPH);
+        updateTable();
+        drawChart();
+    }
+
+    // --- FONCTIONS D'EXPORT ---
+
+function exportCSV() {
+        // En-têtes mis à jour pour le CSV
+        let csvContent = "data:text/csv;charset=utf-8,Vol NaOH (mL),pH,Volume Acide Inconnu (mL),Couleur Indicateur\r\n";
+        
+        historyData.forEach(row => {
+            const colorName = getColorName(row.ph);
+            csvContent += `${row.v.toFixed(2)},${row.ph.toFixed(2)},${volAcid},${colorName}\r\n`;
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "titrage_donnees.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function copyToClipboard() {
+        // En-têtes pour le copier-coller Excel
+        let text = "Vol NaOH (mL)\tpH\tVolume Acide Inconnu (mL)\tCouleur Indicateur\n"; 
+        
+        historyData.forEach(row => {
+            const colorName = getColorName(row.ph);
+            text += `${row.v.toFixed(2)}\t${row.ph.toFixed(2)}\t${volAcid}\t${colorName}\n`;
+        });
+        
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Données copiées ! Collez-les dans Excel (Ctrl+V).");
+        }, (err) => {
+            console.error('Erreur copie: ', err);
+        });
+    }
+
+
+function copyChartToClipboard() {
+        // Optionnel : Dessiner un fond blanc avant la copie (sinon l'image est transparente)
+        const w = canvas.width;
+        const h = canvas.height;
+        
+        // Sauvegarde le contexte actuel
+        ctx.save();
+        // Place le blanc "derrière" le dessin existant
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        
+        // Génère l'image et copie
+        canvas.toBlob(blob => {
+            try {
+                const item = new ClipboardItem({ "image/png": blob });
+                navigator.clipboard.write([item]).then(() => {
+                    alert("Graphique copié dans le presse-papier !");
+                }).catch(err => {
+                    console.error("Erreur copie : ", err);
+                    alert("Erreur : Impossible de copier l'image.");
+                });
+            } catch (err) {
+                alert("Votre navigateur ne supporte pas cette fonctionnalité.");
+            }
+            
+            // Restaure le canvas (enlève le fond blanc forcé si on veut garder la transparence à l'écran)
+            ctx.restore();
+            // On redessine pour être propre, bien que save/restore suffise souvent
+            drawChart(); 
+        });
+    }
+	
+    // --- GRAPHIQUE ---
+
+    function drawChart() {
+        const w = canvas.width = canvas.offsetWidth;
+        const h = canvas.height = canvas.offsetHeight;
+        const pad = 40;
+        const maxVol = 40; 
+        const maxPH = 14;
+
+        ctx.clearRect(0, 0, w, h);
+        const mapX = (v) => pad + (v / maxVol) * (w - 2 * pad);
+        const mapY = (p) => (h - pad) - (p / maxPH) * (h - 2 * pad);
+
+        // AXE X (Volume)
+        ctx.textAlign = "center";
+        ctx.lineWidth = 1;
+        
+        for (let v = 0; v <= maxVol; v += 1) {
+            const x = mapX(v);
+            const isMajor = (v % 5 === 0);
+            
+            ctx.beginPath();
+            
+            if(isMajor) {
+                // Grille principale
+                ctx.strokeStyle = "#cbd5e1";
+                ctx.moveTo(x, pad); 
+                ctx.lineTo(x, h - pad); 
+            } else {
+                // Traits secondaires
+                ctx.strokeStyle = "#94a3b8"; 
+                ctx.moveTo(x, h - pad); 
+                ctx.lineTo(x, h - pad - 5);
+            }
+            ctx.stroke();
+
+            if (isMajor) {
+                ctx.fillStyle = "#64748b";
+                ctx.font = "10px Arial";
+                ctx.fillText(v, x, h - pad + 15);
+            }
+        }
+        
+        // AXE Y (pH)
+        ctx.textAlign = "right";
+        for (let p = 0; p <= maxPH; p += 1) {
+            const y = mapY(p);
+            ctx.beginPath(); 
+            
+            // Ligne pH 7 en évidence
+            if (p === 7) {
+                ctx.strokeStyle = "#475569"; 
+                ctx.lineWidth = 1.5;
+            } else {
+                ctx.strokeStyle = (p % 2 === 0) ? "#cbd5e1" : "#f1f5f9";
+                ctx.lineWidth = 1;
+            }
+            
+            ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); 
+            ctx.stroke();
+
+            if (p % 2 === 0 || p === 7) { 
+                ctx.fillStyle = "#64748b";
+                if (p === 7) {
+                    ctx.font = "bold 11px Arial";
+                    ctx.fillStyle = "#1e293b";
+                } else {
+                    ctx.font = "10px Arial";
+                }
+                ctx.fillText(p, pad - 10, y + 4);
+            }
+        }
+
+        // Cadre
+        ctx.strokeStyle = "#334155"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, h - pad); ctx.lineTo(w - pad, h - pad); ctx.stroke();
+
+        // Titres
+        ctx.font = "bold 12px Arial"; 
+        ctx.fillStyle = "#0f172a"; 
+        ctx.textAlign = "center";
+        
+        ctx.fillText("Volume NaOH (mL)", w / 2, h - 5);
+        ctx.fillText("pH", pad, pad - 10); 
+
+        // Courbe
+        if (historyData.length > 0) {
+            ctx.beginPath(); ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 2;
+            ctx.moveTo(mapX(historyData[0].v), mapY(historyData[0].ph));
+            for (let i = 1; i < historyData.length; i++) {
+                ctx.lineTo(mapX(historyData[i].v), mapY(historyData[i].ph));
+            }
+            ctx.stroke();
+            
+            ctx.fillStyle = "white";
+            historyData.forEach(d => {
+                ctx.beginPath(); ctx.arc(mapX(d.v), mapY(d.ph), 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            });
+        }
+    }
+
+    // --- CURSEUR ---
+    canvas.addEventListener('mousemove', (e) => {
+        if (historyData.length < 2) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const w = canvas.width; const h = canvas.height;
+        const pad = 40; const maxVol = 40; const maxPH = 14;
+
+        let hoveredVol = ((mouseX - pad) / (w - 2 * pad)) * maxVol;
+        const minDataV = historyData[0].v;
+        const maxDataV = historyData[historyData.length-1].v;
+        if (hoveredVol < minDataV || hoveredVol > maxDataV) {
+            tooltip.style.display = 'none'; drawChart(); return;
+        }
+
+        let i = 0;
+        while (i < historyData.length - 1 && historyData[i+1].v < hoveredVol) { i++; }
+        const p1 = historyData[i]; const p2 = historyData[i+1];
+        
+        let interpolatedPH = p1.ph;
+        if (p2 && p2.v !== p1.v) {
+            const fraction = (hoveredVol - p1.v) / (p2.v - p1.v);
+            interpolatedPH = p1.ph + fraction * (p2.ph - p1.ph);
+        }
+
+        drawChart();
+        const x = mouseX; 
+        const y = (h - pad) - (interpolatedPH / maxPH) * (h - 2 * pad);
+
+        ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, h - pad); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.pageX + 10) + 'px';
+        tooltip.style.top = (e.pageY - 40) + 'px';
+        tooltip.innerHTML = `V: ${hoveredVol.toFixed(2)} mL<br>pH: ${interpolatedPH.toFixed(2)}`;
+    });
+
+    canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; drawChart(); });
+    window.addEventListener('resize', drawChart);
+    
+    // Démarrage
+    init();
+	
+    // Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+</script>
+</body>
+</html>
