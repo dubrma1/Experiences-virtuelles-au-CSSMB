@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'énergie des liaisons chimiques</title>
+    <style>
+        :root {
+            --break-color: #e74c3c; /* Rouge */
+            --form-color: #27ae60;  /* Vert */
+            --primary-color: #2c3e50;
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        header {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        button:hover { background: #34495e; }
+
+        /* --- LAYOUT --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            width: 100%;
+            max-width: 1100px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        /* --- VISUALISATION (GAUCHE) --- */
+        .reaction-header {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--primary-color);
+        }
+        .equation {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* Listes épurées sans titre */
+        .molecule-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+
+        .bond-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+        .bond-item:hover { transform: translateX(5px); border-color: #bdc3c7; }
+
+        .molecule-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 5px;
+            border: 1px solid #ecf0f1;
+            width: 80px;
+            height: 45px;
+        }
+
+        .separator-line {
+            height: 1px;
+            background: #eee;
+            margin: 20px 0;
+            position: relative;
+        }
+        .separator-line::after {
+            content: "➜";
+            position: absolute;
+            left: 50%; top: -12px;
+            background: #fff;
+            padding: 0 10px;
+            color: #ccc;
+            transform: translateX(-50%);
+        }
+
+        /* --- INPUTS (DROITE) --- */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
+        .input-row { display: flex; align-items: center; gap: 10px; }
+        
+        input[type="number"] {
+            flex: 1; padding: 12px;
+            border: 2px solid #dfe6e9; border-radius: 8px; font-size: 1rem;
+            font-family: inherit;
+        }
+        
+        /* Focus colors */
+        .break-input input:focus { border-color: var(--break-color); outline: none; }
+        .form-input input:focus { border-color: var(--form-color); outline: none; }
+        
+        .btn-verify { width: 100%; margin-top: 10px; padding: 14px; font-size: 1rem; font-weight: bold; }
+        
+        #feedback-area { margin-top: 15px; text-align: center; font-weight: bold; min-height: 20px; }
+
+        /* --- GRAPH --- */
+        .full-width-panel {
+            width: 100%;
+            max-width: 100%; /* Prend toute la largeur disponible */
+            margin-top: 25px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+
+        #graph-container {
+            height: 400px;
+            border: none;
+            padding: 0;
+            width: 100%;
+        }
+        
+        svg { width: 100%; height: 100%; overflow: visible; }
+        
+        /* Axe Y labels */
+        .axis-label { font-size: 10px; fill: #7f8c8d; }
+
+        @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🧪 L'énergie des liaisons chimiques</h1>
+        <div>
+            <button onclick="changerNiveau(-1)">⬅️</button>
+            <span id="level-indicator" style="margin: 0 15px; font-weight:bold;">1/4</span>
+            <button onclick="changerNiveau(1)">➡️</button>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        
+        <div class="panel">
+            <div class="reaction-header">
+                <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#7f8c8d;">Réaction</div>
+                <div id="reaction-eq" class="equation">...</div>
+            </div>
+            <label>Enthalpie de liaisons</label>
+            
+            <ul id="reactants-list" class="molecule-list"></ul>
+            
+            <ul id="products-list" class="molecule-list"></ul>
+        </div>
+
+        <div class="panel">
+            <div class="input-group break-input">
+                <label style="color:var(--break-color);">Énergie requise pour BRISER (+)</label>
+                <div class="input-row">
+                    <input type="number" id="input-break" placeholder="Total énergie absorbée">
+                    <span>kJ</span>
+                </div>
+            </div>
+
+            <div class="input-group form-input">
+                <label style="color:var(--form-color);">Énergie libérée en FORMANT (-)</label>
+                <div class="input-row">
+                    <input type="number" id="input-form" placeholder="Total énergie libérée">
+                    <span>kJ</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Enthalpie de réaction (ΔH)</label>
+                <div class="input-row">
+                    <input type="number" id="input-net" placeholder="Brisé - Formé">
+                    <span>kJ</span>
+                </div>
+            </div>
+
+            <button class="btn-verify" onclick="verifierNiveau()">VÉRIFIER</button>
+            <div id="feedback-area"></div>
+
+        </div> 
+    </div>
+
+    <div class="panel full-width-panel">
+        <h3 style="text-align:center; margin-top:0;">Diagramme Énergétique Interactif</h3>
+        <div id="graph-container">
+            <svg id="energy-graph" viewBox="0 0 1000 350"> 
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#000" />
+                    </marker>
+                </defs>
+                <line x1="50" y1="280" x2="50" y2="20" stroke="#bdc3c7" stroke-width="2" />
+                <line x1="50" y1="280" x2="950" y2="280" stroke="#bdc3c7" stroke-width="2" /> 
+                
+                <text x="15" y="150" transform="rotate(-90, 15, 150)" font-size="12" fill="#7f8c8d" font-weight="bold">Énergie (kJ)</text>
+
+                <text id="placeholder-text" x="50%" y="50%" text-anchor="middle" fill="#bdc3c7">
+                    Entrez les valeurs pour voir le diagramme
+                </text>
+
+                <path id="graph-path" fill="none" stroke-width="3" stroke-linecap="round" />
+                <g id="annotations"></g>
+                <g id="y-axis-labels"></g>
+                <g id="molecule-layer"></g> 
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. CONFIGURATION & DONNÉES
+        // ==========================================
+        
+        const atomColors = { 
+            'H': '#ffffff', 'C': '#909090', 'N': '#3498db', 
+            'O': '#e74c3c', 'Cl': '#1abc9c', 'Br': '#8e44ad' 
+        };
+        const atomRadius = { 
+            'H': 8, 'C': 11, 'N': 11, 'O': 11, 'Cl': 12, 'Br': 13 
+        };
+
+        const levels = [
+            {
+                id: 1,
+                reaction: "H₂ + Br₂ ➝ 2 HBr",
+                reactants: [
+                    { name: "H–H", type:"single", atoms:["H","H"], count: 1, energy: 436 },
+                    { name: "Br–Br", type:"single", atoms:["Br","Br"], count: 1, energy: 193 }
+                ],
+                products: [
+                    { name: "H–Br", type:"single", atoms:["H","Br"], count: 2, energy: 366 }
+                ]
+            },
+            {
+                id: 2,
+                reaction: "H₂ + Cl₂ ➝ 2 HCl",
+                reactants: [
+                    { name: "H–H", type:"single", atoms:["H","H"], count: 1, energy: 436 },
+                    { name: "Cl–Cl", type:"single", atoms:["Cl","Cl"], count: 1, energy: 242 }
+                ],
+                products: [
+                    { name: "H–Cl", type:"single", atoms:["H","Cl"], count: 2, energy: 431 }
+                ]
+            },
+            {
+                id: 3,
+                reaction: "2 H₂ + O₂ ➝ 2 H₂O",
+                reactants: [
+                    { name: "H–H", type:"single", atoms:["H","H"], count: 2, energy: 436 },
+                    { name: "O=O", type:"double", atoms:["O","O"], count: 1, energy: 495 }
+                ],
+                products: [
+                    { name: "O–H", type:"single", atoms:["O","H"], count: 4, energy: 463 }
+                ]
+            },
+            {
+                id: 4,
+                reaction: "N₂ + 3 H₂ ➝ 2 NH₃",
+                reactants: [
+                    { name: "N≡N", type:"triple", atoms:["N","N"], count: 1, energy: 941 },
+                    { name: "H–H", type:"single", atoms:["H","H"], count: 3, energy: 436 }
+                ],
+                products: [
+                    { name: "N–H", type:"single", atoms:["N","H"], count: 6, energy: 391 }
+                ]
+            }
+        ];
+
+        let currentLevelIndex = 0;
+
+        // ==========================================
+        // 2. MOTEUR GRAPHIQUE SVG (Molécules)
+        // ==========================================
+        
+        function getMoleculeSVG(atom1, atom2, bondType) {
+            const c1 = atomColors[atom1] || '#95a5a6';
+            const c2 = atomColors[atom2] || '#95a5a6';
+            const r1 = atomRadius[atom1] || 10;
+            const r2 = atomRadius[atom2] || 10;
+            const t1 = (atom1 === 'H') ? '#333' : '#fff';
+            const t2 = (atom2 === 'H') ? '#333' : '#fff';
+
+            let lines = '';
+            const x1 = 20, x2 = 60, y = 22;
+
+            if (bondType === 'single') {
+                lines = `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#95a5a6" stroke-width="4" />`;
+            } else if (bondType === 'double') {
+                lines = `<line x1="${x1}" y1="${y-4}" x2="${x2}" y2="${y-4}" stroke="#95a5a6" stroke-width="3" />
+                         <line x1="${x1}" y1="${y+4}" x2="${x2}" y2="${y+4}" stroke="#95a5a6" stroke-width="3" />`;
+            } else if (bondType === 'triple') {
+                lines = `<line x1="${x1}" y1="${y-6}" x2="${x2}" y2="${y-6}" stroke="#95a5a6" stroke-width="2" />
+                         <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#95a5a6" stroke-width="2" />
+                         <line x1="${x1}" y1="${y+6}" x2="${x2}" y2="${y+6}" stroke="#95a5a6" stroke-width="2" />`;
+            }
+
+            return `
+            <div class="molecule-visual">
+                <svg width="80" height="44">
+                    ${lines}
+                    <circle cx="${x1}" cy="${y}" r="${r1}" fill="${c1}" stroke="#bdc3c7" stroke-width="1"/>
+                    <text x="${x1}" y="${y+3}" font-size="9" text-anchor="middle" fill="${t1}" font-weight="bold">${atom1}</text>
+                    <circle cx="${x2}" cy="${y}" r="${r2}" fill="${c2}" stroke="#bdc3c7" stroke-width="1"/>
+                    <text x="${x2}" y="${y+3}" font-size="9" text-anchor="middle" fill="${t2}" font-weight="bold">${atom2}</text>
+                </svg>
+            </div>`;
+        }
+
+        // ==========================================
+        // 3. AFFICHAGE DONNÉES
+        // ==========================================
+
+        function renderList(containerId, items) {
+            const list = document.getElementById(containerId);
+            list.innerHTML = '';
+            
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'bond-item';
+                
+                const visuals = getMoleculeSVG(item.atoms[0], item.atoms[1], item.type);
+
+                li.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        ${visuals}
+                        <div>
+                            <div style="font-weight:bold; font-size:1.05rem; color:#34495e;">
+                                ${item.name}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-weight:600; color:#7f8c8d;">
+                        ${item.energy} kJ/mol
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function initLevel() {
+            const data = levels[currentLevelIndex];
+            
+            document.getElementById('reaction-eq').innerText = data.reaction;
+            document.getElementById('level-indicator').innerText = `${currentLevelIndex + 1} / ${levels.length}`;
+            
+            renderList('reactants-list', data.reactants);
+            renderList('products-list', data.products);
+
+            document.getElementById('input-break').value = '';
+            document.getElementById('input-form').value = '';
+            document.getElementById('input-net').value = '';
+            document.getElementById('feedback-area').innerHTML = '';
+            
+            resetGraph();
+        }
+
+        function calculateCorrect() {
+            const data = levels[currentLevelIndex];
+            const breakTotal = data.reactants.reduce((acc, item) => acc + (item.count * item.energy), 0);
+            const formTotal = data.products.reduce((acc, item) => acc + (item.count * item.energy), 0);
+            
+            return { 
+                break: breakTotal, 
+                form: formTotal, 
+                net: breakTotal - formTotal 
+            };
+        }
+
+        function verifierNiveau() {
+            const uBreak = parseFloat(document.getElementById('input-break').value);
+            const uForm = parseFloat(document.getElementById('input-form').value);
+            const uNet = parseFloat(document.getElementById('input-net').value);
+            
+            const correct = calculateCorrect();
+            const feedback = document.getElementById('feedback-area');
+            
+            let errors = [];
+            if (Math.abs(uBreak - correct.break) > 1) errors.push("Erreur Briser (+).");
+            if (Math.abs(uForm - correct.form) > 1) errors.push("Erreur Former (-).");
+            
+            if (errors.length === 0) {
+                if (Math.abs(uNet - correct.net) > 1) {
+                    feedback.innerHTML = "<span style='color:#e67e22'>Bilan incorrect. Rappel : Brisé - Formé.</span>";
+                } else {
+                    feedback.innerHTML = "<span style='color:#27ae60'>✅ Excellent ! Regarde le diagramme d'énergie.</span>";
+                    drawGraph(correct.break, correct.form, correct.net);
+                }
+            } else {
+                feedback.innerHTML = `<span style='color:#c0392b'>${errors.join(" ")} Vérifie tes multiplications.</span>`;
+                resetGraph();
+            }
+        }
+
+        function changerNiveau(delta) {
+            currentLevelIndex += delta;
+            if (currentLevelIndex < 0) currentLevelIndex = levels.length - 1;
+            if (currentLevelIndex >= levels.length) currentLevelIndex = 0;
+            initLevel();
+        }
+
+        // ==========================================
+        // 4. GRAPHIQUE (LARGEUR 1000px)
+        // ==========================================
+        function resetGraph() {
+            document.getElementById('placeholder-text').style.display = 'block';
+            document.getElementById('graph-path').setAttribute('d', '');
+            document.getElementById('annotations').innerHTML = '';
+            document.getElementById('y-axis-labels').innerHTML = '';
+            document.getElementById('molecule-layer').innerHTML = '';
+        }
+
+        function drawSvgMolecule(parent, x, y, atom1, atom2, type) {
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            
+            const c1 = atomColors[atom1] || '#ccc';
+            const c2 = atomColors[atom2] || '#ccc';
+            const r = 12; 
+            const gap = 24; 
+
+            // Dessin de la liaison (Ligne)
+            if (type !== 'none') { 
+                if(type === 'single') {
+                     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                     line.setAttribute("x1", x-gap); line.setAttribute("y1", y);
+                     line.setAttribute("x2", x+gap); line.setAttribute("y2", y);
+                     line.setAttribute("stroke", "#555"); line.setAttribute("stroke-width", "4");
+                     g.appendChild(line);
+                } else if (type === 'double') {
+                     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                     line.setAttribute("d", `M ${x-gap} ${y-3} L ${x+gap} ${y-3} M ${x-gap} ${y+3} L ${x+gap} ${y+3}`);
+                     line.setAttribute("stroke", "#555"); line.setAttribute("stroke-width", "3");
+                     g.appendChild(line);
+                } else { // Triple
+                     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                     line.setAttribute("d", `M ${x-gap} ${y-5} L ${x+gap} ${y-5} M ${x-gap} ${y} L ${x+gap} ${y} M ${x-gap} ${y+5} L ${x+gap} ${y+5}`);
+                     line.setAttribute("stroke", "#555"); line.setAttribute("stroke-width", "2");
+                     g.appendChild(line);
+                }
+            }
+
+            // Atome 1 (Gauche)
+            if (atom2 === null) {
+                drawSvgAtom(g, x, y, atom1, c1, r);
+            } else {
+                drawSvgAtom(g, x - gap, y, atom1, c1, r);
+                drawSvgAtom(g, x + gap, y, atom2, c2, r);
+            }
+
+            parent.appendChild(g);
+        }
+
+        function drawSvgAtom(parent, cx, cy, label, color, r) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", cx); circle.setAttribute("cy", cy);
+            circle.setAttribute("r", r);
+            circle.setAttribute("fill", color);
+            circle.setAttribute("stroke", "#7f8c8d");
+            circle.setAttribute("stroke-width", "1");
+            parent.appendChild(circle);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", cx);
+            text.setAttribute("y", cy + 4);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("font-size", "10");
+            text.setAttribute("font-weight", "bold");
+            text.setAttribute("fill", label === 'H' ? '#333' : '#fff');
+            text.textContent = label;
+            parent.appendChild(text);
+        }
+
+        function drawGraph(eIn, eOut, eNet) {
+            document.getElementById('placeholder-text').style.display = 'none';
+            const svgGroup = document.getElementById('annotations');
+            const axisLabels = document.getElementById('y-axis-labels');
+            const molLayer = document.getElementById('molecule-layer');
+            
+            svgGroup.innerHTML = '';
+            axisLabels.innerHTML = '';
+            molLayer.innerHTML = ''; 
+
+            // --- 1. CONFIGURATION SPATIALE (Largeur 1000) ---
+            const startY = 280; 
+            const startX = 60;  
+            const endX = 940;   // Élargi
+            const peakX = 500;  // Sommet centré sur 1000px
+            
+            const maxVal = Math.max(eIn, eOut);
+            const scale = 200 / (maxVal * 1.1); 
+
+            const peakY = startY - (eIn * scale);
+            const endY = peakY + (eOut * scale);
+            
+            // --- 2. DESSIN DE LA COURBE ET DES AXES ---
+            const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            xAxis.setAttribute("x1", 50); xAxis.setAttribute("y1", startY);
+            xAxis.setAttribute("x2", 950); xAxis.setAttribute("y2", startY);
+            xAxis.setAttribute("stroke", "#bdc3c7"); xAxis.setAttribute("stroke-width", "2");
+            svgGroup.appendChild(xAxis);
+            
+            let d = `M ${startX} ${startY} L ${startX + 50} ${startY} `; 
+            d += `C ${startX + 200} ${startY}, ${peakX - 100} ${peakY}, ${peakX} ${peakY} `; 
+            d += `S ${endX - 50} ${endY}, ${endX} ${endY} `; 
+            d += `L ${980} ${endY}`; 
+
+            const path = document.getElementById('graph-path');
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', '#000'); 
+
+            // --- 3. FLÈCHES ET ANNOTATIONS ---
+            createArrow(svgGroup, peakX - 40, startY, peakX - 40, peakY, '#e74c3c', `+${eIn}`); 
+            createArrow(svgGroup, peakX + 40, peakY, peakX + 40, endY, '#27ae60', `-${eOut}`); 
+            
+            createDashedLine(svgGroup, 50, startY, 950, startY); 
+            if(Math.abs(endY - startY) > 5) createDashedLine(svgGroup, 50, endY, 950, endY);
+
+            // --- 4. DESSIN DES MOLÉCULES ---
+            const levelData = levels[currentLevelIndex];
+
+            // A. RÉACTIFS (Espacement 120px)
+            let rY = startY - 50; 
+            levelData.reactants.forEach((mol, idx) => {
+                for(let i=0; i < mol.count; i++) {
+                    const posX = startX + (idx * 150) + (i * 40); 
+                    const posY = rY - (i * 35);
+                    drawSvgMolecule(molLayer, posX, posY, mol.atoms[0], mol.atoms[1], mol.type);
+                }
+            });
+
+            // B. SOMMET
+            let atomsList = [];
+            levelData.reactants.forEach(mol => {
+                for(let i=0; i<mol.count; i++) {
+                    atomsList.push(mol.atoms[0]);
+                    atomsList.push(mol.atoms[1]);
+                }
+            });
+            
+            // Nuage éclaté au sommet
+            atomsList.forEach((atom, i) => {
+                const angle = Math.PI + (i / (atomsList.length - 1 || 1)) * Math.PI; 
+                const scatterX = (i - (atomsList.length/2)) * 30; // Plus large
+                const scatterY = (i % 2 === 0) ? -20 : -60; 
+                
+                const ax = peakX + scatterX;
+                const ay = peakY + scatterY - 20; 
+                
+                drawSvgMolecule(molLayer, ax, ay, atom, null, 'none');
+            });
+
+            // C. PRODUITS (Droite)
+            let pY = endY - 50;
+            const productsStartX = endX - 150; 
+            levelData.products.forEach((mol, idx) => {
+                for(let i=0; i < mol.count; i++) {
+                    const posX = productsStartX + (idx * 90) + (i * 40);
+                    const posY = pY - (i * 35);
+                    drawSvgMolecule(molLayer, posX, posY, mol.atoms[0], mol.atoms[1], mol.type);
+                }
+            });
+        }
+
+        function createArrow(parent, x1, y1, x2, y2, color, textVal) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color); line.setAttribute("stroke-width", "2");
+            line.setAttribute("marker-end", "url(#arrowhead)");
+            parent.appendChild(line);
+
+            const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            txt.setAttribute("x", x1 + 8); txt.setAttribute("y", (y1+y2)/2);
+            txt.setAttribute("fill", color); txt.setAttribute("font-size", "11");
+            txt.setAttribute("font-weight", "bold");
+            txt.textContent = textVal;
+            parent.appendChild(txt);
+        }
+
+        function createYLabel(parent, y, text) {
+            const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            txt.setAttribute("x", 45); 
+            txt.setAttribute("y", y + 3); 
+            txt.setAttribute("text-anchor", "end");
+            txt.setAttribute("class", "axis-label");
+            txt.textContent = text;
+            parent.appendChild(txt);
+            
+            const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            tick.setAttribute("x1", 47); tick.setAttribute("y1", y);
+            tick.setAttribute("x2", 50); tick.setAttribute("y2", y);
+            tick.setAttribute("stroke", "#7f8c8d");
+            parent.appendChild(tick);
+        }
+
+        function createDashedLine(parent, x1, y1, x2, y2) {
+            const dash = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            dash.setAttribute("x1", x1); dash.setAttribute("y1", y1);
+            dash.setAttribute("x2", x2); dash.setAttribute("y2", y2);
+            dash.setAttribute("stroke", "#bdc3c7"); 
+            dash.setAttribute("stroke-dasharray", "4");
+            dash.setAttribute("stroke-width", "1");
+            parent.appendChild(dash);
+        }
+
+        // Démarrage
+        initLevel();
+
+        // Message de signature dans la console
+ (function() {
+ const styles = ['color: #007BFF','font-size: 1.1em', 'font-weight: bold', 'background-color: #f0f0f0','padding: 4px 8px',
+ 'border-radius: 4px'].join(';');
+
+console.log('%cApplication créée par Mathieu Dubreuil', styles );
+console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+ })()
+    </script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Science Virtual Lab</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script>
+        // Ta configuration exacte (récupérée de ton terminal)
+        const firebaseConfig = {
+            projectId: "laboouvert-52877995",
+            appId: "1:832225967307:web:dcd3ba72c3e24fd8e4ef4e",
+            databaseURL: "https://laboouvert-52877995-default-rtdb.firebaseio.com",
+            storageBucket: "laboouvert-52877995.firebasestorage.app",
+            apiKey: "AIzaSyB_5NjHjtM-yRN7MLYqr5MTMFjiVtKDUMo",
+            authDomain: "laboouvert-52877995.firebaseapp.com",
+            messagingSenderId: "832225967307"
+        };
+
+        // On initialise Firebase tout de suite
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #333; }
+        .filters { margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+        
+        #apps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .app {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            background: white;
+        }
+        .app:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .app a { text-decoration: none; color: #333; display: block; }
+        .app-image { font-size: 50px; margin-bottom: 10px; }
+        .app-name { font-weight: bold; margin-bottom: 10px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+        .app-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            margin-top: 10px;
+        }
+        .tags { text-align: left; }
+        .tags span {
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-right: 2px;
+            display: inline-block;
+            margin-bottom: 2px;
+            color: #555;
+        }
+        .likes { display: flex; align-items: center; gap: 5px; }
+        .like-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            transition: transform 0.1s;
+        }
+        .like-btn:active { transform: scale(1.3); }
+        .like-count { font-size: 14px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>L'espace AppLab</h1>
+
+    <div class="filters">
+        <select id="univers-filter">
+            <option value="all">Sciences: Toutes</option>
+            <option value="astro">Astronomie</option>
+            <option value="bio">Biologie</option>
+            <option value="chi">Chimie</option>
+            <option value="genie">Ingénierie</option>
+            <option value="e&m">Magnétisme et Électricité</option>
+            <option value="phy">Physique</option>
+            <option value="terre">Science de la Terre</option>
+        </select>
+
+        <select id="niveau-filter">
+            <option value="all">Niveau: Tous</option>
+            <option value="st1">ST 1-2</option>
+            <option value="st3">ST 3</option>
+            <option value="st4">ST 4</option>
+            <option value="ats">ATS</option>
+            <option value="ste">STE</option>
+            <option value="chimie">Chimie 5</option>
+            <option value="physique">Physique 5</option>
+            <option value="biologie">Biologie Générale 5</option>
+            <option value="enseignant">Enseignant.e et TTP</option>
+        </select>
+
+        <select id="approche-filter">
+            <option value="all">Approche: Toutes</option>
+            <option value="exp">Expérimentations</option>
+            <option value="jeu">Jeux</option>
+            <option value="tec">Techniques</option>
+            <option value="carte">Réseau de conepts</option>
+        </select>
+    </div>
+
+    <div id="apps-container">
+        </div>
+    <script>
+        const apps = [
+    // PHYSIQUE (phy)
+    // PHYSIQUE (ATS)
+    { id: "Laboratoire_Archimede", name: "Laboratoire Archimède", url: "Laboratoire_Archimede.html", univers: "phy", niveau: "physique", approche: "exp", emoji: "🛀" },
+    { id: "Laboratoire_Bernouilli", name: "Laboratoire Bernouilli", url: "Laboratoire_Bernouilli.html", univers: "phy", niveau: "physique", approche: "exp", emoji: "✈️" },
+    
+    // PHYSIQUE (Optique)
+    { id: "Jeu_Billard_Reflexion", name: "Jeu Billard Réflexion", url: "Jeu_Billard_Reflexion.html", univers: "phy", niveau: "physique", approche: "jeu", emoji: "🎱" },
+    { id: "Technique_Traceur_Rayons_Banc_Optique", name: "Technique Traceur de Rayons", url: "Technique_Traceur_Rayons_Banc_Optique.html", univers: "phy", niveau: "physique", approche: "jeu", emoji: "🔦" },
+    { id: "Laboratoire_Refraction", name: "Laboratoire Réfraction", url: "Laboratoire_Refraction.html", univers: "phy", niveau: "physique", approche: "exp", emoji: "🔎" },
+    
+    // PHYSIQUE (Mécanique)
+    { id: "Laboratoire-MRU_MUA", name: "Laboratoire MRU MUA", url: "Laboratoire-MRU_MUA.html", univers: "phy", niveau: "physique", approche: "exp", emoji: "🚗" },
+    { id: "Laboratoire_Analyse_Video", name: "Laboratoire Analyse Vidéo", url: "Laboratoire_Analyse_Video.html", univers: "phy", niveau: "physique", approche: "tec", emoji: "📹" },
+    { id: "Jeu_Cinematique_1D_Graphiques", name: "Jeu Cinematique 1D Graphiques.html", url: "Jeu_Cinematique_1D_Graphiques.html", univers: "phy", niveau: "physique", approche: "jeu", emoji: "📉" },
+    
+    // MAGNETISME (e&m)
+    { id: "Laboratoire_Materiaux_Magnetique", name: "Labo Matériaux Magnétiques", url: "Laboratoire_Materiaux_Magnetique.html", univers: "e&m", niveau: "st3", approche: "exp", emoji: "🧲" },
+    { id: "Laboratoire_Serie_Electrostatique", name: "Labo Série Électrostatique", url: "Laboratoire_Serie_Electrostatique.html", univers: "e&m", niveau: "st4", approche: "exp", emoji: "⚡" },
+
+    // CHIMIE (chi)
+    { id: "Jeu_Construction_Molecule", name: "Jeu Construction Molécule", url: "Jeu_Construction_Molecule.html", univers: "chi", niveau: "st1", approche: "jeu", emoji: "⚛️" }, 
+    { id: "Laboratoire_Chauffage", name: "Laboratoire Chauffage", url: "Laboratoire_Chauffage.html", univers: "chi", niveau: "st1", approche: "exp", emoji: "🔥" },
+    { id: "Laboratoire_Solubilite", name: "Laboratoire Solubilité", url: "Laboratoire_Solubilite.html", univers: "chi", niveau: "st1", approche: "exp", emoji: "⚗️" },
+    { id: "Jeu_Triangle_du_Feu", name: "Jeu Triangle du Feu", url: "Jeu_Triangle_du_Feu.html", univers: "chi", niveau: "st4", approche: "jeu", emoji: "🔥" },
+    { id: "Jeu_Equilibre_Chimique", name: "Jeu Équilibre Chimique", url: "Jeu_Equilibre_Chimique.html", univers: "chi", niveau: "st4", approche: "jeu", emoji: "🧪" },
+    { id: "Jeu_Modele_Atomique", name: "Jeu Modèle Atomique", url: "Jeu_Modele_Atomique.html", univers: "chi", niveau: "st4", approche: "jeu", emoji: "⚛️" },
+    { id: "Jeu_Notation_Lewis", name: "Jeu Notation Lewis", url: "Jeu_Notation_Lewis.html", univers: "chi", niveau: "st4", approche: "jeu", emoji: "He:" },               
+    { id: "Laboratoire_Zero_Absolu", name: "Laboratoire Zéro Absolu", url: "Laboratoire_Zero_Absolu.html", univers: "chi", niveau: "chimie", approche: "exp", emoji: "🌡️" },
+    { id: "Jeu_Energie_d_Activation", name: "Jeu Énergie d'Activation", url: "Jeu_Energie_d_Activation.html", univers: "chi", niveau: "chimie", approche: "jeu", emoji: "🔥" },
+    { id: "Laboratoire_Indicateurs_Acido-Basiques", name: "Labo Indicateurs Acido-Basiques", url: "Laboratoire_Indicateurs_Acido-Basiques.html", univers: "chi", niveau: "chimie", approche: "exp", emoji: "🧪" },
+    { id: "Jeu_ppm_Dissolution", name: "Jeu ppm Dissolution", url: "Jeu_ppm_Dissolution.html", univers: "chi", niveau: "chimie", approche: "jeu", emoji: "🫗" },
+    { id: "Jeu_ppm_Calcul", name: "Jeu_ppm_Calcul", name: "Jeu ppm Calcul", url: "Jeu_ppm_Calcul.html", univers: "chi", niveau: "chimie", approche: "jeu", emoji: "🚱" },
+    
+    
+    // BIOLOGIE (bio)
+    { id: "Jeu_Transfusion_Sanguine", name: "Jeu Transfusion Sanguine", url: "Jeu_Transfusion_Sanguine.html", univers: "bio", niveau: "st3", approche: "jeu", emoji: "🩸" },
+    { id: "Jeu_Vision_Claire", name: "Jeu Vision Claire", url: "Jeu_Vision_Claire.html", univers: "bio", niveau: "st3", approche: "jeu", emoji: "🤓" },
+    { id: "Laboratoire_Genetique_Mais", name: "Laboratoire Génétique Maïs", url: "Laboratoire_Genetique_Mais.html", univers: "bio", niveau: "biologie", approche: "exp", emoji: "🌽" },
+    { id: "Laboratoire_IndiceBiologiqueRiviere_Invertebres", name: "Labo Indice Bio Rivière", url: "Laboratoire_IndiceBiologiqueRiviere_Invertebres.html", univers: "bio", niveau: "biologie", approche: "exp", emoji: "🦐" },
+    { id: "Laboratoire-BioIndicateurs-Diatomees", name: "Labo BioIndicateurs Diatomées", url: "Laboratoire-BioIndicateurs-Diatomees.html", univers: "bio", niveau: "biologie", approche: "exp", emoji: "🔬" },
+    { id: "Jeu_Calendrier_Menstrues", name: "Jeu Calendrier Menstruel", url: "Jeu_Calendrier_Menstrues.html", univers: "bio", niveau: "biologie", approche: "jeu", emoji: "📅" },
+
+    // TERRE & ESPACE (astro, terre)
+    { id: "Jeu_Orientation_Soleil_Ombre", name: "Jeu Orientation Soleil Ombre", url: "Jeu_Orientation_Soleil_Ombre.html", univers: "astro", niveau: "st1", approche: "jeu", emoji: "☀️" },
+    { id: "Laboratoire_Carte-Isobar", name: "Laboratoire Carte Isobar", url: "Laboratoire_Carte-Isobar.html", univers: "terre", niveau: "ST4", approche: "exp", emoji: "🗺️" },
+    { id: "Laboratoire_Circulation_Thermohaline", name: "Labo Circulation Thermohaline", url: "Laboratoire_Circulation_Thermohaline.html", univers: "terre", niveau: "ST4", approche: "exp", emoji: "🌊" },
+
+    // INGENIERIE & TECHNIQUES (genie)
+    { id: "Jeu_Deplier_Pyramide", name: "Jeu Déplier Pyramide", url: "Jeu_Deplier_Pyramide.html", univers: "genie", niveau: "st4", approche: "jeu", emoji: "🔺" },
+    { id: "Jeu_Cotation-fonctionnelle", name: "Jeu Cotation fonctionnelle.html", url: "Jeu_Cotation-fonctionnelle.html", univers: "genie", niveau: "st4", approche: "jeu", emoji: "🕳️" },
+    
+    // TECHNIQUES (genie)
+    { id: "Jeu_Lecture_Cylindre_Gradue", name: "Jeu Lecture Cylindre Gradué", url: "Jeu_Lecture_Cylindre_Gradue.html", univers: "genie", niveau: "ste", approche: "jeu", emoji: "💧" },
+    { id: "Technique_Pied_a_Coulisse", name: "Technique Pied à Coulisse", url: "Technique_Pied_a_Coulisse.html", univers: "genie", niveau: "ste", approche: "tec", emoji: "📏" },
+    { id: "Ressources_Banc_de_Scie", name: "Ressources Banc de Scie", url: "Ressources_Banc_de_Scie.html", univers: "ressources", niveau: "enseignant", approche: "carte", emoji: "🪚" },
+    { id: "Ressources_Typologies_Incomprehensions", name: "Typologies Incomprehensions", url: "Ressources_Typologies_Incomprehensions.html", univers: "ressources", niveau: "enseignant", approche: "carte", emoji: "🤯" },
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // Initialisation des éléments
+        const appsContainer = document.getElementById('apps-container');
+        const universFilter = document.getElementById('univers-filter');
+        const niveauFilter = document.getElementById('niveau-filter');
+        const approcheFilter = document.getElementById('approche-filter');
+
+        // Fonction d'affichage
+        function renderApps() {
+            appsContainer.innerHTML = '';
+            
+            const filteredApps = apps.filter(app => {
+                return (universFilter.value === 'all' || app.univers === universFilter.value) &&
+                       (niveauFilter.value === 'all' || app.niveau === niveauFilter.value) &&
+                       (approcheFilter.value === 'all' || app.approche === approcheFilter.value);
+            });
+
+            // Message si aucun résultat
+            if (filteredApps.length === 0) {
+                appsContainer.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #666;">Aucune application ne correspond à ces critères pour le moment. 🧪</div>';
+                return;
+            }
+
+            filteredApps.forEach(app => {
+                const appElement = document.createElement('div');
+                appElement.classList.add('app');
+                const baseUrl = "https://laboouvert-52877995.web.app/";
+
+                appElement.innerHTML = `
+                    <a href="${baseUrl}${app.url}" target="_blank">
+                        <div class="app-image">${app.emoji}</div>
+                        <div class="app-name">${app.name}</div>
+                    </a>
+                    <div class="app-footer">
+                        <div class="tags">
+                            <span>${getLabel(app.univers)}</span>
+                            <span>${app.niveau.toUpperCase()}</span>
+                            <span>${app.approche === 'exp' ? 'Exp.' : (app.approche === 'tec' ? 'Tech.' : 'Jeu')}</span>
+                        </div>
+                        <div class="likes">
+                            <button class="like-btn" data-app-id="${app.id}">❤️</button>
+                            <span id="like-count-${app.id}" class="like-count">0</span>
+                        </div>
+                    </div>
+                `;
+                appsContainer.appendChild(appElement);
+            });
+            // L'ancien code de chargement des likes a été retiré d'ici pour éviter les conflits.
+        }
+
+        // Helper pour afficher un nom joli au lieu du code
+        function getLabel(code) {
+            const labels = {
+                'astro': 'Astro', 'bio': 'Bio', 'chi': 'Chimie', 
+                'genie': 'Ing.', 'e&m': 'Élec.', 'phy': 'Physique', 'terre': 'Terre'
+            };
+            return labels[code] || code;
+        }
+
+        // --- CES LIGNES MANQUAIENT ---
+        // Écouteurs d'événements pour faire fonctionner les menus déroulants
+        universFilter.addEventListener('change', renderApps);
+        niveauFilter.addEventListener('change', renderApps);
+        approcheFilter.addEventListener('change', renderApps);
+
+        // Premier affichage au chargement de la page
+        renderApps();
+        // -----------------------------
+
+        // Connexion Firebase avec Authentification Anonyme (Ton nouveau code)
+        if(typeof firebase !== 'undefined') {
+            const db = firebase.database();
+            
+            // Connexion silencieuse
+            firebase.auth().signInAnonymously().catch(error => {
+                console.error("Erreur d'authentification :", error);
+            });
+
+            // On attend que l'utilisateur soit connecté (même anonymement)
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    const uid = user.uid;
+                    const itemsRef = db.ref('items');
+
+                    // Gestion des clics sur "Like"
+                    appsContainer.addEventListener('click', e => {
+                        if (e.target.matches('.like-btn')) {
+                            const appId = e.target.dataset.appId;
+                            
+                            // 1. On incrémente le compteur officiel dans 'items'
+                            db.ref(`items/${appId}/likeCount`).transaction(curr => (curr || 0) + 1)
+                            .then(() => {
+                                // 2. On enregistre que cet utilisateur précis a voté dans 'likes'
+                                db.ref(`likes/${appId}/${uid}`).set(true);
+                            });
+                        }
+                    });
+
+                    // Affichage en temps réel (on écoute 'items' au lieu de 'likes')
+                    itemsRef.on('value', (snapshot) => {
+                        const allItems = snapshot.val() || {};
+                        // On s'assure de parcourir tes applications définies
+                        apps.forEach(app => {
+                            const el = document.getElementById(`like-count-${app.id}`);
+                            if (el) {
+                                // On va chercher le likeCount, ou 0 s'il n'existe pas encore
+                                const count = allItems[app.id]?.likeCount || 0;
+                                el.textContent = count;
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+    } catch (e) {
+        console.error("Erreur AppLab:", e);
+    }
+});
+</script>
+</body>
+</html>

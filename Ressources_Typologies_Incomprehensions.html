@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte Mentale des Types d'Erreurs (Final)</title>
+    <style>
+        /* CSS pour que la carte mentale remplisse toute la page */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Empêche les barres de défilement */
+        }
+        /* Style du conteneur SVG pour la carte mentale */
+        #mindmap-container {
+            width: 100%;
+            height: 100%;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <svg id="mindmap-container"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.17"></script>
+
+    <script>
+        // On récupère les classes 'Transformer' et 'Markmap' de l'objet global window.markmap
+        const { Transformer, Markmap } = window.markmap;
+
+        // On instancie le transformateur
+        const transformer = new Transformer();
+
+        // Le conteneur SVG où la carte sera rendue
+        const svgEl = document.querySelector('#mindmap-container');
+
+        // Les données de la carte mentale en utilisant la syntaxe Markdown
+        const markdownData = `
+# **OUPS!**<br>Les types d'erreurs
+
+
+## Blocages causés <br>un savoir **non construit**
+- **Concepts**
+    - Nouveauté
+		- La mole correspond à un nombre de molécules.
+	- Abstraction
+		- La lumière bien que immatérielle se comporte parfois comme une particule et parfois comme une onde.
+    - Complexité
+		- Le cycle menstruel est régulé par des des boucles d'interactions entre des hormones ovariennes Estrogènes et progestérone0 et des hormones hypophysaires (LH et FSH). 
+- **Processus scientifiques**
+    - Raisonnement scientifique
+		- Déduction
+			- Appliquer une règle générale à un cas particulier
+		- Induction
+			- Formuler une règle générale  à partir d'observations particulière
+				- Lorsque qu'un indicateur lithmus rouge reste rouge et le lithmus bleu change au rouge, alors la solution est acide.
+    - Résolution de problèmes
+		- Il n'a pas appris à diviser le problème.
+    - Pensée critique
+		- Les vaccins ne sont pas bon pour la santé. C'est mon opinion, respecte moi.
+- **Compétences**
+    - Mathématiques
+		- Conversion d’unités (mL → L, g → kg).
+    - Littératie
+		- Emploie indistinct des mots de liaison de cause et de conséquence : parce que, car, donc, ainsi...
+    - Technologie
+		- Lecture d'un volume à la graduation sous le ménisque
+
+## Blocages causés <br>un savoir **mal construit**
+- **Conceptions erronées<br>d'origine expérientielle**
+    - Restriction & extension
+		- Tous les métaux sont magnétiques.
+    - Catégorisation
+		- Les baleines sont des poissons
+    - Exclusion / inclusion
+		- Les plantes ne respirent pas, car elles sont pas des animaux.
+    - Inférence
+		- Si c’est naturel, c’est sans danger
+    - Raisonnement perceptif restreint
+		-  L’air n’a pas de masse car on ne le voit pas
+    - Raisonnement heuristique
+		-  Plus il y a de chiffres sur la calculatrice, plus précis sera mon calcul 
+    - Biais cognitifs
+		- Ces mesures sont contraires à la loi scientifique, je vais les ignorer.
+    - Langage courant
+		- Le poids et la masse sont des synonymes.
+- **Conceptions erronées<br>d'origine sociale**
+    - Fiction
+		-Il y a des humains sur Terre depuis toujours. À preuve, les dinosaures et les humains ont vécu ensemble. 
+    - Interactions sociales
+		- 
+    - Mythes et culture populaire
+    - Médias et chambres d’écho
+    - École
+		- Mon enseignante a dit que les nuages sont faits de vapeur d'eau.
+
+	
+## Blocages causés par <br>des **entraves contextuelles** 
+- **Manque de motivation**
+    - Extrinsèque
+		- Mes parents seront très déçu de moi si j'échoue. Je n'irai pas au cours.
+    - Intrinsèque
+		- La chimie ne m'intéresse plus, je ne ferai plus d'effort.
+- **Anxiété**
+	- La scie a ruban est dangereuse, j'ai peur de me blesser. 
+- **Environnement d’apprentissage**
+	- Vous parlez trop rapidement pour que je comprenne.
+`;
+
+    // Étape 1 : Transformer le texte Markdown en un objet de données (root)
+    const { root } = transformer.transform(markdownData);
+
+    // Étape 2 : Créer la carte mentale avec options
+    Markmap.create(svgEl, {
+        initialExpandLevel: 2 // <-- ICI, dans les options de Markmap.create
+    }, root);
+
+</script>
+</body>
+</html>

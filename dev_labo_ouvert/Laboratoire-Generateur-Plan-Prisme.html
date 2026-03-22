@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Plan de Prisme</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        h1, h2 { font-family: 'Fraunces', serif; }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 9999px;
+            outline: none;
+            transition: opacity .2s;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            background: white;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 3px solid #667eea;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            background: white;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 3px solid #667eea;
+        }
+        
+        .radio-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .radio-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .radio-card input:checked + .radio-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .radio-card input:checked + .radio-content svg {
+            stroke: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-6xl glass-effect rounded-2xl p-8 animate-in">
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                Déplier un Prisme
+            </h1>
+            <p class="text-gray-600 text-lg">
+                Générez des patrons imprimables pour vos projets de géométrie 3D
+            </p>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            
+            <!-- Panneau de contrôles -->
+            <div class="space-y-6">
+                
+                <!-- Type de base -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Type de base</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="radio-card">
+                            <input type="radio" name="baseType" value="triangular" class="hidden" checked>
+                            <div class="radio-content border-2 border-gray-200 rounded-xl p-4 text-center transition-all">
+                                <svg viewBox="0 0 100 100" class="w-16 h-16 mx-auto mb-2 stroke-gray-700" fill="none" stroke-width="2">
+                                    <polygon points="50,20 85,75 15,75" />
+                                </svg>
+                                <span class="font-semibold block">Triangulaire</span>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="baseType" value="square" class="hidden">
+                            <div class="radio-content border-2 border-gray-200 rounded-xl p-4 text-center transition-all">
+                                <svg viewBox="0 0 100 100" class="w-16 h-16 mx-auto mb-2 stroke-gray-700" fill="none" stroke-width="2">
+                                    <rect x="25" y="25" width="50" height="50" />
+                                </svg>
+                                <span class="font-semibold block">Carrée</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Longueur du côté de la base -->
+                <div>
+                    <label for="baseSlider" class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">
+                        Côté de la base (mm)
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        <input type="range" id="baseSlider" min="20" max="80" value="40" class="flex-1">
+                        <span id="baseValue" class="font-bold text-2xl text-purple-600 w-16 text-right">40</span>
+                    </div>
+                </div>
+
+                <!-- Hauteur du prisme -->
+                <div>
+                    <label for="heightSlider" class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">
+                        Hauteur du prisme (mm)
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        <input type="range" id="heightSlider" min="20" max="100" value="50" class="flex-1">
+                        <span id="heightValue" class="font-bold text-2xl text-purple-600 w-16 text-right">50</span>
+                    </div>
+                </div>
+
+                <!-- Type de patron -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Type de patron</label>
+                    <div id="patternOptions" class="space-y-2">
+                        <!-- Les options seront générées dynamiquement -->
+                    </div>
+                </div>
+
+                <!-- Bouton de génération -->
+                <button id="generateBtn" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-6 rounded-xl hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-purple-300 transition-all duration-300 transform hover:scale-[1.02] text-lg">
+                    🎨 Générer le plan SVG
+                </button>
+
+                <div id="error-message" class="text-red-600 font-medium text-center min-h-[24px]"></div>
+            </div>
+
+            <!-- Panneau de visualisation -->
+            <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-8 flex items-center justify-center border-2 border-purple-200">
+                <div id="visualization" class="w-full">
+                    <!-- La visualisation sera générée dynamiquement -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
+            <p>Créé par Mathieu Dubreuil • Amélioré pour les prismes</p>
+        </div>
+    </div>
+
+<script>
+/*
+ * =============================================================
+ * Application Éducative : Générateur de Plan de Prisme
+ * Auteur original: Mathieu Dubreuil
+ * Itération: Extension pour prismes triangulaires et carrés
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: Génère des patrons 2D imprimables pour prismes
+ * =============================================================
+*/
+
+const baseSlider = document.getElementById('baseSlider');
+const heightSlider = document.getElementById('heightSlider');
+const baseValueDisplay = document.getElementById('baseValue');
+const heightValueDisplay = document.getElementById('heightValue');
+const generateBtn = document.getElementById('generateBtn');
+const errorMessage = document.getElementById('error-message');
+const patternOptions = document.getElementById('patternOptions');
+const visualization = document.getElementById('visualization');
+
+const PAGE_MARGIN = 15;
+const PAGE = { letter: { w: 215.9, h: 279.4 } };
+
+// Mise à jour des valeurs affichées
+function updateDisplayValues() {
+    baseValueDisplay.textContent = baseSlider.value;
+    heightValueDisplay.textContent = heightSlider.value;
+}
+
+baseSlider.addEventListener('input', updateDisplayValues);
+heightSlider.addEventListener('input', updateDisplayValues);
+
+// Gestion du changement de type de base
+const baseTypeRadios = document.querySelectorAll('input[name="baseType"]');
+baseTypeRadios.forEach(radio => {
+    radio.addEventListener('change', updatePatternOptions);
+});
+
+// Options de patron selon le type de base
+function updatePatternOptions() {
+    const baseType = document.querySelector('input[name="baseType"]:checked').value;
+    
+    if (baseType === 'triangular') {
+        patternOptions.innerHTML = `
+            <label class="flex items-center space-x-3 p-3 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-purple-400 transition-all">
+                <input type="radio" name="patternType" value="triangular-standard" class="form-radio text-purple-600 w-5 h-5" checked>
+                <span class="text-gray-800 font-medium">Patron en ligne</span>
+            </label>
+            <label class="flex items-center space-x-3 p-3 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-purple-400 transition-all">
+                <input type="radio" name="patternType" value="triangular-wrapped" class="form-radio text-purple-600 w-5 h-5">
+                <span class="text-gray-800 font-medium">Patron enroulé</span>
+            </label>
+        `;
+        updateVisualization('triangular');
+    } else {
+        patternOptions.innerHTML = `
+            <label class="flex items-center space-x-3 p-3 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-purple-400 transition-all">
+                <input type="radio" name="patternType" value="square-standard" class="form-radio text-purple-600 w-5 h-5" checked>
+                <span class="text-gray-800 font-medium">Patron en ligne</span>
+            </label>
+            <label class="flex items-center space-x-3 p-3 bg-white rounded-lg border-2 border-gray-200 cursor-pointer hover:border-purple-400 transition-all">
+                <input type="radio" name="patternType" value="square-cross" class="form-radio text-purple-600 w-5 h-5">
+                <span class="text-gray-800 font-medium">Patron en croix</span>
+            </label>
+        `;
+        updateVisualization('square');
+    }
+}
+
+// Mise à jour de la visualisation 3D
+function updateVisualization(baseType) {
+    if (baseType === 'triangular') {
+        visualization.innerHTML = `
+            <svg viewBox="0 0 300 300" class="w-full h-full">
+                <title>Illustration d'un prisme triangulaire</title>
+                <!-- Base arrière -->
+                <polygon points="150,80 220,180 80,180" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+                <!-- Base avant -->
+                <polygon points="150,100 220,200 80,200" fill="#c7d2fe" stroke="#4f46e5" stroke-width="2.5"/>
+                <!-- Arêtes latérales -->
+                <line x1="150" y1="80" x2="150" y2="100" stroke="#4f46e5" stroke-width="2" stroke-dasharray="4"/>
+                <line x1="220" y1="180" x2="220" y2="200" stroke="#4f46e5" stroke-width="2.5"/>
+                <line x1="80" y1="180" x2="80" y2="200" stroke="#4f46e5" stroke-width="2.5"/>
+                <!-- Labels -->
+                <text x="150" y="250" text-anchor="middle" fill="#4f46e5" font-weight="bold">Prisme triangulaire</text>
+            </svg>
+        `;
+    } else {
+        visualization.innerHTML = `
+            <svg viewBox="0 0 300 300" class="w-full h-full">
+                <title>Illustration d'un prisme carré</title>
+                <!-- Base arrière -->
+                <rect x="80" y="60" width="120" height="120" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+                <!-- Base avant -->
+                <rect x="100" y="80" width="120" height="120" fill="#c7d2fe" stroke="#4f46e5" stroke-width="2.5"/>
+                <!-- Arêtes latérales -->
+                <line x1="80" y1="60" x2="100" y2="80" stroke="#4f46e5" stroke-width="2" stroke-dasharray="4"/>
+                <line x1="200" y1="60" x2="220" y2="80" stroke="#4f46e5" stroke-width="2" stroke-dasharray="4"/>
+                <line x1="80" y1="180" x2="100" y2="200" stroke="#4f46e5" stroke-width="2.5"/>
+                <line x1="200" y1="180" x2="220" y2="200" stroke="#4f46e5" stroke-width="2.5"/>
+                <!-- Labels -->
+                <text x="150" y="250" text-anchor="middle" fill="#4f46e5" font-weight="bold">Prisme carré</text>
+            </svg>
+        `;
+    }
+}
+
+// ========== FONCTIONS DE GÉNÉRATION SVG ==========
+
+// Prisme triangulaire - Patron en ligne
+function generateTriangularStandardSVG(base, height) {
+    const sqrtThree = Math.sqrt(3);
+    const triangleHeight = (base * sqrtThree) / 2;
+    
+    // Largeur: 3 rectangles + 2 triangles
+    const netWidth = 3 * base + 2 * triangleHeight;
+    const netHeight = height;
+    
+    if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+        errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+        return null;
+    }
+    
+    const pageW = PAGE.letter.h;
+    const pageH = PAGE.letter.w;
+    const offsetX = (pageW - netWidth) / 2;
+    const offsetY = (pageH - netHeight) / 2;
+    
+    let paths = '';
+    
+    // Contour extérieur
+    const x1 = triangleHeight;
+    const y1 = 0;
+    const x2 = x1 + base;
+    const x3 = x2 + base;
+    const x4 = x3 + base;
+    const x5 = x4 + triangleHeight;
+    
+    // Triangle gauche
+    paths += `<path d="M ${0},${height/2} L ${triangleHeight},${0} L ${triangleHeight},${height} Z" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Rectangles
+    paths += `<rect x="${x1}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    paths += `<rect x="${x2}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    paths += `<rect x="${x3}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Triangle droit
+    paths += `<path d="M ${x4},${0} L ${x5},${height/2} L ${x4},${height} Z" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Lignes de pliage
+    paths += `<line x1="${x1}" y1="${0}" x2="${x1}" y2="${height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${x2}" y1="${0}" x2="${x2}" y2="${height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${x3}" y1="${0}" x2="${x3}" y2="${height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${x4}" y1="${0}" x2="${x4}" y2="${height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    
+    return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg">
+        <title>Plan de prisme triangulaire - Patron en ligne</title>
+        <g transform="translate(${offsetX}, ${offsetY})">${paths}</g>
+    </svg>`;
+}
+
+// Prisme triangulaire - Patron enroulé
+function generateTriangularWrappedSVG(base, height) {
+    const sqrtThree = Math.sqrt(3);
+    const triangleHeight = (base * sqrtThree) / 2;
+    
+    const netWidth = 3 * base;
+    const netHeight = height + triangleHeight;
+    
+    if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+        errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+        return null;
+    }
+    
+    const pageW = PAGE.letter.h;
+    const pageH = PAGE.letter.w;
+    const offsetX = (pageW - netWidth) / 2;
+    const offsetY = (pageH - netHeight) / 2;
+    
+    let paths = '';
+    
+    // Triangle du haut
+    paths += `<path d="M ${base/2},${0} L ${base * 1.5},${triangleHeight} L ${base/2},${triangleHeight} Z" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Trois rectangles
+    paths += `<rect x="${0}" y="${triangleHeight}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    paths += `<rect x="${base}" y="${triangleHeight}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    paths += `<rect x="${2*base}" y="${triangleHeight}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Lignes de pliage
+    paths += `<line x1="${base/2}" y1="${triangleHeight}" x2="${base * 1.5}" y2="${triangleHeight}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${base}" y1="${triangleHeight}" x2="${base}" y2="${triangleHeight + height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${2*base}" y1="${triangleHeight}" x2="${2*base}" y2="${triangleHeight + height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    
+    return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg">
+        <title>Plan de prisme triangulaire - Patron enroulé</title>
+        <g transform="translate(${offsetX}, ${offsetY})">${paths}</g>
+    </svg>`;
+}
+
+// Prisme carré - Patron en ligne
+function generateSquareStandardSVG(base, height) {
+    const netWidth = 4 * base + 2 * base;
+    const netHeight = height;
+    
+    if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+        errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+        return null;
+    }
+    
+    const pageW = PAGE.letter.h;
+    const pageH = PAGE.letter.w;
+    const offsetX = (pageW - netWidth) / 2;
+    const offsetY = (pageH - netHeight) / 2;
+    
+    let paths = '';
+    
+    // Carré gauche
+    paths += `<rect x="${0}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Quatre rectangles
+    for (let i = 0; i < 4; i++) {
+        const x = base + i * base;
+        paths += `<rect x="${x}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    }
+    
+    // Carré droit
+    paths += `<rect x="${5*base}" y="${0}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Lignes de pliage verticales
+    for (let i = 1; i <= 5; i++) {
+        paths += `<line x1="${i*base}" y1="${0}" x2="${i*base}" y2="${height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    }
+    
+    return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg">
+        <title>Plan de prisme carré - Patron en ligne</title>
+        <g transform="translate(${offsetX}, ${offsetY})">${paths}</g>
+    </svg>`;
+}
+
+// Prisme carré - Patron en croix
+function generateSquareCrossSVG(base, height) {
+    const netWidth = 4 * base;
+    const netHeight = height + 2 * base;
+    
+    if (netWidth > (PAGE.letter.h - 2 * PAGE_MARGIN) || netHeight > (PAGE.letter.w - 2 * PAGE_MARGIN)) {
+        errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+        return null;
+    }
+    
+    const pageW = PAGE.letter.h;
+    const pageH = PAGE.letter.w;
+    const offsetX = (pageW - netWidth) / 2;
+    const offsetY = (pageH - netHeight) / 2;
+    
+    let paths = '';
+    
+    // Carré du haut
+    paths += `<rect x="${base}" y="${0}" width="${base}" height="${base}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Quatre rectangles au milieu
+    for (let i = 0; i < 4; i++) {
+        const x = i * base;
+        paths += `<rect x="${x}" y="${base}" width="${base}" height="${height}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    }
+    
+    // Carré du bas
+    paths += `<rect x="${base}" y="${base + height}" width="${base}" height="${base}" stroke="black" stroke-width="0.5" fill="none" />\n`;
+    
+    // Lignes de pliage
+    paths += `<line x1="${base}" y1="${0}" x2="${base}" y2="${base}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${2*base}" y1="${0}" x2="${2*base}" y2="${base}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    
+    for (let i = 1; i < 4; i++) {
+        paths += `<line x1="${i*base}" y1="${base}" x2="${i*base}" y2="${base + height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    }
+    
+    paths += `<line x1="${base}" y1="${base}" x2="${2*base}" y2="${base}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    paths += `<line x1="${base}" y1="${base + height}" x2="${2*base}" y2="${base + height}" stroke="black" stroke-width="0.5" stroke-dasharray="3,3" />\n`;
+    
+    return `<svg width="${pageW}mm" height="${pageH}mm" viewBox="0 0 ${pageW} ${pageH}" xmlns="http://www.w3.org/2000/svg">
+        <title>Plan de prisme carré - Patron en croix</title>
+        <g transform="translate(${offsetX}, ${offsetY})">${paths}</g>
+    </svg>`;
+}
+
+// Gestionnaire de génération
+generateBtn.addEventListener('click', () => {
+    errorMessage.textContent = '';
+    
+    const baseSize = parseFloat(baseSlider.value);
+    const prismHeight = parseFloat(heightSlider.value);
+    const patternType = document.querySelector('input[name="patternType"]:checked')?.value;
+    
+    if (!patternType) {
+        errorMessage.textContent = 'Veuillez sélectionner un type de patron.';
+        return;
+    }
+    
+    let svgContent = null;
+    
+    switch(patternType) {
+        case 'triangular-standard':
+            svgContent = generateTriangularStandardSVG(baseSize, prismHeight);
+            break;
+        case 'triangular-wrapped':
+            svgContent = generateTriangularWrappedSVG(baseSize, prismHeight);
+            break;
+        case 'square-standard':
+            svgContent = generateSquareStandardSVG(baseSize, prismHeight);
+            break;
+        case 'square-cross':
+            svgContent = generateSquareCrossSVG(baseSize, prismHeight);
+            break;
+    }
+    
+    if (svgContent) {
+        const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow) {
+            errorMessage.textContent = 'Veuillez autoriser les pop-ups pour voir le SVG.';
+        }
+    }
+});
+
+// Initialisation
+updateDisplayValues();
+updatePatternOptions();
+
+// Message de signature dans la console
+(function() {
+    const styles = [
+        'color: #667eea',
+        'font-size: 1.2em',
+        'font-weight: bold',
+        'background-color: #f0f0f0',
+        'padding: 6px 12px',
+        'border-radius: 6px'
+    ].join(';');
+    
+    console.log('%cGénérateur de Plan de Prisme', styles);
+    console.log('Basé sur le travail de Mathieu Dubreuil');
+    console.log('GitHub : https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB');
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse de Cas : Cycle, Contraception et ITSS</title>
+    <style>
+        :root {
+            --bg-body: #f0f4f8;
+            --bg-card: #ffffff;
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --period: #e74c3c;
+            --target: #9b59b6;
+            --text-main: #333;
+            --border-color: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        h1, h2, h3 { color: var(--primary); }
+        h1 { text-align: center; border-bottom: 2px solid var(--secondary); padding-bottom: 10px; }
+        .section-title { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px; }
+
+        .scenario-box {
+            background-color: #e8f4f8;
+            padding: 15px 20px;
+            border-left: 5px solid var(--secondary);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        /* Légende */
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-color { width: 16px; height: 16px; border-radius: 50%; }
+
+        /* Grille principale (Colonnes) */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .analysis-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Calendriers */
+        .calendars-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .month-wrapper {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .month-header {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+        }
+
+        table.calendar {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        table.calendar th {
+            background-color: #f8fafc;
+            padding: 8px 0;
+            font-size: 0.85em;
+            color: #64748b;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table.calendar td {
+            text-align: center;
+            padding: 10px 5px;
+            border: 1px solid #f1f5f9;
+            height: 40px;
+            vertical-align: middle;
+            font-size: 0.95em;
+        }
+
+        table.calendar td.empty { background-color: #fafafa; }
+        
+        .day-period { background-color: var(--period); color: white; font-weight: bold; border-radius: 50%; }
+        .day-target { border: 3px dashed var(--target); font-weight: bold; color: var(--target); background-color: #f3e8f8; }
+        .day-symptom { border-bottom: 3px solid #f39c12; }
+
+        /* Formulaire */
+        .form-section {
+            background-color: #f8fafc;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: var(--primary); font-size: 0.95em; }
+        
+        input[type="number"], input[type="date"], select {
+            width: 100%; padding: 10px; border: 1px solid var(--border-color);
+            border-radius: 5px; font-size: 1em; box-sizing: border-box;
+        }
+
+        .help-text { font-size: 0.8em; color: #64748b; margin-top: 5px; display: block; }
+
+        button {
+            background-color: var(--secondary); color: white; border: none;
+            padding: 15px 30px; font-size: 1.1em; border-radius: 6px;
+            cursor: pointer; width: 100%; transition: background 0.3s; font-weight: bold;
+        }
+
+        button:hover { background-color: #2980b9; }
+
+        /* Rétroaction */
+        #feedback-section {
+            display: none; margin-top: 30px; padding: 25px; border-radius: 8px;
+            border-left: 6px solid; background-color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .nuance-box {
+            background-color: #fff3cd; color: #856404; padding: 15px;
+            border-radius: 5px; margin-top: 20px; border: 1px solid #ffeeba;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Analyse de Cas : Les Risques de Prédire sa Période de Fertilité</h1>
+    
+    <div class="scenario-box" id="scenario-text">
+        </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="legend-color" style="background: var(--period);"></div> Jours de règles connus</div>
+        <div class="legend-item"><div class="legend-color" style="border: 3px dashed var(--target); background: #f3e8f8;"></div> Le week-end ciblé</div>
+        <div class="legend-item"><div class="legend-color" style="border-bottom: 3px solid #f39c12; border-radius:0;"></div> Signes d'ovulation (glaires) - <em>Si remarqués</em></div>
+    </div>
+
+    <h3 class="section-title">Historique (Cycle Précédent)</h3>
+    <div id="history-calendars" style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+        </div>
+
+    <h3 class="section-title">Analyse en cours (Mois Courant)</h3>
+    <div class="analysis-grid">
+        <div class="calendars-container" id="current-calendar">
+            </div>
+
+        <div class="form-section" id="questions-form">
+            <h2>Phase de Déduction</h2>
+            <p>Analyser les calendriers pour faire vos prédictions. Si la norme pour une femme adulte est un cycle entre 21 et 35 jours, sache que tu analyses le calendrier d'une adolescente.</p>
+            
+            <div class="form-group">
+                <label>1. Combien de jours a duré le cycle PRÉCÉDENT ? </label>
+                <input type="number" id="q-cycle-length" placeholder="Compte des cases de calendrier!">
+            </div>
+
+            <div class="form-group">
+                <label>2. La durée moyenne entre l'ovulation et les prochaines règles est fixée à 14 jours.</label>  Cette phase (lutéale) varie en réalité entre 11 et 16 jours. Tu peux modifier ce paramètre.
+                <input type="number" id="q-post-ov" placeholder="14">
+            </div>
+
+            <div class="form-group">
+                <label>3. Par déduction, quelle a été la durée de sa phase pré-ovulatoire au cycle précédent ?</label>
+                <input type="number" id="q-pre-ov" placeholder="Durée totale - phase post-ovulatoire">
+            </div>
+
+            <div class="form-group">
+                <label>4. À quelle date exacte a eu lieu sa DERNIÈRE ovulation ?</label> Le réflexe <emp>risqué</emp> est d'ajouter la durée de la phase pré-ovulatoire du cycle précédent à la permière journée des menstruations.
+                <input type="date" id="q-ov-date">
+            </div>
+
+            <div class="form-group" style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;">
+                <label>5. Le week-end ciblé (encadré), est-il possible qu'elle tombe enceinte suite à une relation avec pénétration non protégée ? </label> (Déterminer les dates de l'ovulation moins 5 jours, jusqu'à l'ovulation plus 1 jour.)
+                <select id="q-pregnancy-risk">
+                    <option value="">Sélectionnez une réponse...</option> 
+                    <option value="yes">Oui, le risque est certain</option>
+                    <option value="no">Non, c'est biologiquement impossible</option>
+                    <option value="maybe">C'est incertain, le corps n'est pas une machine</option>
+                </select>
+            </div>
+
+            <button onclick="validerAnalyse()">Valider mon analyse</button>
+        </div>
+    </div>
+
+    <div id="feedback-section">
+        </div>
+</div>
+
+<script>
+    // --- NOMS DIVERSIFIÉS (Immigration et société québécoise) ---
+    const prenoms = ["Fatima", "Camille", "Mei", "Aminata", "Sofia", "Léa", "Valeria", "Yasmine", "Aïssatou", "Mariam", "Elena"];
+    const prenomActuel = prenoms[Math.floor(Math.random() * prenoms.length)];
+
+    // --- ALÉATOIRE POUR LES SYMPTÔMES ---
+    // Les signes de glaires ne sont présents que dans 60% des cas
+    const showSymptoms = Math.random() > 0.4; 
+
+    // --- UTILITAIRES DE DATES ---
+    function addDays(date, days) {
+        let result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+    }
+    
+    function formatDateFR(date) {
+        return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function isSameDay(d1, d2) {
+        return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    }
+
+// --- 1 & 2) VARIABLES DU SCÉNARIO (À Remplacer) ---
+const LUTEAL_PHASE = 14;
+let today = new Date(); 
+
+let nextSaturday = new Date(today);
+nextSaturday.setDate(today.getDate() + ((6 - today.getDay() + 7) % 7));
+if (isSameDay(today, nextSaturday)) nextSaturday = addDays(nextSaturday, 7);
+let nextSunday = addDays(nextSaturday, 1);
+
+// Durée des menstruations aléatoire (entre 3 et 7 jours)
+let periodDuration1 = Math.floor(Math.random() * (7 - 3 + 1)) + 3;
+let periodDuration2 = Math.floor(Math.random() * (7 - 3 + 1)) + 3;
+
+// Génération de cycle avec probabilité (15%) de cycle irrégulier/long (jusqu'à 45 jours)
+function getCycleLength() {
+    if (Math.random() < 0.15) {
+        return Math.floor(Math.random() * (45 - 36 + 1)) + 36; // Cycle très long (36-45 jours)
+    }
+    return Math.floor(Math.random() * (35 - 21 + 1)) + 21; // Norme adulte/ado classique (21-35 jours)
+}
+
+let cycle1Length = getCycleLength();
+let cycle2Length = getCycleLength();
+
+// Cycle potentiellement anovulatoire (plus fréquent si le cycle est très long)
+let isAnovulatoryC1 = cycle1Length >= 38 && Math.random() < 0.6;
+let isAnovulatoryC2 = cycle2Length >= 38 && Math.random() < 0.6;
+
+let targetDayOfCycle2 = Math.floor(Math.random() * cycle2Length) + 1; 
+let startCycle2 = addDays(nextSaturday, -(targetDayOfCycle2 - 1));
+let startCycle1 = addDays(startCycle2, -cycle1Length);
+
+// L'ovulation est annulée (null) si le cycle est anovulatoire
+let ovulationCycle1 = isAnovulatoryC1 ? null : addDays(startCycle2, -LUTEAL_PHASE);
+let ovulationCycle2 = isAnovulatoryC2 ? null : addDays(startCycle2, cycle2Length - LUTEAL_PHASE);
+
+let fertileStartC2 = isAnovulatoryC2 ? null : addDays(ovulationCycle2, -5);
+let fertileEndC2 = isAnovulatoryC2 ? null : addDays(ovulationCycle2, 1);
+
+    // Initialisation
+    window.onload = () => {
+        let introText = `<strong>Aujourd'hui, nous sommes le ${formatDateFR(today)}.</strong><br>
+            <strong>${prenomActuel}</strong> s'interroge sur le week-end qui vient (le <strong>${nextSaturday.getDate()} et ${nextSunday.getDate()} ${nextSaturday.toLocaleString('fr-FR', {month:'long'})}</strong>). 
+            Elle a noté les dates de ses dernières règles sur son calendrier. `;
+            
+        if (!showSymptoms) {
+            introText += `<br><em>Note : Ce mois-ci, ${prenomActuel} n'a remarqué aucun changement particulier au niveau de ses pertes vaginales (glaires).</em>`;
+        } else {
+            introText += `<br><em>Note : ${prenomActuel} a bien noté les jours où elle a observé des glaires cervicales transparentes et élastiques.</em>`;
+        }
+        
+        document.getElementById('scenario-text').innerHTML = introText;
+
+        // --- SÉPARATION DES CALENDRIERS ---
+        // 1. Calendriers Historiques (Cycle 1)
+        let histStartDate = new Date(startCycle1.getFullYear(), startCycle1.getMonth(), 1);
+        let histEndDate = new Date(startCycle2.getFullYear(), startCycle2.getMonth(), 1);
+        let historyHTML = "";
+        
+        let d = new Date(histStartDate);
+        while (d <= histEndDate) {
+            historyHTML += generateMonthHTML(d.getFullYear(), d.getMonth(), true);
+            d.setMonth(d.getMonth() + 1);
+        }
+        document.getElementById('history-calendars').innerHTML = historyHTML;
+
+        // 2. Calendrier Courant (Mois de "today" et du "weekend cible")
+        let currentMonthHTML = generateMonthHTML(today.getFullYear(), today.getMonth(), false);
+        // Si le weekend cible déborde sur le mois suivant, on l'ajoute
+        if (nextSunday.getMonth() !== today.getMonth()) {
+            currentMonthHTML += generateMonthHTML(nextSunday.getFullYear(), nextSunday.getMonth(), false);
+        }
+        document.getElementById('current-calendar').innerHTML = currentMonthHTML;
+    };
+
+    function generateMonthHTML(year, month, isHistory) {
+        const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+        let firstDay = new Date(year, month, 1).getDay();
+        let daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        let html = `<div class="month-wrapper" style="flex: 1; min-width: 250px;">
+                        <div class="month-header">${monthNames[month]} ${year}</div>
+                        <table class="calendar">
+                            <tr><th>D</th><th>L</th><th>M</th><th>M</th><th>J</th><th>V</th><th>S</th></tr><tr>`;
+        
+        let dayOfWeek = firstDay;
+        for (let i = 0; i < firstDay; i++) { html += `<td class="empty"></td>`; }
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            let currentDate = new Date(year, month, day);
+            let classes = "";
+            let innerHTML = `<span class="day-number">${day}</span>`;
+
+			// Règles avec durée dynamique
+			if (currentDate >= startCycle1 && currentDate < addDays(startCycle1, periodDuration1)) classes += " day-period";
+			if (currentDate >= startCycle2 && currentDate < Math.min(addDays(startCycle2, periodDuration2), addDays(today, 1))) classes += " day-period";
+
+			// Symptômes (Uniquement si le random a décidé de les afficher ET qu'il y a bien eu une ovulation)
+			if (showSymptoms && ovulationCycle1 && currentDate >= addDays(ovulationCycle1, -2) && currentDate <= ovulationCycle1) classes += " day-symptom";
+
+            // Week-end cible (surtout pertinent pour le calendrier courant)
+            if (isSameDay(currentDate, nextSaturday) || isSameDay(currentDate, nextSunday)) classes += " day-target";
+
+            html += `<td class="${classes}">${innerHTML}</td>`;
+            
+            dayOfWeek++;
+            if (dayOfWeek > 6) { html += "</tr><tr>"; dayOfWeek = 0; }
+        }
+        
+        while (dayOfWeek > 0 && dayOfWeek < 7) { html += `<td class="empty"></td>`; dayOfWeek++; }
+        html += `</tr></table></div>`;
+        return html;
+    }
+
+    // --- VALIDATION ET RÉTROACTION ---
+    function validerAnalyse() {
+        let userCycleLength = parseInt(document.getElementById('q-cycle-length').value);
+        let userPostOv = parseInt(document.getElementById('q-post-ov').value);
+        let userPreOv = parseInt(document.getElementById('q-pre-ov').value);
+        let userOvDate = document.getElementById('q-ov-date').value;
+        let userRisk = document.getElementById('q-pregnancy-risk').value;
+
+        let fbSection = document.getElementById('feedback-section');
+        fbSection.style.display = 'block';
+
+        let mathCorrect = (userCycleLength === cycle1Length && userPostOv === 14 && userPreOv === (cycle1Length - 14));
+        let actualOvStr = ovulationCycle1.toISOString().split('T')[0];
+        let dateCorrect = (userOvDate === actualOvStr);
+
+        let fbHTML = `<h2>Bilan de l'analyse pour ${prenomActuel}</h2>`;
+        
+        if (mathCorrect && dateCorrect) {
+            fbHTML += `<p>✅ <strong>Calculs exacts.</strong> Vous avez déduit que le cycle précédent a duré ${cycle1Length} jours, et que l'ovulation a eu lieu 14 jours avant la fin (le ${formatDateFR(ovulationCycle1)}).</p>`;
+        } else {
+            fbHTML += `<p>❌ <strong>Erreur de déduction.</strong> Le cycle précédent de ${prenomActuel} a duré <strong>${cycle1Length} jours</strong>.<br>
+            La phase post-ovulatoire étant toujours d'environ 14 jours, la phase pré-ovulatoire était de ${cycle1Length - 14} jours. L'ovulation a donc eu lieu le <strong>${formatDateFR(ovulationCycle1)}</strong>.</p>`;
+        }
+
+        let targetIsFertile = (nextSaturday >= fertileStartC2 && nextSaturday <= fertileEndC2) || (nextSunday >= fertileStartC2 && nextSunday <= fertileEndC2);
+        let targetIsPeriod = (nextSaturday >= startCycle2 && nextSaturday < addDays(startCycle2, 5));
+        
+        fbHTML += `<h3>Et pour le week-end ciblé ?</h3>`;
+        
+        if (userRisk === 'maybe') {
+            fbHTML += `<p>✅ <strong>Excellente réponse : C'est incertain.</strong> Vous avez compris qu'on ne peut pas prédire l'avenir avec un calendrier !</p>`;
+        } else {
+            fbHTML += `<p>⚠️ <strong>Attention.</strong> Affirmer un "Oui" absolu ou un "Non" absolu est un piège.</p>`;
+        }
+
+        fbHTML += `<p><strong>La réalité de ce mois-ci :</strong> Le cycle actuel de ${prenomActuel} sera de <strong>${cycle2Length} jours</strong> ! <br>
+        Sa fenêtre de fertilité se situe donc entre le ${fertileStartC2.toLocaleDateString('fr-FR')} et le ${fertileEndC2.toLocaleDateString('fr-FR')}.</p>`;
+
+        if (targetIsFertile) {
+            fbHTML += `<p style="color:var(--period); font-weight:bold;">Le week-end ciblé tombe en pleine fenêtre fertile imprévue. Le risque de grossesse est extrêmement élevé.</p>`;
+        } else {
+            fbHTML += `<p>Le week-end ciblé est en dehors de cette zone. Le risque de grossesse est faible, mais ce n'est dû qu'à la chance, pas au calcul.</p>`;
+        }
+
+        fbHTML += `<div class="nuance-box">
+            <h4>🧠 Au-delà des mathématiques : Comportements et ITSS</h4>
+            <ul>`;
+        
+        if (targetIsPeriod) {
+            fbHTML += `<li><strong>Confort personnel :</strong> ${prenomActuel} aura probablement ses règles ce week-end là. La communication et le consentement concernant le confort physique priment sur le reste.</li>`;
+        }
+
+        fbHTML += `<li><strong>Le danger invisible (ITSS) :</strong> Même si la probabilité de grossesse est jugée faible, <strong>le risque d'attraper une ITSS (chlamydia, gonorrhée, VPH, herpès...) reste de 100%</strong> si le partenaire est porteur et qu'aucun préservatif n'est utilisé. Le calendrier ne remplace en aucun cas la protection contre les infections.</li>
+            </ul>
+        </div>`;
+
+        fbHTML += `<button style="margin-top:20px;" onclick="location.reload()">Analyser un autre cas avec de nouvelles variables</button>`;
+
+        fbSection.innerHTML = fbHTML;
+        fbSection.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+</body>
+</html>

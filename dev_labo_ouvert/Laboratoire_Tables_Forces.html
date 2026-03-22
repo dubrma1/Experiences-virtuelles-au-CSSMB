@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labo Physique : Table de Force</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --panel-color: #2c2c30;
+            --text-color: #e0e0e0;
+            --accent-blue: #4a90e2;
+            --accent-green: #50e3c2;
+            --force-a: #ff6b6b; /* Rouge */
+            --force-b: #feca57; /* Jaune */
+            --force-c: #54a0ff; /* Bleu (Dynamomètre) */
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Layout --- */
+        .main-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Zone Gauche : Simulation */
+        .simulation-area {
+            flex: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Zone Droite : Contrôles */
+        .controls-panel {
+            flex: 1;
+            background-color: var(--panel-color);
+            padding: 20px;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            max-width: 400px;
+        }
+
+        h2 { margin-top: 0; font-size: 1.2rem; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        h3 { font-size: 1rem; margin-bottom: 10px; opacity: 0.9; }
+
+        /* --- UI Elements --- */
+        .control-group {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #ccc;
+        }
+
+        .group-a { border-color: var(--force-a); }
+        .group-b { border-color: var(--force-b); }
+        .group-dyna { border-color: var(--force-c); }
+
+        label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; }
+        
+        input[type=range] {
+            width: 100%;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .value-display { font-weight: bold; font-family: monospace; }
+
+        .status-box {
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-family: monospace;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4757;
+            margin-right: 8px;
+        }
+        .status-indicator.balanced { background: #2ed573; box-shadow: 0 0 10px #2ed573; }
+
+        /* --- Boutons --- */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-png { background-color: var(--accent-blue); color: white; }
+        .btn-slides { background-color: #f1c40f; color: #333; }
+        
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* --- SVG Styles --- */
+        #forceTable {
+            max-width: 90%;
+            max-height: 90%;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+        }
+
+        .protractor { fill: none; stroke: #555; stroke-width: 1; }
+        .tick { stroke: #555; stroke-width: 1; }
+        .tick-label { fill: #888; font-size: 10px; text-anchor: middle; }
+        
+        .vector-line { stroke-width: 4; stroke-linecap: round; }
+        .vector-head { fill-opacity: 1; }
+        
+        .force-a-svg { stroke: var(--force-a); fill: var(--force-a); }
+        .force-b-svg { stroke: var(--force-b); fill: var(--force-b); }
+        .force-c-svg { stroke: var(--force-c); fill: var(--force-c); }
+
+        .center-post { fill: #444; stroke: #666; }
+        .ring { 
+            fill: rgba(255,255,255,0.1); 
+            stroke: #fff; 
+            stroke-width: 3; 
+            transition: cx 0.1s, cy 0.1s; /* Smooth movement */
+        }
+        .ring.centered { stroke: #2ed573; stroke-width: 5; }
+
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="simulation-area" id="captureArea">
+        <svg id="forceTable" viewBox="-250 -250 500 500" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="0" cy="0" r="200" fill="#222" stroke="#444" stroke-width="2"/>
+            
+            <g id="ticksGroup"></g>
+
+            <line id="lineA" x1="0" y1="0" x2="0" y2="-150" class="vector-line force-a-svg" />
+            <line id="lineB" x1="0" y1="0" x2="150" y2="0" class="vector-line force-b-svg" />
+            <line id="lineC" x1="0" y1="0" x2="-100" y2="100" class="vector-line force-c-svg" />
+
+            <circle cx="0" cy="0" r="10" class="center-post" />
+
+            <circle id="ring" cx="0" cy="0" r="25" class="ring" />
+            
+            <circle id="ringCenter" cx="0" cy="0" r="3" fill="#fff" opacity="0.5"/>
+        </svg>
+    </div>
+
+    <div class="controls-panel">
+        <h2>Table de Force</h2>
+        
+        <div class="status-box">
+            <span id="statusIndicator" class="status-indicator"></span>
+            <span id="statusText">DÉSÉQUILIBRÉ</span>
+            <div style="font-size: 0.8rem; margin-top:5px; color:#888;">Force Résultante: <span id="netForceDisplay">0</span> N</div>
+        </div>
+
+        <div class="control-group group-a">
+            <h3>Masse A (Fixe)</h3>
+            <label>Magnitude (N): <span id="valMagA" class="value-display">100</span></label>
+            <input type="range" id="inputMagA" min="0" max="200" value="100">
+            
+            <label>Angle (°): <span id="valAngA" class="value-display">0</span></label>
+            <input type="range" id="inputAngA" min="0" max="360" value="0">
+        </div>
+
+        <div class="control-group group-b">
+            <h3>Masse B (Fixe)</h3>
+            <label>Magnitude (N): <span id="valMagB" class="value-display">100</span></label>
+            <input type="range" id="inputMagB" min="0" max="200" value="100">
+            
+            <label>Angle (°): <span id="valAngB" class="value-display">90</span></label>
+            <input type="range" id="inputAngB" min="0" max="360" value="90">
+        </div>
+
+        <div class="control-group group-dyna">
+            <h3>Dynamomètre (Équilibrante)</h3>
+            <p style="font-size:0.8rem; color:#aaa; margin-top:-5px;">Ajustez pour centrer l'anneau</p>
+            
+            <label>Force (N): <span id="valMagC" class="value-display">100</span></label>
+            <input type="range" id="inputMagC" min="0" max="300" value="50">
+            
+            <label>Angle (°): <span id="valAngC" class="value-display">180</span></label>
+            <input type="range" id="inputAngC" min="0" max="360" value="180">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-png" onclick="exportPNG()">📸 Image PNG</button>
+            <button class="btn-slides" onclick="exportSlidesData()">📊 Google Slides</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Variables d'état ---
+    const state = {
+        a: { mag: 100, angle: 0 },
+        b: { mag: 100, angle: 90 },
+        c: { mag: 50, angle: 225 } // Dynamomètre
+    };
+
+    // --- Initialisation DOM ---
+    const els = {
+        magA: document.getElementById('inputMagA'), angA: document.getElementById('inputAngA'),
+        magB: document.getElementById('inputMagB'), angB: document.getElementById('inputAngB'),
+        magC: document.getElementById('inputMagC'), angC: document.getElementById('inputAngC'),
+        
+        dispMagA: document.getElementById('valMagA'), dispAngA: document.getElementById('valAngA'),
+        dispMagB: document.getElementById('valMagB'), dispAngB: document.getElementById('valAngB'),
+        dispMagC: document.getElementById('valMagC'), dispAngC: document.getElementById('valAngC'),
+
+        lineA: document.getElementById('lineA'),
+        lineB: document.getElementById('lineB'),
+        lineC: document.getElementById('lineC'),
+        
+        ring: document.getElementById('ring'),
+        ringCenter: document.getElementById('ringCenter'),
+        
+        statusInd: document.getElementById('statusIndicator'),
+        statusTxt: document.getElementById('statusText'),
+        netForceDisp: document.getElementById('netForceDisplay'),
+        
+        ticksGroup: document.getElementById('ticksGroup')
+    };
+
+    // --- Utilitaires Mathématiques ---
+    const rad = deg => deg * (Math.PI / 180);
+    const deg = rad => rad * (180 / Math.PI);
+
+    // Dessiner le rapporteur (Graduations)
+    function drawTicks() {
+        for (let i = 0; i < 360; i += 10) {
+            const isMajor = i % 90 === 0;
+            const length = isMajor ? 15 : 8;
+            const r1 = 190;
+            const r2 = 190 - length;
+            
+            const x1 = r1 * Math.cos(rad(i));
+            const y1 = r1 * Math.sin(rad(i));
+            const x2 = r2 * Math.cos(rad(i));
+            const y2 = r2 * Math.sin(rad(i));
+            
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("class", "tick");
+            if(isMajor) line.setAttribute("stroke-width", "2");
+            
+            els.ticksGroup.appendChild(line);
+
+            // Texte
+            if (i % 30 === 0) {
+                const rText = 165;
+                const tx = rText * Math.cos(rad(i));
+                const ty = rText * Math.sin(rad(i));
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", tx);
+                text.setAttribute("y", ty + 3); // Centrage vertical approx
+                text.textContent = i;
+                text.setAttribute("class", "tick-label");
+                // Rotation du texte pour qu'il soit lisible
+                // text.setAttribute("transform", `rotate(${i + 90} ${tx} ${ty})`);
+                els.ticksGroup.appendChild(text);
+            }
+        }
+    }
+
+    // --- Logique Physique ---
+    function updatePhysics() {
+        // Mise à jour des valeurs affichées
+        els.dispMagA.textContent = state.a.mag; els.dispAngA.textContent = state.a.angle;
+        els.dispMagB.textContent = state.b.mag; els.dispAngB.textContent = state.b.angle;
+        els.dispMagC.textContent = state.c.mag; els.dispAngC.textContent = state.c.angle;
+
+        // Mise à jour visuelle des vecteurs (Lignes SVG)
+        // On limite la longueur visuelle à 180px pour rester dans le cercle
+        const scale = 0.8; 
+        
+        const updateLine = (el, vec) => {
+            const r = vec.mag * scale; // Mapping simple magnitude -> pixel
+            const x = r * Math.cos(rad(vec.angle));
+            const y = r * Math.sin(rad(vec.angle)); // SVG Y est inversé basiquement, mais ici viewBox centre 0,0
+            // Note: En SVG standard, Y positif est vers le bas. En physique, Y positif est vers le haut.
+            // Pour simuler une table de force physique vue du dessus, on suit les coordonnées cartésiennes standard.
+            // On inverse Y pour l'affichage SVG.
+            el.setAttribute("x2", x);
+            el.setAttribute("y2", -y); 
+        };
+
+        updateLine(els.lineA, state.a);
+        updateLine(els.lineB, state.b);
+        updateLine(els.lineC, state.c);
+
+        // Calcul de la Force Résultante (Somme des vecteurs)
+        // Fx = F * cos(theta)
+        const ax = state.a.mag * Math.cos(rad(state.a.angle));
+        const ay = state.a.mag * Math.sin(rad(state.a.angle));
+        
+        const bx = state.b.mag * Math.cos(rad(state.b.angle));
+        const by = state.b.mag * Math.sin(rad(state.b.angle));
+        
+        const cx = state.c.mag * Math.cos(rad(state.c.angle));
+        const cy = state.c.mag * Math.sin(rad(state.c.angle));
+
+        const netX = ax + bx + cx;
+        const netY = ay + by + cy;
+        
+        const netForce = Math.sqrt(netX*netX + netY*netY);
+        els.netForceDisp.textContent = netForce.toFixed(2);
+
+        // --- Déplacement de l'anneau ---
+        // L'anneau se déplace dans la direction de la force nette.
+        // Si la force est > seuil, l'anneau touche le poteau central.
+        
+        const maxDisplacement = 12; // Rayon du trou de l'anneau (25) - Rayon poteau (10) - marge
+        let ringX = 0;
+        let ringY = 0;
+
+        // Sensibilité du mouvement : une force de 10N déplace déjà un peu l'anneau
+        const k = 0.5; // Constante de "raideur" virtuelle
+        
+        if (netForce > 0) {
+            // L'anneau est tiré proportionnellement à la force, clippé au max physique
+            let displacement = netForce * k;
+            if (displacement > maxDisplacement) displacement = maxDisplacement;
+            
+            const angleNet = Math.atan2(netY, netX);
+            ringX = displacement * Math.cos(angleNet);
+            ringY = -displacement * Math.sin(angleNet); // SVG Y inverse
+        }
+
+        els.ring.setAttribute("cx", ringX);
+        els.ring.setAttribute("cy", ringY);
+        els.ringCenter.setAttribute("cx", ringX);
+        els.ringCenter.setAttribute("cy", ringY);
+
+        // Feedback
+        if (netForce < 2) { // Tolérance de 2 Newtons
+            els.ring.classList.add("centered");
+            els.statusInd.classList.add("balanced");
+            els.statusTxt.textContent = "ÉQUILIBRE ATTEINT";
+            els.statusTxt.style.color = "#2ed573";
+        } else {
+            els.ring.classList.remove("centered");
+            els.statusInd.classList.remove("balanced");
+            els.statusTxt.textContent = "DÉSÉQUILIBRÉ";
+            els.statusTxt.style.color = "#ff4757";
+        }
+    }
+
+    // --- Event Listeners ---
+    function bindInput(input, obj, key) {
+        input.addEventListener('input', (e) => {
+            obj[key] = parseFloat(e.target.value);
+            updatePhysics();
+        });
+    }
+
+    bindInput(els.magA, state.a, 'mag'); bindInput(els.angA, state.a, 'angle');
+    bindInput(els.magB, state.b, 'mag'); bindInput(els.angB, state.b, 'angle');
+    bindInput(els.magC, state.c, 'mag'); bindInput(els.angC, state.c, 'angle');
+
+    // --- Fonction Export PNG ---
+    function exportPNG() {
+        const svg = document.getElementById("forceTable");
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svg);
+        
+        // Ajout des namespaces si absents (pour compatibilité)
+        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+            source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        if(!source.match(/^<svg[^>]+xmlns:xlink/)){
+            source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+        }
+
+        // Préambule XML
+        source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+
+        // Conversion en URL Data
+        const url = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(source);
+
+        // Dessiner sur un canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = 1000;
+        canvas.height = 1000;
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        
+        img.onload = function() {
+            // Fond noir pour le PNG (car SVG est transparent)
+            ctx.fillStyle = "#1a1a1d";
+            ctx.fillRect(0,0,1000,1000);
+            ctx.drawImage(img, 0, 0, 1000, 1000);
+            
+            const pngUrl = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = "table_force_resultat.png";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        };
+        img.src = url;
+    }
+
+    // --- Fonction Export Données (Simulation Google Slides) ---
+    function exportSlidesData() {
+        // Dans une vraie app, on utiliserait l'API gapi.client.slides
+        // Ici, on génère un objet JSON copié dans le presse-papier
+        const report = {
+            timestamp: new Date().toISOString(),
+            forces: [
+                { name: "Masse A", magnitude: state.a.mag, angle: state.a.angle },
+                { name: "Masse B", magnitude: state.b.mag, angle: state.b.angle },
+                { name: "Dynamomètre", magnitude: state.c.mag, angle: state.c.angle }
+            ],
+            result: els.statusTxt.textContent,
+            net_force_remaining: els.netForceDisp.textContent
+        };
+
+        const jsonStr = JSON.stringify(report, null, 2);
+        
+        alert("Simulation Export Google Slides :\n\nL'intégration directe Google Slides nécessite une authentification OAuth serveur. \n\nVoici les données JSON générées pour le rapport :\n" + jsonStr);
+        console.log("Données prêtes pour l'API Slides:", report);
+    }
+
+    // Init
+    drawTicks();
+    updatePhysics();
+// Message de signature dans la console
+(function() {
+ const styles = ['color: #007BFF','font-size: 1.1em', 'font-weight: bold', 'background-color: #f0f0f0','padding: 4px 8px',
+ 'border-radius: 4px'].join(';');
+
+console.log('%cApplication créée par Mathieu Dubreuil', styles );
+console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+ })()
+</script>
+</body>
+</html>

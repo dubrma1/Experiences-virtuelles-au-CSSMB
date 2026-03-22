@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labo Physique : Challenge Équilibre</title>
+    <style>
+        /* --- THÈME JOUR --- */
+        :root {
+            --bg-color: #f0f2f5;
+            --panel-color: #ffffff;
+            --text-color: #333333;
+            --text-secondary: #666666;
+            --accent-blue: #4a90e2;
+            --force-a: #e55039;
+            --force-b: #f6b93b;
+            --force-c: #0abde3;
+            --locked-bg: #e9ecef;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none; /* Évite de sélectionner le texte pendant le drag */
+        }
+
+        /* --- Layout --- */
+        .main-container { display: flex; width: 100%; height: 100%; }
+
+        /* Zone Gauche : Simulation */
+        .simulation-area {
+            flex: 2; display: flex; justify-content: center; align-items: center;
+            position: relative; background-color: #eef1f5;
+            background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 25px 25px;
+        }
+
+        /* STATUS ALERT */
+        .status-overlay {
+            position: absolute; top: 20px; left: 20px; background: var(--panel-color);
+            padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-family: monospace; z-index: 10; border: 1px solid #ddd; min-width: 200px;
+        }
+        .status-indicator {
+            display: inline-block; width: 12px; height: 12px;
+            border-radius: 50%; background: #ff4757; margin-right: 8px;
+        }
+        .status-indicator.balanced { background: #2ed573; box-shadow: 0 0 10px #2ed573; }
+
+        /* Zone Droite : Contrôles */
+        .controls-panel {
+            flex: 1; background-color: var(--panel-color); padding: 20px;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.03); display: flex; flex-direction: column;
+            gap: 15px; overflow-y: auto; max-width: 380px; border-left: 1px solid #ccc;
+        }
+
+        h2 { margin-top: 0; font-size: 1.3rem; color: #2c3e50; display:flex; align-items:center; gap:10px;}
+        h3 { font-size: 0.95rem; margin-bottom: 5px; color: #2c3e50; text-transform: uppercase; letter-spacing: 0.5px;}
+
+        /* --- UI Elements --- */
+        .control-group { padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd; border-left-width: 5px; }
+        .group-locked { background: var(--locked-bg); opacity: 0.9; }
+        .group-locked .value-display { font-size: 1.1rem; }
+        .group-locked label { margin-bottom: 0; }
+        
+        .group-playable { background: #fff; border: 2px solid var(--force-c); box-shadow: 0 4px 10px rgba(10, 189, 227, 0.1); }
+        .group-a { border-left-color: var(--force-a); }
+        .group-b { border-left-color: var(--force-b); }
+        .group-dyna { border-left-color: var(--force-c); }
+
+        label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; color: var(--text-secondary); }
+        input[type=range] { width: 100%; margin-bottom: 10px; cursor: pointer; accent-color: var(--force-c); }
+        .value-display { font-weight: bold; font-family: monospace; color: var(--text-color); }
+
+        /* --- Game Controls --- */
+        .game-controls { margin-top: auto; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 10px; }
+        .hint-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; font-size: 0.9rem; text-align: center; display: none; }
+        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; transition: 0.2s; font-size: 0.95rem; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-new { background-color: #6c5ce7; color: white; }
+        .btn-hint { background-color: #fab1a0; color: #2d3436; }
+        .btn-export { background-color: #b2bec3; color: white; font-size: 0.8rem; padding: 8px;}
+        button:hover { filter: brightness(110%); transform: translateY(-1px); }
+
+        /* --- SVG Styles --- */
+        #forceTable { max-width: 95%; max-height: 95%; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
+        .table-disk { fill: #ffffff; stroke: #dce1e6; stroke-width: 2; }
+        
+        .tick { stroke: #bdc3c7; stroke-width: 1; }
+        .tick.major { stroke: #7f8c8d; stroke-width: 1.5; }
+        .tick-label { fill: #7f8c8d; font-size: 9px; text-anchor: middle; font-family: sans-serif; font-weight:bold;}
+        
+        .rope-line { stroke-width: 2.5; stroke-linecap: round; }
+        
+        /* Textes des masses */
+        .mass-text { fill: #fff; font-size: 11px; text-anchor: middle; font-weight: bold; font-family: sans-serif;}
+
+        /* Dynamomètre (Interactif) */
+        #groupC { cursor: grab; }
+        #groupC:active { cursor: grabbing; }
+        .dyna-housing { fill: #ecf0f1; stroke: #95a5a6; stroke-width: 1.5; }
+        .dyna-spring { fill: none; stroke: #7f8c8d; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;}
+        .dyna-hook { fill: none; stroke: #95a5a6; stroke-width: 2; }
+
+        .center-post { fill: #ecf0f1; stroke: #bdc3c7; stroke-width: 2;}
+        .ring { fill: rgba(74, 144, 226, 0.2); stroke: var(--accent-blue); stroke-width: 3; transition: cx 0.1s, cy 0.1s; }
+        .ring.centered { stroke: #2ed573; fill: rgba(46, 213, 115, 0.5); }
+
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="simulation-area" id="captureArea">
+        
+        <div class="status-overlay">
+            <div style="display:flex; align-items:center; margin-bottom:5px;">
+                <span id="statusIndicator" class="status-indicator"></span>
+                <span id="statusText" style="font-weight:bold; color:#ff4757;">DÉSÉQUILIBRÉ</span>
+            </div>
+            <div style="font-size: 0.85rem; color:var(--text-secondary);">
+                Force nette résiduelle: <span id="netForceDisplay" style="font-family:monospace; font-weight:bold;">0</span> g
+            </div>
+        </div>
+
+        <svg id="forceTable" viewBox="-280 -280 560 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <g id="calibratedMassVisual">
+                     <path d="M -16 0 L 16 0 L 16 46 L -16 46 Z M -12 8 L 12 8 L 12 26 L -12 26 Z" 
+                           fill-rule="evenodd" stroke="#555" stroke-width="1" />
+                     <rect x="-12" y="8" width="24" height="18" fill="rgba(255,255,255,0.4)" stroke="#333" stroke-width="0.5"/>
+                     <rect x="-6" y="-6" width="12" height="6" rx="2" fill="#777" />
+                </g>
+            </defs>
+
+            <circle cx="0" cy="0" r="220" class="table-disk"/>
+            <g id="ticksGroup"></g>
+
+            <g id="groupA">
+                <line x1="0" y1="0" x2="195" y2="0" class="rope-line" stroke="var(--force-a)" />
+                <g transform="translate(195, 0) rotate(90)">
+                    <use href="#calibratedMassVisual" fill="var(--force-a)" />
+                    <text id="textMagA" x="0" y="39" class="mass-text">100g</text>
+                </g>
+            </g>
+
+            <g id="groupB">
+                <line x1="0" y1="0" x2="195" y2="0" class="rope-line" stroke="var(--force-b)" />
+                <g transform="translate(195, 0) rotate(90)">
+                    <use href="#calibratedMassVisual" fill="var(--force-b)" />
+                    <text id="textMagB" x="0" y="39" class="mass-text">100g</text>
+                </g>
+            </g>
+
+            <g id="groupC">
+                <line x1="0" y1="0" x2="60" y2="0" class="rope-line" stroke="var(--force-c)" />
+                
+                <g transform="translate(60, 0) rotate(90)">
+                    <rect x="-12" y="0" width="24" height="50" rx="4" class="dyna-housing" />
+                    <path d="M 0 0 L 0 -5 M -5 -5 L 5 -5" class="dyna-hook" />
+                    
+                    <g id="dynaSpringAssembly">
+                        <path d="M 0 5 L 6 10 L -6 15 L 6 20 L -6 25 L 6 30 L -6 35 L 0 40" class="dyna-spring"/>
+                        <line x1="0" y1="40" x2="0" y2="90" stroke="#95a5a6" stroke-width="2" /> <circle cx="0" cy="40" r="3" fill="#e74c3c"/> </g>
+                </g>
+
+                <g id="handGripGroup" transform="translate(110, 0) rotate(90)">
+                     <use href="#calibratedMassVisual" fill="var(--force-c)" />
+                     <text id="textMagC" x="0" y="39" class="mass-text">100g</text>
+                </g>
+            </g>
+
+            <circle cx="0" cy="0" r="12" class="center-post" />
+            <circle id="ring" cx="0" cy="0" r="28" class="ring" />
+            <circle cx="0" cy="0" r="4" fill="var(--accent-blue)"/>
+        </svg>
+    </div>
+
+    <div class="controls-panel">
+        <h2>Challenge Physique <span style="font-size:0.8rem; background:#2c3e50; color:white; padding:2px 6px; border-radius:4px;">JEU</span></h2>
+        
+        <div class="control-group group-a group-locked">
+            <h3>Masse A (Fixe)</h3>
+            <label>Masse : <span id="valMagA" class="value-display">--</span> g</label>
+            <label>Angle : <span id="valAngA" class="value-display">--</span> °</label>
+        </div>
+
+        <div class="control-group group-b group-locked">
+            <h3>Masse B (Fixe)</h3>
+            <label>Masse : <span id="valMagB" class="value-display">--</span> g</label>
+            <label>Angle : <span id="valAngB" class="value-display">--</span> °</label>
+        </div>
+
+        <div class="control-group group-dyna group-playable">
+            <h3>Dynamomètre (Glissez-le !)</h3>
+            <p style="font-size:0.8rem; margin-top:-5px; color:#555;">Tirez et tournez la masse bleue.</p>
+            
+            <label>Tension (g): <span id="valMagC" class="value-display">100</span></label>
+            <input type="range" id="inputMagC" min="0" max="600" value="100">
+            
+            <label>Angle (°): <span id="valAngC" class="value-display">180</span></label>
+            <input type="range" id="inputMagC_Ang" min="0" max="360" value="180">
+        </div>
+
+        <div class="game-controls">
+            <div id="hintBox" class="hint-box"></div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-hint" onclick="showHint()">💡 Indice</button>
+                <button class="btn-new" onclick="startNewGame()">🎲 Nouvelle Partie</button>
+            </div>
+            <button class="btn-export" onclick="exportPNG()">📷 Sauvegarder Image</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const state = {
+        a: { mag: 0, angle: 0 },
+        b: { mag: 0, angle: 0 },
+        c: { mag: 100, angle: 180 } 
+    };
+
+    const els = {
+        forceTable: document.getElementById('forceTable'),
+        magC: document.getElementById('inputMagC'), angC: document.getElementById('inputMagC_Ang'),
+        dispMagA: document.getElementById('valMagA'), dispAngA: document.getElementById('valAngA'),
+        dispMagB: document.getElementById('valMagB'), dispAngB: document.getElementById('valAngB'),
+        dispMagC: document.getElementById('valMagC'), dispAngC: document.getElementById('valAngC'),
+        
+        groupA: document.getElementById('groupA'), textMagA: document.getElementById('textMagA'),
+        groupB: document.getElementById('groupB'), textMagB: document.getElementById('textMagB'),
+        groupC: document.getElementById('groupC'),
+        dynaSpringAssembly: document.getElementById('dynaSpringAssembly'),
+        handGripGroup: document.getElementById('handGripGroup'),
+        
+        ring: document.getElementById('ring'), statusInd: document.getElementById('statusIndicator'),
+        statusTxt: document.getElementById('statusText'), netForceDisp: document.getElementById('netForceDisplay'),
+        ticksGroup: document.getElementById('ticksGroup'), hintBox: document.getElementById('hintBox')
+    };
+
+    const rad = deg => deg * (Math.PI / 180);
+    const deg = rad => rad * (180 / Math.PI);
+
+    // --- Interaction de Glisser-Déposer (Drag & Drop) ---
+    let isDragging = false;
+    
+    // Support Souris et Tactile
+    els.groupC.addEventListener('mousedown', startDrag);
+    els.groupC.addEventListener('touchstart', startDrag, {passive: false});
+
+    function startDrag(e) {
+        e.preventDefault(); // Évite le scroll sur mobile
+        isDragging = true;
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, {passive: false});
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+    }
+
+    function endDrag() {
+        isDragging = false;
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('touchmove', drag);
+        document.removeEventListener('mouseup', endDrag);
+        document.removeEventListener('touchend', endDrag);
+    }
+
+    function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        // Coordonnées de l'écran vers SVG
+        const pt = els.forceTable.createSVGPoint();
+        if (e.touches && e.touches.length > 0) {
+            pt.x = e.touches[0].clientX; pt.y = e.touches[0].clientY;
+        } else {
+            pt.x = e.clientX; pt.y = e.clientY;
+        }
+        
+        const svgP = pt.matrixTransform(els.forceTable.getScreenCTM().inverse());
+        
+        // 1. Calcul de l'Angle
+        let angleRad = Math.atan2(-svgP.y, svgP.x); // SVG Y est inversé
+        let angleDeg = angleRad * (180 / Math.PI);
+        if (angleDeg < 0) angleDeg += 360;
+        state.c.angle = Math.round(angleDeg);
+        
+        // 2. Calcul de la Force (Magnitude)
+        const radiusPoint = Math.sqrt(svgP.x*svgP.x + svgP.y*svgP.y);
+        // Le dynamomètre commence à r=110 et s'étend jusqu'à r=195 (différence de 85 pour 600g)
+        let mag = ((radiusPoint - 110) / 85) * 600;
+        
+        if (mag < 0) mag = 0;
+        if (mag > 600) mag = 600;
+        state.c.mag = Math.round(mag);
+        
+        // Mise à jour de l'UI et de la physique
+        els.magC.value = state.c.mag;
+        els.angC.value = state.c.angle;
+        updatePhysics();
+    }
+
+
+    function startNewGame() {
+        els.hintBox.style.display = 'none';
+        state.a.mag = Math.floor((Math.random() * 20) + 10) * 10;
+        state.b.mag = Math.floor((Math.random() * 20) + 10) * 10;
+        state.a.angle = Math.floor(Math.random() * 36) * 10;
+        
+        let angleB = Math.floor(Math.random() * 36) * 10;
+        if (Math.abs(state.a.angle - angleB) < 30) angleB = (angleB + 40) % 360;
+        state.b.angle = angleB;
+
+        state.c.mag = 50;
+        state.c.angle = (state.a.angle + 180) % 360; 
+        
+        els.magC.value = state.c.mag; els.angC.value = state.c.angle;
+        updatePhysics();
+    }
+
+    function showHint() {
+        const ax = state.a.mag * Math.cos(rad(state.a.angle)); const ay = state.a.mag * Math.sin(rad(state.a.angle));
+        const bx = state.b.mag * Math.cos(rad(state.b.angle)); const by = state.b.mag * Math.sin(rad(state.b.angle));
+        const targetMag = Math.sqrt((ax+bx)*(ax+bx) + (ay+by)*(ay+by));
+        
+        els.hintBox.innerHTML = `<strong>Indice :</strong> Tirez avec environ <strong>${Math.round(targetMag)} g</strong>.`;
+        els.hintBox.style.display = 'block';
+    }
+
+    function drawTicks() {
+        els.ticksGroup.innerHTML = '';
+        const radius = 220;
+        for (let i = 0; i < 360; i++) {
+            let length = 5; let isMajor = false;
+            if (i % 5 === 0) length = 10;
+            if (i % 10 === 0) { length = 15; isMajor = true; }
+
+            const r1 = radius; const r2 = radius - length;
+            const angleRad = rad(i);
+            const x1 = r1 * Math.cos(angleRad); const y1 = r1 * Math.sin(angleRad);
+            const x2 = r2 * Math.cos(angleRad); const y2 = r2 * Math.sin(angleRad);
+            
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1); line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("class", isMajor ? "tick major" : "tick");
+            els.ticksGroup.appendChild(line);
+
+            if (isMajor && i % 30 === 0) {
+                const rText = radius - 26; // Placé juste en dessous de la fenêtre
+                const tx = rText * Math.cos(angleRad); const ty = rText * Math.sin(angleRad);
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", tx); text.setAttribute("y", ty + 3);
+                text.textContent = i; text.setAttribute("class", "tick-label");
+                text.setAttribute("transform", `rotate(${i+90} ${tx} ${ty})`);
+                els.ticksGroup.appendChild(text);
+            }
+        }
+    }
+
+    function updatePhysics() {
+        els.dispMagA.textContent = state.a.mag; els.dispAngA.textContent = state.a.angle;
+        els.dispMagB.textContent = state.b.mag; els.dispAngB.textContent = state.b.angle;
+        els.dispMagC.textContent = state.c.mag; els.dispAngC.textContent = state.c.angle;
+
+        els.groupA.setAttribute("transform", `rotate(${-state.a.angle})`); els.textMagA.textContent = state.a.mag + "g";
+        els.groupB.setAttribute("transform", `rotate(${-state.b.angle})`); els.textMagB.textContent = state.b.mag + "g";
+        els.groupC.setAttribute("transform", `rotate(${-state.c.angle})`); els.textMagC.textContent = state.c.mag + "g";
+
+        // Étirement dynamique du ressort
+        const maxDynoMag = 600;
+        const stretchRatio = state.c.mag / maxDynoMag; 
+        const maxSpringExtension = 85; 
+        const currentExtension = stretchRatio * maxSpringExtension;
+
+        // Le ressort interne glisse
+        els.dynaSpringAssembly.setAttribute("transform", `translate(0, ${currentExtension})`);
+        // La poignée cyan au bout s'écarte
+        els.handGripGroup.setAttribute("transform", `translate(${110 + currentExtension}, 0) rotate(90)`);
+
+        const ax = state.a.mag * Math.cos(rad(state.a.angle)); const ay = state.a.mag * Math.sin(rad(state.a.angle));
+        const bx = state.b.mag * Math.cos(rad(state.b.angle)); const by = state.b.mag * Math.sin(rad(state.b.angle));
+        const cx = state.c.mag * Math.cos(rad(state.c.angle)); const cy = state.c.mag * Math.sin(rad(state.c.angle));
+
+        const netX = ax + bx + cx; const netY = ay + by + cy;
+        const netMag = Math.sqrt(netX*netX + netY*netY);
+        els.netForceDisp.textContent = Math.round(netMag);
+
+        const maxDisplacement = 14; const sensitivity = maxDisplacement / 400; 
+        let ringX = 0, ringY = 0;
+        
+        if (netMag > 0) {
+            let displacement = netMag * sensitivity;
+            if (displacement > maxDisplacement) displacement = maxDisplacement;
+            const angleNet = Math.atan2(netY, netX);
+            ringX = displacement * Math.cos(angleNet); ringY = -displacement * Math.sin(angleNet); 
+        }
+
+        els.ring.setAttribute("cx", ringX); els.ring.setAttribute("cy", ringY);
+        
+        if (netMag < 8) {
+            els.ring.classList.add("centered"); els.statusInd.classList.add("balanced");
+            els.statusTxt.textContent = "BRAVO ! ÉQUILIBRE"; els.statusTxt.style.color = "#2ed573";
+        } else {
+            els.ring.classList.remove("centered"); els.statusInd.classList.remove("balanced");
+            els.statusTxt.textContent = "DÉSÉQUILIBRÉ"; els.statusTxt.style.color = "#ff4757";
+        }
+    }
+
+    function bindInput(input, obj, key) {
+        input.addEventListener('input', (e) => {
+            obj[key] = parseFloat(e.target.value);
+            updatePhysics();
+        });
+    }
+    bindInput(els.magC, state.c, 'mag'); bindInput(els.angC, state.c, 'angle');
+
+    function exportPNG() {
+        const svg = document.getElementById("forceTable");
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svg);
+        if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){ source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"'); }
+        source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+        const url = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(source);
+        const canvas = document.createElement("canvas"); canvas.width = 800; canvas.height = 800;
+        const ctx = canvas.getContext("2d"); const img = new Image();
+        img.onload = function() {
+            ctx.fillStyle = "#f0f2f5"; ctx.fillRect(0,0,800,800); ctx.drawImage(img, 0, 0, 800, 800);
+            const link = document.createElement("a"); link.download = "challenge_force.png";
+            link.href = canvas.toDataURL("image/png"); link.click();
+        };
+        img.src = url;
+    }
+
+    // Init
+    drawTicks();
+    startNewGame();
+
+    // Signature
+    (function() {
+        const styles = ['color: #007BFF','font-size: 1.1em', 'font-weight: bold', 'background-color: #f0f0f0','padding: 4px 8px', 'border-radius: 4px'].join(';');
+        console.log('%cApplication créée par Mathieu Dubreuil', styles );
+        console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+    })();
+</script>
+</body>
+</html>

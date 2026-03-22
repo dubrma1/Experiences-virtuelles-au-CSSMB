@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotation Fonctionnelle - Simulation Technique</title>
+    <style>
+        :root {
+            /* Palette de couleurs "Ingénierie/Sérieux" */
+            --bg-color: #ffffff;
+            --panel-bg: #f8f9fa;
+            --text-primary: #2c3e50;
+            --text-secondary: #6c757d;
+            --accent-blue: #0056b3; /* Bleu industriel */
+            --border-color: #dee2e6;
+            
+            /* Couleurs sémantiques */
+            --success: #28a745;
+            --warning: #ffc107; /* Jaune foncé pour lisibilité sur blanc */
+            --danger: #dc3545;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* En-tête sobre */
+        header {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Conteneur principal */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 400px; /* Zone dessin à gauche, Panneau contrôle à droite */
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem;
+            flex-grow: 1;
+        }
+
+        /* Zone de visualisation (Le plan de travail) */
+        .visualization-area {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            /* Fond subtil de grille millimétrée */
+            background-image: 
+                linear-gradient(var(--border-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Styles SVG */
+        svg {
+            overflow: visible;
+            max-width: 100%;
+        }
+
+        .dimension-label {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: bold;
+            fill: var(--text-primary);
+        }
+
+        .tolerance-text {
+            font-family: 'Consolas', 'Monaco', monospace;
+            fill: var(--accent-blue);
+        }
+
+        /* Interactivité Drag & Drop */
+        .draggable-part {
+            cursor: grab;
+            transition: filter 0.2s;
+        }
+        .draggable-part:hover {
+            filter: brightness(0.95);
+        }
+        .draggable-part:active {
+            cursor: grabbing;
+        }
+
+        .drop-zone {
+            transition: all 0.3s;
+        }
+        .drop-zone.highlight {
+            stroke: var(--accent-blue);
+            stroke-width: 2px;
+            filter: drop-shadow(0 0 10px rgba(0, 86, 179, 0.3));
+        }
+
+        /* Animation d'insertion */
+        @keyframes insertShaft {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes showInsertion {
+            0% { opacity: 0; transform: translateY(-30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .inserting {
+            animation: insertShaft 0.8s ease-out forwards;
+        }
+
+        #insertedShaft {
+            opacity: 0;
+        }
+
+        #insertedShaft.visible {
+            animation: showInsertion 0.8s ease-out forwards;
+        }
+
+        /* Panneau Latéral (Contrôles) */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Boutons de réponse */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .btn:hover:not(:disabled) {
+            background-color: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* État des boutons après réponse */
+        .btn.correct { background-color: var(--success); color: white; border-color: var(--success); }
+        .btn.incorrect { background-color: var(--danger); color: white; border-color: var(--danger); }
+
+        /* Zone de Feedback */
+        .feedback-box {
+            display: none; /* Caché par défaut */
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            background: white;
+            border-left: 4px solid transparent;
+        }
+        
+        .feedback-box.success { border-left-color: var(--success); }
+        .feedback-box.error { border-left-color: var(--danger); }
+
+        .math-detail {
+            font-family: 'Consolas', monospace;
+            background: #eef;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .next-btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 1rem;
+            width: 100%;
+            display: none;
+        }
+        .next-btn:hover { background-color: #004494; }
+
+        .format-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent-blue);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* Info bubbles (tooltips) */
+        .info-bubble {
+            position: relative;
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: help;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .info-bubble:hover {
+            background: #004494;
+        }
+
+        .info-content {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            margin-bottom: 10px;
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .info-content::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: var(--panel-bg);
+        }
+
+        .info-bubble:hover .info-content {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .info-content h3 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: var(--accent-blue);
+        }
+
+        .info-content ul {
+            padding-left: 20px;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .info-content code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        /* Bouton de téléchargement */
+        .download-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: white;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .download-btn:hover {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
+            .visualization-area { min-height: 400px; }
+            .info-content {
+                width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🔧 Simulateur de Cotation Fonctionnelle</h1>
+        <div class="stats-bar">
+            <span>Exercice: <strong id="levelDisplay">1</strong></span>
+            <span>Score: <strong id="scoreDisplay">0</strong></span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <div class="visualization-area" id="workspace">
+            <div style="position: absolute; top: 10px; left: 10px; font-size: 0.8rem; color: #999;">
+                Glissez la douille (gauche) dans l'orifice (droite) pour visualiser l'assemblage.
+            </div>
+            <div class="format-indicator" id="formatIndicator">Format: ±</div>
+            <button class="download-btn" onclick="downloadCanvas()" title="Télécharger l'image en PNG">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 12L3 7h3V1h4v6h3L8 12z"/>
+                    <path d="M1 14h14v2H1v-2z"/>
+                </svg>
+                PNG
+            </button>
+
+            <svg width="100%" height="100%" viewBox="0 0 700 400" id="mainSvg">
+                <defs>
+                    <linearGradient id="metal-surface" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f0f0f0;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#d0d0d0;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="metal-side" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#a0a0a0;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#c0c0c0;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="inserted-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#e8e8e8;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#b8b8b8;stop-opacity:1" />
+                    </linearGradient>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+                        <feOffset dx="2" dy="4" result="offsetblur"/>
+                        <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.3"/>
+                        </feComponentTransfer>
+                        <feMerge> 
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/> 
+                        </feMerge>
+                    </filter>
+                    <clipPath id="holeClip">
+                        <ellipse cx="100" cy="100" rx="30" ry="12"/>
+                        <rect x="70" y="100" width="60" height="60"/>
+                    </clipPath>
+                </defs>
+
+                <!-- Groupe Orifice (Pièce femelle) - GROSSI -->
+                <g id="holeGroup" transform="translate(370, 100) scale(1.4)">
+                    
+                    <!-- Partie transparente arrière -->
+                    <path d="M50 0 L200 0 L200 120 L50 120 Z" fill="#e0e0e0" stroke="#999" stroke-dasharray="4" opacity="0.3"/>
+
+                    <!-- Face gauche (opaque) -->
+                    <path d="M0 40 L50 0 L50 120 L0 160 Z" fill="url(#metal-side)" stroke="#666" stroke-width="1.5"/>
+
+                    <!-- Face supérieure -->
+                    <path d="M0 40 L150 40 L200 0 L50 0 Z" fill="#ffffff" stroke="#666" stroke-width="1.5"/>
+
+                    <!-- Face avant (avec coupe pour voir l'intérieur) -->
+                    <path d="M0 40 L150 40 L150 160 L0 160 Z" 
+                          fill="rgba(200, 220, 255, 0.2)" stroke="#0056b3" stroke-width="2"/>
+                    
+                    <!-- Face droite -->
+                    <path d="M150 40 L200 0 L200 120 L150 160 Z" fill="url(#metal-side)" stroke="#666" stroke-width="1.5"/>
+
+                    <!-- Entrée du trou (ellipse supérieure) -->
+                    <ellipse cx="100" cy="20" rx="30" ry="12" fill="#333" stroke="#000"/>
+
+                    <!-- Parois intérieures du trou -->
+                    <line x1="70" y1="20" x2="70" y2="140" stroke="#555" stroke-width="2" />
+                    <line x1="130" y1="20" x2="130" y2="140" stroke="#555" stroke-width="2" />
+
+                    <!-- Fond du trou (ellipse inférieure) -->
+                    <ellipse cx="100" cy="140" rx="30" ry="12" fill="#222" stroke="#000" opacity="0.6"/>
+
+                    <!-- Douille insérée (invisible au départ) -->
+                    <g id="insertedShaft">
+                        <!-- Corps de la douille visible dans le trou -->
+                        <rect x="74" y="25" width="52" height="110" fill="url(#inserted-metal)" stroke="#666" stroke-width="1"/>
+                        
+                        <!-- Haut de la douille (ellipse visible) -->
+                        <ellipse cx="100" cy="25" rx="26" ry="10" fill="#d8d8d8" stroke="#666" stroke-width="1"/>
+                        
+                        <!-- Détails métalliques -->
+                        <line x1="74" y1="35" x2="126" y2="35" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/>
+                        <line x1="74" y1="125" x2="126" y2="125" stroke="rgba(0,0,0,0.2)" stroke-width="0.5"/>
+                    </g>
+
+                    <!-- Cotation - TAILLE AUGMENTÉE -->
+                    <text x="100" y="190" text-anchor="middle" class="dimension-label" id="holeLabel" font-size="18">Ø ??</text>
+                    <text x="100" y="210" text-anchor="middle" class="tolerance-text" id="holeTolerance" font-size="14"></text>
+                </g>
+
+                <!-- Groupe Douille (Pièce mâle) - GROSSI -->
+                <g id="shaftGroup" class="draggable-part" transform="translate(60, 100) scale(1.4)" filter="url(#shadow)">
+                    <!-- Zone de détection élargie (invisible) -->
+                    <rect x="-20" y="-20" width="100" height="200" fill="transparent" />
+
+                    <!-- Corps cylindrique -->
+                    <path d="M0 20 L60 20 L60 140 L0 140 Z" fill="url(#metal-surface)" stroke="#333" stroke-width="1.5"/>
+                    
+                    <!-- Haut du cylindre (ellipse) -->
+                    <ellipse cx="30" cy="20" rx="30" ry="12" fill="#e0e0e0" stroke="#333" stroke-width="1.5"/>
+                    
+                    <!-- Bas du cylindre (demi-ellipse) -->
+                    <path d="M0 140 A30 12 0 0 0 60 140" fill="none" stroke="#333" stroke-width="1.5"/>
+
+                    <!-- Ligne d'axe -->
+                    <line x1="30" y1="10" x2="30" y2="150" stroke="#0056b3" stroke-dasharray="10,5" stroke-width="0.5"/>
+
+                    <!-- Cotation - TAILLE AUGMENTÉE -->
+                    <text x="30" y="180" text-anchor="middle" class="dimension-label" id="shaftLabel" font-size="18">Ø ??</text>
+                    <text x="30" y="200" text-anchor="middle" class="tolerance-text" id="shaftTolerance" font-size="14"></text>
+                </g>
+
+            </svg>
+        </div>
+
+        <div class="control-panel">
+            <div class="card">
+                <h2>
+                    Analyse Fonctionnelle
+                    <span class="info-bubble">
+                        ?
+                        <div class="info-content">
+                            <h3>Aide Mémoire</h3>
+                            <ul style="margin: 0;">
+                                <li><strong>Fonctionnel :</strong> Max Arbre ≤ Min Alésage (Jeu min ≥ 0).</li>
+                                <li><strong>Non Fonctionnel :</strong> Min Arbre > Max Alésage.</li>
+                                <li><strong>Possiblement :</strong> Chevauchement des intervalles.</li>
+                            </ul>
+                        </div>
+                    </span>
+                    <span class="info-bubble">
+                        📏
+                        <div class="info-content">
+                            <h3>Formats de Cotation</h3>
+                            <ul style="margin: 0;">
+                                <li><code>Ø 32,5 ± 0,2</code> → Symétrique</li>
+                                <li><code>Ø 32,5 +0,1</code> → Seulement positif</li>
+                                <li><code>Ø 32,5 -0,2</code> → Seulement négatif</li>
+                                <li><code>Ø 32,5 -0,1 +0,3</code> → Asymétrique</li>
+                            </ul>
+                        </div>
+                    </span>
+                </h2>
+                <p style="margin-bottom: 15px; font-size: 0.95rem;">
+                    Analysez les cotes affichées. La douille peut-elle <strong>toujours</strong> être assemblée dans l'orifice ?
+                </p>
+                
+                <div class="btn-group">
+                    <button class="btn" onclick="checkAnswer('functional')">
+                        ✅ Fonctionnel <small>(Jeu garanti)</small>
+                    </button>
+                    <button class="btn" onclick="checkAnswer('possible')">
+                        ⚠️ Possiblement non-fonctionnel <small>(Incertain)</small>
+                    </button>
+                    <button class="btn" onclick="checkAnswer('nonfunctional')">
+                        ❌ Non Fonctionnel <small>(Serrage/Impossible)</small>
+                    </button>
+                </div>
+
+                <div id="feedbackArea" class="feedback-box">
+                    <h3 id="feedbackTitle" style="margin-bottom: 5px;"></h3>
+                    <p id="feedbackText" style="font-size: 0.9rem;"></p>
+                    <div class="math-detail" id="mathContent"></div>
+                </div>
+
+                <button class="next-btn" onclick="nextLevel()">Exercice Suivant</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * DONNÉES ET ÉTAT DU JEU
+         * Stocke les dimensions actuelles générées aléatoirement.
+         */
+        let currentState = {
+            shaft: { base: 0, min: 0, max: 0, tolPlus: 0, tolMinus: 0 },
+            hole: { base: 0, min: 0, max: 0, tolPlus: 0, tolMinus: 0 },
+            correctAnswer: '',
+            formatType: 0 // 0: ±, 1: +, 2: -, 3: -/+
+        };
+        
+        let score = 0;
+        let level = 1;
+        let hasInserted = false;
+
+        // Éléments du DOM fréquemment utilisés
+        const shaftGroup = document.getElementById('shaftGroup');
+        const holeGroup = document.getElementById('holeGroup');
+        const insertedShaft = document.getElementById('insertedShaft');
+        const svgCanvas = document.getElementById('mainSvg');
+        
+        // Coordonnées initiales pour le reset du Drag & Drop - ajustées pour la nouvelle échelle
+        const startX = 60;
+        const startY = 100;
+
+        /**
+         * INITIALISATION
+         * Lance le premier exercice au chargement de la page.
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDrop();
+            generateExercise();
+        });
+
+        /**
+         * LOGIQUE MÉTIER : GÉNÉRATION D'EXERCICE
+         * Crée des dimensions aléatoires mais réalistes pour simuler différents cas de figures.
+         */
+        function generateExercise() {
+            resetUI();
+
+            // 1. Dimension nominale (ex: 20mm, 30mm...)
+            const nominal = 20 + Math.floor(Math.random() * 5) * 5; 
+
+            // 2. Type de format de cotation (alternance entre les 4 formats)
+            const formatType = level % 4; // 0, 1, 2, 3
+            currentState.formatType = formatType;
+            updateFormatIndicator(formatType);
+
+            // 3. Détermination aléatoire du scénario (Réponse attendue)
+            const scenario = Math.random();
+            let sMax, sMin, hMax, hMin;
+            let sTolPlus, sTolMinus, hTolPlus, hTolMinus;
+
+            // Génération des tolérances selon le format
+            if (formatType === 0) {
+                // Format symétrique ±
+                const holeTol = 0.1 + (Math.random() * 0.1);
+                const shaftTol = 0.1 + (Math.random() * 0.1);
+                hTolPlus = holeTol;
+                hTolMinus = holeTol;
+                sTolPlus = shaftTol;
+                sTolMinus = shaftTol;
+            } else if (formatType === 1) {
+                // Format seulement positif +
+                hTolPlus = 0.1 + (Math.random() * 0.2);
+                hTolMinus = 0;
+                sTolPlus = 0.1 + (Math.random() * 0.2);
+                sTolMinus = 0;
+            } else if (formatType === 2) {
+                // Format seulement négatif -
+                hTolPlus = 0;
+                hTolMinus = 0.1 + (Math.random() * 0.2);
+                sTolPlus = 0;
+                sTolMinus = 0.1 + (Math.random() * 0.2);
+            } else {
+                // Format asymétrique -/+
+                hTolMinus = 0.05 + (Math.random() * 0.1);
+                hTolPlus = 0.1 + (Math.random() * 0.2);
+                sTolMinus = 0.05 + (Math.random() * 0.1);
+                sTolPlus = 0.1 + (Math.random() * 0.2);
+            }
+
+            if (scenario < 0.4) {
+                // CAS 1 : FONCTIONNEL (Jeu Garanti)
+                hMin = nominal - hTolMinus;
+                hMax = nominal + hTolPlus;
+                sMax = hMin - 0.05; // Petit jeu garanti
+                sMin = sMax - (sTolPlus + sTolMinus);
+                currentState.correctAnswer = 'functional';
+            } else if (scenario < 0.7) {
+                // CAS 2 : POSSIBLEMENT NON FONCTIONNEL (Incertain / Chevauchement)
+                hMin = nominal - hTolMinus;
+                hMax = nominal + hTolPlus;
+                sMin = nominal - sTolMinus - 0.05;
+                sMax = nominal + sTolPlus + 0.05; 
+                currentState.correctAnswer = 'possible';
+            } else {
+                // CAS 3 : NON FONCTIONNEL (Impossible)
+                hMin = nominal - hTolMinus;
+                hMax = nominal + hTolPlus;
+                sMin = hMax + 0.10; // Arbre min > Trou max
+                sMax = sMin + (sTolPlus + sTolMinus);
+                currentState.correctAnswer = 'nonfunctional';
+            }
+
+            // Sauvegarde l'état (arrondi à 3 décimales)
+            currentState.shaft = { 
+                base: nominal, 
+                min: parseFloat(sMin.toFixed(3)), 
+                max: parseFloat(sMax.toFixed(3)),
+                tolPlus: parseFloat(sTolPlus.toFixed(3)),
+                tolMinus: parseFloat(sTolMinus.toFixed(3))
+            };
+            currentState.hole = { 
+                base: nominal, 
+                min: parseFloat(hMin.toFixed(3)), 
+                max: parseFloat(hMax.toFixed(3)),
+                tolPlus: parseFloat(hTolPlus.toFixed(3)),
+                tolMinus: parseFloat(hTolMinus.toFixed(3))
+            };
+
+            // Mise à jour de l'affichage des cotes
+            updateLabels();
+        }
+
+        /**
+         * AFFICHAGE : FORMATAGE DES COTES
+         * Génère l'affichage selon le format choisi
+         */
+        function updateLabels() {
+            const formatType = currentState.formatType;
+            
+            // Affichage de la douille
+            document.getElementById('shaftLabel').textContent = `Ø ${currentState.shaft.base}`;
+            document.getElementById('shaftTolerance').textContent = formatTolerance(
+                currentState.shaft.tolPlus, 
+                currentState.shaft.tolMinus, 
+                formatType
+            );
+            
+            // Affichage de l'orifice
+            document.getElementById('holeLabel').textContent = `Ø ${currentState.hole.base}`;
+            document.getElementById('holeTolerance').textContent = formatTolerance(
+                currentState.hole.tolPlus, 
+                currentState.hole.tolMinus, 
+                formatType
+            );
+        }
+
+        function formatTolerance(plus, minus, type) {
+            // Arrondir et formater
+            plus = Math.round(plus * 1000) / 1000;
+            minus = Math.round(minus * 1000) / 1000;
+            
+            switch(type) {
+                case 0: // Symétrique ±
+                    return `± ${plus.toFixed(1)}`;
+                case 1: // Seulement positif
+                    return `+${plus.toFixed(1)}`;
+                case 2: // Seulement négatif
+                    return `-${minus.toFixed(1)}`;
+                case 3: // Asymétrique
+                    return `-${minus.toFixed(1)} +${plus.toFixed(1)}`;
+                default:
+                    return `± ${plus.toFixed(1)}`;
+            }
+        }
+
+        function updateFormatIndicator(type) {
+            const indicator = document.getElementById('formatIndicator');
+            const formats = ['Format: ±', 'Format: +', 'Format: -', 'Format: -/+'];
+            indicator.textContent = formats[type];
+        }
+
+        /**
+         * INTERACTION : VÉRIFICATION DE LA RÉPONSE
+         */
+        function checkAnswer(userChoice) {
+            const feedbackBox = document.getElementById('feedbackArea');
+            const feedbackTitle = document.getElementById('feedbackTitle');
+            const feedbackText = document.getElementById('feedbackText');
+            const mathContent = document.getElementById('mathContent');
+            const nextBtn = document.querySelector('.next-btn');
+            const buttons = document.querySelectorAll('.btn');
+
+            // Désactiver les boutons
+            buttons.forEach(btn => btn.disabled = true);
+
+            const isCorrect = userChoice === currentState.correctAnswer;
+
+            // Marquer le bouton cliqué
+            event.target.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+            // Mise à jour UI Feedback
+            feedbackBox.style.display = 'block';
+            feedbackBox.className = 'feedback-box ' + (isCorrect ? 'success' : 'error');
+            
+            if (isCorrect) {
+                feedbackTitle.textContent = "✓ Correct !";
+                feedbackText.textContent = getExplanation(currentState.correctAnswer);
+                score += 10;
+                document.getElementById('scoreDisplay').textContent = score;
+            } else {
+                feedbackTitle.textContent = "✗ Incorrect";
+                feedbackText.innerHTML = `La bonne réponse était <strong>${getLabel(currentState.correctAnswer)}</strong>.<br>` + getExplanation(currentState.correctAnswer);
+            }
+
+            // Affichage des calculs justificatifs (pédagogie)
+            mathContent.innerHTML = `
+                <strong>Données :</strong><br>
+                Douille : [${currentState.shaft.min} ; ${currentState.shaft.max}] mm<br>
+                Orifice : [${currentState.hole.min} ; ${currentState.hole.max}] mm<br>
+                <br>
+                <strong>Analyse :</strong><br>
+                Max Douille (${currentState.shaft.max}) vs Min Orifice (${currentState.hole.min})<br>
+                Jeu Min = ${(currentState.hole.min - currentState.shaft.max).toFixed(3)} mm
+            `;
+
+            nextBtn.style.display = 'block';
+        }
+
+        function getLabel(key) {
+            if (key === 'functional') return "Fonctionnel";
+            if (key === 'nonfunctional') return "Non Fonctionnel";
+            return "Possiblement non-fonctionnel";
+        }
+
+        function getExplanation(key) {
+            if (key === 'functional') return "La douille la plus grosse est toujours plus petite que l'orifice le plus petit. L'assemblage est garanti avec un jeu mécanique.";
+            if (key === 'nonfunctional') return "Même la douille la plus fine est plus grosse que l'orifice le plus large. Impossible d'assembler.";
+            return "Il y a un risque. Certaines pièces passeront, d'autres non (chevauchement des intervalles de tolérance).";
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('levelDisplay').textContent = level;
+            generateExercise();
+        }
+
+        function resetUI() {
+            // Reset position douille avec nouvelle échelle
+            shaftGroup.setAttribute('transform', `translate(${startX}, ${startY}) scale(1.4)`);
+            shaftGroup.style.opacity = '1';
+            shaftGroup.classList.remove('inserting');
+
+            // Cacher la douille insérée
+            insertedShaft.classList.remove('visible');
+            insertedShaft.style.opacity = '0';
+
+            // Reset flag
+            hasInserted = false;
+
+            // Reset UI panneaux
+            document.getElementById('feedbackArea').style.display = 'none';
+            document.querySelector('.next-btn').style.display = 'none';
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('correct', 'incorrect');
+            });
+        }
+
+        /**
+         * MOTEUR PHYSIQUE : DRAG & DROP (SVG)
+         * Gestion souris et tactile pour déplacer la douille.
+         */
+        function setupDragAndDrop() {
+            let selectedElement = null;
+            let offset = { x: 0, y: 0 };
+            
+            // Fonctions pour convertir coord souris -> coord SVG
+            function getMousePosition(evt) {
+                const CTM = svgCanvas.getScreenCTM();
+                if (evt.touches) { evt = evt.touches[0]; }
+                return {
+                    x: (evt.clientX - CTM.e) / CTM.a,
+                    y: (evt.clientY - CTM.f) / CTM.d
+                };
+            }
+
+            // Début du drag
+            const startDrag = (evt) => {
+                let target = evt.target;
+                while (target && target.id !== 'shaftGroup') {
+                    target = target.parentNode;
+                }
+                if (target && target.id === 'shaftGroup') {
+                    selectedElement = target;
+                    const coord = getMousePosition(evt);
+                    
+                    const transform = selectedElement.getAttribute('transform');
+                    let currentX = startX, currentY = startY;
+                    
+                    if (transform) {
+                        // Extraire translate en tenant compte du scale
+                        const matchTranslate = /translate\(([^,]+),\s*([^)]+)\)/.exec(transform);
+                        if (matchTranslate) {
+                            currentX = parseFloat(matchTranslate[1]);
+                            currentY = parseFloat(matchTranslate[2]);
+                        }
+                    }
+                    
+                    offset.x = coord.x - currentX;
+                    offset.y = coord.y - currentY;
+                }
+            };
+
+            // Pendant le drag
+            const drag = (evt) => {
+                if (selectedElement) {
+                    evt.preventDefault();
+                    const coord = getMousePosition(evt);
+                    const dx = coord.x - offset.x;
+                    const dy = coord.y - offset.y;
+                    selectedElement.setAttribute('transform', `translate(${dx}, ${dy}) scale(1.4)`);
+                    
+                    // Highlight de la zone de drop - ajusté pour nouvelle échelle
+                    if (dx > 300 && dx < 500 && dy > 50 && dy < 150) {
+                        holeGroup.classList.add('drop-zone', 'highlight');
+                    } else {
+                        holeGroup.classList.remove('highlight');
+                    }
+                }
+            };
+
+            // Fin du drag (Relâchement)
+            const endDrag = (evt) => {
+                if (selectedElement) {
+                    holeGroup.classList.remove('highlight');
+                    
+                    const transform = selectedElement.getAttribute('transform');
+                    const matchTranslate = /translate\(([^,]+),\s*([^)]+)\)/.exec(transform);
+                    const currentX = parseFloat(matchTranslate[1]);
+                    const currentY = parseFloat(matchTranslate[2]);
+
+                    // Zone de détection pour insertion - ajustée
+                    if (currentX > 300 && currentX < 500 && currentY > 50 && currentY < 150 && !hasInserted) {
+                        // Animation d'insertion améliorée
+                        animateInsertion(selectedElement);
+                        hasInserted = true;
+                    } else {
+                        // Retour case départ
+                        selectedElement.setAttribute('transform', `translate(${startX}, ${startY}) scale(1.4)`);
+                    }
+                    
+                    selectedElement = null;
+                }
+            };
+
+            // Listeners Souris
+            svgCanvas.addEventListener('mousedown', startDrag);
+            svgCanvas.addEventListener('mousemove', drag);
+            svgCanvas.addEventListener('mouseup', endDrag);
+            svgCanvas.addEventListener('mouseleave', endDrag);
+
+            // Listeners Tactile
+            svgCanvas.addEventListener('touchstart', startDrag, {passive: false});
+            svgCanvas.addEventListener('touchmove', drag, {passive: false});
+            svgCanvas.addEventListener('touchend', endDrag);
+        }
+
+        function animateInsertion(element) {
+            // Positionne la douille pour qu'elle s'approche de l'orifice
+            const targetX = 372; // Ajusté pour la nouvelle échelle
+            const targetY = 86;  // Ajusté pour la nouvelle échelle
+
+            element.setAttribute('transform', `translate(${targetX}, ${targetY}) scale(1.4)`);
+            
+            // Animation de disparition de la douille externe
+            element.classList.add('inserting');
+            
+            // Affichage de la douille insérée dans le trou avec délai
+            setTimeout(() => {
+                insertedShaft.classList.add('visible');
+            }, 400);
+        }
+
+        /**
+         * EXPORT PNG : Télécharge le canvas SVG en image PNG
+         */
+        function downloadCanvas() {
+            const svg = document.getElementById('mainSvg');
+            const svgData = new XMLSerializer().serializeToString(svg);
+            
+            // Créer un canvas temporaire
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Définir la taille du canvas (haute résolution)
+            const scale = 2; // 2x pour meilleure qualité
+            canvas.width = 700 * scale;
+            canvas.height = 400 * scale;
+            
+            // Créer une image à partir du SVG
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                // Fond blanc
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Dessiner le SVG sur le canvas
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Convertir en PNG et télécharger
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.download = `cotation-fonctionnelle-exercice-${level}.png`;
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+                    
+                    // Nettoyer
+                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(link.href);
+                });
+            };
+            
+            img.src = url;
+        }
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+    </script>
+</body>
+</html>

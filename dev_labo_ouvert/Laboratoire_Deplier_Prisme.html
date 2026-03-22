@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Plan de Prisme Triangulaire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:8px;background:#d1d5db;border-radius:9999px;outline:none;opacity:0.7;transition:opacity .2s}
+        input[type="range"]:hover{opacity:1}
+        input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#2563eb;cursor:pointer;border-radius:50%}
+        input[type="range"]::-moz-range-thumb{width:20px;height:20px;background:#2563eb;cursor:pointer;border-radius:50%}
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 m-4">
+        <div class="grid md:grid-cols-2 gap-8 md:gap-12">
+            
+            <div>
+                <h1 class="text-3xl font-bold mb-2 text-gray-900">Déplier un prisme triangulaire</h1>
+                <p class="text-gray-600 mb-6">Ajustez les dimensions du triangle (base équilatérale) et la hauteur du prisme pour générer un plan imprimable.</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <label for="sizeSlider" class="block text-sm font-medium text-gray-700 mb-1">Côté du triangle (C)</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="sizeSlider" min="20" max="70" value="40" class="w-full">
+                            <span id="sizeValue" class="font-bold text-gray-700 text-lg w-12 text-right">40</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="heightSlider" class="block text-sm font-medium text-gray-700 mb-1">Hauteur du prisme (H)</label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" id="heightSlider" min="20" max="150" value="60" class="w-full">
+                            <span id="heightValue" class="font-bold text-gray-700 text-lg w-12 text-right">60</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Type de patron</label>
+                        <div class="flex items-center space-x-6 bg-gray-50 p-2 rounded-lg">
+                            <label for="patternClassic" class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" id="patternClassic" name="patternType" value="classic" class="form-radio text-blue-600" checked>
+                                <span class="text-gray-800">Classique (T)</span>
+                            </label>
+                            <label for="patternOffset" class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" id="patternOffset" name="patternType" value="offset" class="form-radio text-blue-600">
+                                <span class="text-gray-800">Étalé (Z)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="generateBtn" class="w-full mt-8 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">
+                    Générer le plan SVG
+                </button>
+
+                <div id="error-message" class="mt-4 text-red-600 font-medium text-center h-5"></div>
+            </div>
+
+            <div class="flex items-center justify-center bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <svg viewBox="0 0 300 300" class="w-full h-full">
+                    <title>Illustration d'un prisme</title>
+                    <polygon points="100,220 200,220 150,133" class="fill-blue-100 stroke-blue-500" stroke-width="2"/>
+                    
+                    <line x1="100" y1="220" x2="130" y2="180" class="stroke-blue-400" stroke-width="1.5" stroke-dasharray="4"/>
+                    <line x1="200" y1="220" x2="230" y2="180" class="stroke-blue-500" stroke-width="2"/>
+                    <line x1="150" y1="133" x2="180" y2="93" class="stroke-blue-500" stroke-width="2"/>
+                    
+                    <line x1="130" y1="180" x2="230" y2="180" class="stroke-blue-400" stroke-width="1.5" stroke-dasharray="4"/>
+                    <line x1="130" y1="180" x2="180" y2="93" class="stroke-blue-400" stroke-width="1.5" stroke-dasharray="4"/>
+                    <line x1="230" y1="180" x2="180" y2="93" class="stroke-blue-500" stroke-width="2"/>
+
+                    <text x="130" y="240" class="fill-gray-800 font-sans font-medium text-sm">Côté (C)</text>
+                    <text x="225" y="140" class="fill-gray-800 font-sans font-medium text-sm">Hauteur (H)</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+<script>
+/*
+ * =============================================================
+ * Application Éducative : Générateur Prisme Triangulaire
+ * Basé sur le code de Mathieu Dubreuil
+ * Modifié pour : Prisme à base triangulaire
+ * =============================================================
+*/
+
+    const sizeSlider = document.getElementById('sizeSlider');
+    const heightSlider = document.getElementById('heightSlider'); // Anciennement edgeSlider
+    const sizeValueDisplay = document.getElementById('sizeValue');
+    const heightValueDisplay = document.getElementById('heightValue');
+    const generateBtn = document.getElementById('generateBtn');
+    const errorMessage = document.getElementById('error-message');
+
+    function updateDisplayValues() {
+        sizeValueDisplay.textContent = sizeSlider.value;
+        heightValueDisplay.textContent = heightSlider.value;
+    }
+    sizeSlider.addEventListener('input', updateDisplayValues);
+    heightSlider.addEventListener('input', updateDisplayValues);
+    
+    // Constantes de page (Format Lettre US en mm - Marges)
+    // On inverse W et H pour simuler le paysage dans les calculs si nécessaire, 
+    // mais ici on garde le format portrait standard.
+    const PAGE_MARGIN = 10;
+    const PAGE = { width: 215.9, height: 279.4 }; 
+
+    /* * Génère un patron "Classique" (forme de croix/T)
+     * - 3 rectangles alignés horizontalement
+     * - 1 triangle au-dessus du rectangle central
+     * - 1 triangle en-dessous du rectangle central
+     */
+    function generateClassicSVG(c, h_prism) {
+        // Hauteur du triangle équilatéral (h_tri)
+        const h_tri = c * (Math.sqrt(3) / 2);
+        
+        // Dimensions totales du patron
+        const netWidth = c * 3; // 3 faces côte à côte
+        const netHeight = h_prism + (2 * h_tri); // Hauteur prisme + 2 triangles
+
+        // Vérification des dimensions page
+        if (netWidth > (PAGE.width - 2 * PAGE_MARGIN) || netHeight > (PAGE.height - 2 * PAGE_MARGIN)) {
+             // Si ça ne rentre pas en portrait, on vérifie si ça rentre en paysage (rotation virtuelle)
+             if (netWidth > (PAGE.height - 2 * PAGE_MARGIN) || netHeight > (PAGE.width - 2 * PAGE_MARGIN)) {
+                errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+                return null;
+             }
+        }
+
+        // Points clés (Système de coordonnées relatif au coin haut gauche du patron)
+        // Rectangle central commence à x = c, y = h_tri
+        
+        // Coordonnées Y
+        const y_top_tip = 0;
+        const y_rect_top = h_tri;
+        const y_rect_bot = h_tri + h_prism;
+        const y_bot_tip = h_tri + h_prism + h_tri;
+
+        // Coordonnées X
+        const x_0 = 0;
+        const x_1 = c;
+        const x_1_5 = c * 1.5; // Pointe du triangle
+        const x_2 = c * 2;
+        const x_3 = c * 3;
+
+        // Chemin de découpe (Contour extérieur)
+        const cutPath = `
+            M ${x_0},${y_rect_top} 
+            L ${x_1},${y_rect_top} 
+            L ${x_1_5},${y_top_tip} 
+            L ${x_2},${y_rect_top} 
+            L ${x_3},${y_rect_top} 
+            L ${x_3},${y_rect_bot} 
+            L ${x_2},${y_rect_bot} 
+            L ${x_1_5},${y_bot_tip} 
+            L ${x_1},${y_rect_bot} 
+            L ${x_0},${y_rect_bot} 
+            Z`;
+
+        // Chemins de pliage (Lignes intérieures - pointillés)
+        // 1. Lignes verticales entre les rectangles
+        let foldPath = `M ${x_1},${y_rect_top} L ${x_1},${y_rect_bot} `;
+        foldPath += `M ${x_2},${y_rect_top} L ${x_2},${y_rect_bot} `;
+        
+        // 2. Lignes horizontales (base des triangles)
+        foldPath += `M ${x_1},${y_rect_top} L ${x_2},${y_rect_top} `;
+        foldPath += `M ${x_1},${y_rect_bot} L ${x_2},${y_rect_bot} `;
+
+        return buildFinalSVG(netWidth, netHeight, cutPath, foldPath, "Classique");
+    }
+
+    /* * Génère un patron "Étalé" (forme de Z ou escalier)
+     * - 3 rectangles alignés horizontalement
+     * - Triangle Haut sur le rectangle de GAUCHE (1)
+     * - Triangle Bas sur le rectangle de DROITE (3)
+     */
+    function generateOffsetSVG(c, h_prism) {
+        const h_tri = c * (Math.sqrt(3) / 2);
+        
+        const netWidth = c * 3;
+        const netHeight = h_prism + (2 * h_tri); // La hauteur max reste la même techniquement car alignés verticalement
+
+        if (netWidth > (PAGE.width - 2 * PAGE_MARGIN) || netHeight > (PAGE.height - 2 * PAGE_MARGIN)) {
+            errorMessage.textContent = 'Dimensions trop grandes pour une page Lettre.';
+            return null;
+        }
+
+        // Y coordinates (Décalage pour centrer verticalement le dessin)
+        const y_start = 0; // Pointe haute
+        const y_rect_top = h_tri;
+        const y_rect_bot = h_tri + h_prism;
+        const y_end = h_tri + h_prism + h_tri; // Pointe basse
+
+        // X coordinates
+        const x_0 = 0;
+        const x_0_5 = c * 0.5; // Pointe triangle gauche
+        const x_1 = c;
+        const x_2 = c * 2;
+        const x_2_5 = c * 2.5; // Pointe triangle droite
+        const x_3 = c * 3;
+
+        // Contour extérieur
+        const cutPath = `
+            M ${x_0},${y_rect_top}
+            L ${x_0_5},${y_start}
+            L ${x_1},${y_rect_top}
+            L ${x_3},${y_rect_top}
+            L ${x_3},${y_rect_bot}
+            L ${x_2_5},${y_end}
+            L ${x_2},${y_rect_bot}
+            L ${x_0},${y_rect_bot}
+            Z
+        `;
+
+        // Lignes de pliage
+        // Verticales entre rectangles
+        let foldPath = `M ${x_1},${y_rect_top} L ${x_1},${y_rect_bot} `;
+        foldPath += `M ${x_2},${y_rect_top} L ${x_2},${y_rect_bot} `;
+        
+        // Horizontales (Bases triangles)
+        // Triangle haut sur Rect 1
+        foldPath += `M ${x_0},${y_rect_top} L ${x_1},${y_rect_top} `;
+        // Triangle bas sur Rect 3
+        foldPath += `M ${x_2},${y_rect_bot} L ${x_3},${y_rect_bot} `;
+
+        return buildFinalSVG(netWidth, netHeight, cutPath, foldPath, "Étalé");
+    }
+
+    // Fonction utilitaire pour encapsuler le SVG et le centrer
+    function buildFinalSVG(netW, netH, cutPath, foldPath, title) {
+        // On centre le dessin sur la page
+        const offsetX = (PAGE.width - netW) / 2;
+        const offsetY = (PAGE.height - netH) / 2;
+        const transform = `translate(${offsetX}, ${offsetY})`;
+
+        return `<svg width="${PAGE.width}mm" height="${PAGE.height}mm" viewBox="0 0 ${PAGE.width} ${PAGE.height}" xmlns="http://www.w3.org/2000/svg">
+            <title>Plan Prisme - ${title}</title>
+            <g transform="${transform}">
+                <path d="${cutPath}" stroke="black" stroke-width="0.3" fill="none" />
+                <path d="${foldPath}" stroke="black" stroke-width="0.3" stroke-dasharray="3,3" fill="none" />
+                
+                <text x="0" y="-5" font-family="sans-serif" font-size="4" fill="#999">Prisme Triangulaire - C:${sizeSlider.value}mm H:${heightSlider.value}mm</text>
+            </g>
+        </svg>`;
+    }
+
+    generateBtn.addEventListener('click', () => {
+        errorMessage.textContent = '';
+        const c = parseFloat(sizeSlider.value); // Côté du triangle
+        const h = parseFloat(heightSlider.value); // Hauteur du prisme
+        
+        const selectedPattern = document.querySelector('input[name="patternType"]:checked').value;
+        let svgContent = null;
+        
+        if (selectedPattern === 'classic') {
+            svgContent = generateClassicSVG(c, h);
+        } else {
+            svgContent = generateOffsetSVG(c, h);
+        }
+
+        if (svgContent) {
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            const newWindow = window.open(url, '_blank');
+            if(!newWindow) {
+                errorMessage.textContent = 'Veuillez autoriser les pop-ups pour voir le SVG.';
+            }
+        }
+    });
+
+    updateDisplayValues();
+
+    // Signature console
+    (function() {
+        console.log('%cGénérateur de Prisme Triangulaire', 'color: #2563eb; font-weight: bold; font-size: 1.2em;');
+    })();
+
+</script>
+</body>
+</html>

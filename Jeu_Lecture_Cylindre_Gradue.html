@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Jeu Lecture Cylindre Gradué</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        /* Conteneur Principal : Flex Row */
+        #app-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 1000px;
+            width: 95%;
+            display: flex;
+            flex-direction: row; /* Colonnes côte à côte */
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        /* --- COLONNE GAUCHE : VISUEL (2/3) --- */
+        .col-visual {
+            flex: 2; /* Prend 2 parts d'espace */
+            position: relative;
+            display: flex;
+            justify-content: right; /* Centre le cylindre dans sa zone */
+            align-items: flex-start;
+            min-height: 400px;
+            /* Espace réservé à gauche pour la loupe */
+            padding-left: 150px; 
+            /* Important : on laisse déborder la loupe */
+            overflow: visible; 
+        }
+		.floating-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #2c3e50;
+            z-index: 0; /* Derrière la loupe */
+            text-align: left;
+            max-width: 220px;
+            line-height: 1.3;
+        }
+
+        /* --- COLONNE DROITE : CONTROLES (1/3) --- */
+        .col-controls {
+            flex: 1; /* Prend 1 part d'espace */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background-color: #fafafa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #eee;
+        }
+
+        h1 { 
+            margin-top: 0; 
+            color: #2c3e50; 
+            font-size: 1.5rem; 
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Le cylindre statique */
+        .cylinder-wrapper {
+            position: relative;
+            width: 120px;
+            height: 350px;
+            background: linear-gradient(to right, rgba(224,247,250,0.3), rgba(224,247,250,0.8), rgba(224,247,250,0.3));
+            border: 2px solid #546e7a;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            cursor: crosshair;
+            overflow: hidden;
+            flex-shrink: 0; /* Empêche le cylindre d'être écrasé */
+        }
+
+        /* Éléments internes du cylindre */
+        .liquid {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            background-color: #039be5;
+            z-index: 1;
+        }
+
+        .meniscus-mask {
+            position: absolute;
+            left: -10%; width: 120%;
+            height: 20px;
+            background: linear-gradient(to right, rgba(224,247,250,0.3), rgba(224,247,250,0.8), rgba(224,247,250,0.3));
+            border-radius: 0 0 50% 50%;
+            z-index: 2;
+        }
+
+        .graduations {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* --- LOUPE MOBILE --- */
+        .magnifier-lens {
+            position: absolute;
+            width: 300px; /* Taille de la loupe */
+            height: 300px;
+            border: 4px solid #f1c40f;
+            border-radius: 50%;
+            background-color: white;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+        
+        .magnifier-content {
+            position: absolute;
+            top: 0; left: 0;
+            width: 120px;
+            height: 350px;
+            transform-origin: 0 0;
+        }
+        
+        .crosshair {
+            position: absolute;
+            top: 50%; left: 0; right: 0;
+            height: 1px; background: rgba(255, 0, 0, 0.5);
+            z-index: 20;
+        }
+
+        /* --- STYLES CONTROLES --- */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .step-label { font-weight: bold; color: #444; margin-bottom: 5px; display: block;}
+        .hint { font-size: 0.85em; color: #7f8c8d; margin-bottom: 10px; font-style: italic;}
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: space-between;
+        }
+        
+        input { 
+            padding: 8px; 
+            border-radius: 4px; 
+            border: 1px solid #ccc; 
+            width: 80px; 
+            text-align: center; 
+            font-size: 1rem;
+        }
+        
+        button {
+            background-color: #4caf50; color: white; border: none; padding: 10px;
+            border-radius: 5px; cursor: pointer; font-size: 0.95rem; width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #43a047; }
+        button.secondary { background-color: #2196f3; margin-top: 5px;}
+        button.secondary:hover { background-color: #1e88e5; }
+        button:disabled { background-color: #dcdcdc; color: #888; cursor: not-allowed; }
+
+        /* --- FEEDBACK UNIQUE --- */
+        #global-feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9f9f9;
+            border: 1px dashed #ddd;
+        }
+        .success { background-color: #d4edda !important; color: #155724; border: 1px solid #c3e6cb !important; }
+        .error { background-color: #f8d7da !important; color: #721c24; border: 1px solid #f5c6cb !important; }
+        .info { background-color: #e3f2fd !important; color: #0d47a1; border: 1px solid #bee5eb !important; }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <div class="col-visual">
+        <div class="floating-title">Quel est le volume de cette solution ?</div>
+
+        <div class="cylinder-wrapper" id="main-cylinder">
+            <div class="liquid" id="main-liquid"></div>
+            <div class="meniscus-mask" id="main-mask"></div>
+            <svg class="graduations" id="main-graduations"></svg>
+        </div>
+
+        <div class="magnifier-lens" id="magnifier">
+            <div class="crosshair"></div>
+            <div class="magnifier-content" id="mag-content">
+                <div class="liquid" id="mag-liquid"></div>
+                <div class="meniscus-mask" id="mag-mask"></div>
+                <svg class="graduations" id="mag-graduations"></svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-controls">
+        
+        <div id="step1" class="control-group">
+            <span class="step-label">
+                1. Quelle est l'incertitude absolue des mesures faites avec ce cylindre gradué de <strong id="capacity-display"></strong> mL ?
+            </span>
+            
+            
+            <div class="input-row">
+                <label style="font-weight:bold; font-size:1.2rem">±</label>
+                <input type="number" id="input-unc" step="any" placeholder="0.0">
+                <span style="font-size:1.1rem">mL</span>
+            </div>
+            <button onclick="validateUncertainty()">Valider Incertitude</button>
+        </div>
+
+        <div id="step2" class="control-group hidden">
+            <span class="step-label">2. Quelle est la lecture du volume ?</span>
+            <div class="hint">N'oubliez pas les décimales et l'incertitude.</div>
+            
+            <div class="input-row">
+                <input type="number" id="input-vol" step="any" placeholder="0.0" style="width: 100%;">
+                <span style="font-size:1.1rem">mL</span>
+            </div>
+            <button onclick="validateVolume()">Valider Lecture</button>
+            <button id="btn-reveal" class="secondary" onclick="revealAnswer()">🏳️ Réponse</button>
+        </div>
+        
+        <div id="global-feedback">
+            Commencez par déterminer l'incertitude.
+        </div>
+
+        <button id="btn-next" class="hidden" style="margin-top: auto; background-color: #fff; color: #333; border: 1px solid #ccc;" onclick="nextLevel()">Cylindre Suivant ➡</button>
+    </div>
+
+</div>
+
+<script>
+     /*
+ * =============================================================
+ * Application Éducative : Jeu Lecture Cylindre Gradué
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+  * Description: Déterminer l'incertitudes de 4 cylindres, lire sous le ménisque, arrondir à l'incertitude
+ * =============================================================
+*/
+
+    // --- DONNÉES ---
+    const levels = [
+        { capacity: 10, majorStep: 1, minorStep: 0.1 },
+        { capacity: 25, majorStep: 5, minorStep: 0.5 },
+        { capacity: 50, majorStep: 10, minorStep: 1.0 },
+        { capacity: 100, majorStep: 10, minorStep: 2.0 }
+    ];
+
+    let currentLevelIdx = 0;
+    let state = {
+        trueVolume: 0,
+        trueUncertainty: 0,
+        decimalPlaces: 0
+    };
+
+    // Constantes graphiques
+    const CYLINDER_H = 350;
+    const MENISCUS_DEPTH = 18;
+    const ZOOM_LEVEL = 2.5;
+
+    // --- INITIALISATION ---
+    function init() {
+        loadLevel(0);
+        setupMagnifier();
+    }
+
+    function loadLevel(idx) {
+        currentLevelIdx = idx;
+        const level = levels[idx];
+        document.getElementById('capacity-display').textContent = level.capacity;
+
+        // Calcul Incertitude
+        if (Math.abs(level.minorStep - 0.5) < 0.001) {
+            state.trueUncertainty = 0.3;
+        } else {
+            state.trueUncertainty = parseFloat((level.minorStep / 2).toPrecision(1));
+        }
+
+        const uncStr = state.trueUncertainty.toString();
+        state.decimalPlaces = uncStr.includes('.') ? uncStr.split('.')[1].length : 0;
+
+        // Génération Volume
+        const minV = level.capacity * 0.15;
+        const maxV = level.capacity * 0.90;
+        state.trueVolume = Math.random() * (maxV - minV) + minV;
+
+        // Reset UI
+        document.getElementById('step1').classList.remove('hidden');
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('btn-next').classList.add('hidden');
+        
+        resetInput('input-unc');
+        resetInput('input-vol');
+        
+        setGlobalFeedback("Commencez par déterminer l'incertitude.", "");
+        
+        document.querySelector('#step1 button').disabled = false;
+        document.querySelector('#step2 button').disabled = false;
+        document.getElementById('btn-reveal').disabled = false;
+
+        drawCylinder(level, state.trueVolume);
+    }
+
+    function resetInput(id) {
+        const el = document.getElementById(id);
+        el.value = '';
+        el.disabled = false;
+    }
+
+    function setGlobalFeedback(msg, type) {
+        const fb = document.getElementById('global-feedback');
+        fb.innerHTML = msg;
+        fb.className = type; // success, error, info, ou vide
+    }
+
+    // --- DESSIN ---
+    function drawCylinder(level, vol) {
+        const pxPerMl = CYLINDER_H / level.capacity;
+        const volumePx = vol * pxPerMl;
+
+        updateVisuals(document.getElementById('main-liquid'), document.getElementById('main-mask'), document.getElementById('main-graduations'), volumePx, level, pxPerMl);
+        updateVisuals(document.getElementById('mag-liquid'), document.getElementById('mag-mask'), document.getElementById('mag-graduations'), volumePx, level, pxPerMl);
+    }
+
+    function updateVisuals(liquidEl, maskEl, svgEl, volPx, level, pxPerMl) {
+        maskEl.style.bottom = volPx + 'px';
+        liquidEl.style.height = (volPx + MENISCUS_DEPTH) + 'px';
+        svgEl.innerHTML = '';
+        
+        const stepCount = level.capacity / level.minorStep;
+        for(let i=0; i<=stepCount; i++) {
+            const v = i * level.minorStep;
+            const y = CYLINDER_H - (v * pxPerMl);
+            
+            let len = 10; let width = 1;
+            let isMajor = Math.abs(v % level.majorStep) < 0.001;
+            let isMedium = Math.abs(v % (level.majorStep/2)) < 0.001;
+
+            if (isMajor) { len = 25; width = 2; }
+            else if (isMedium) { len = 18; }
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", 0); line.setAttribute("x2", len);
+            line.setAttribute("y1", y); line.setAttribute("y2", y);
+            line.setAttribute("stroke", "black"); line.setAttribute("stroke-width", width);
+            svgEl.appendChild(line);
+
+            if (isMajor && v > 0) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", len + 5); text.setAttribute("y", y + 4);
+                text.setAttribute("font-size", "12"); text.setAttribute("font-family", "Arial");
+                text.textContent = Math.round(v);
+                svgEl.appendChild(text);
+            }
+        }
+    }
+
+    // --- INTERACTION LOUPE ---
+    function setupMagnifier() {
+        const wrapper = document.getElementById('main-cylinder');
+        const lens = document.getElementById('magnifier');
+        const content = document.getElementById('mag-content');
+
+        wrapper.addEventListener('mouseenter', () => { lens.style.display = 'block'; });
+        wrapper.addEventListener('mouseleave', () => { lens.style.display = 'none'; });
+
+        wrapper.addEventListener('mousemove', (e) => {
+            const rect = wrapper.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Logique de positionnement
+            const lensHalf = 125; // 250px / 2
+            
+            // MODIFICATION ICI : On place la loupe à GAUCHE du curseur (-180px)
+            // Puisque la colonne visuelle a du padding à gauche, la loupe s'affichera là.
+            lens.style.left = (wrapper.offsetLeft + x - lensHalf - 70) + 'px'; 
+            lens.style.top = (wrapper.offsetTop + y - lensHalf) + 'px';
+
+            // Contenu interne (Zoom)
+            const contentX = -x * ZOOM_LEVEL + lensHalf;
+            const contentY = -y * ZOOM_LEVEL + lensHalf;
+
+            content.style.transform = `translate(${contentX}px, ${contentY}px) scale(${ZOOM_LEVEL})`;
+        });
+    }
+
+    // --- VALIDATIONS ---
+    function validateUncertainty() {
+        const val = parseFloat(document.getElementById('input-unc').value);
+        if (isNaN(val)) return;
+
+        if (Math.abs(val - state.trueUncertainty) < 0.001) {
+            setGlobalFeedback(`Correct ! Incertitude : ± ${state.trueUncertainty} mL.`, "success");
+            
+            document.getElementById('input-unc').disabled = true;
+            document.querySelector('#step1 button').disabled = true;
+            document.getElementById('step2').classList.remove('hidden');
+        } else {
+            setGlobalFeedback(`Incorrect. Division min : ${levels[currentLevelIdx].minorStep} mL.`, "error");
+        }
+    }
+
+    function validateVolume() {
+        const input = document.getElementById('input-vol');
+        const userVal = parseFloat(input.value);
+
+        if (isNaN(userVal)) {
+            setGlobalFeedback("Entrez un nombre.", "error");
+            return;
+        }
+
+        const userStr = input.value;
+        const userDecimals = userStr.includes('.') ? userStr.split('.')[1].length : 0;
+        
+        if (userDecimals !== state.decimalPlaces) {
+            setGlobalFeedback(`Format incorrect. Il faut ${state.decimalPlaces} décimale(s).`, "error");
+            return;
+        }
+
+        const correctRoundedVol = parseFloat(state.trueVolume.toFixed(state.decimalPlaces));
+        const diff = Math.abs(userVal - correctRoundedVol);
+        
+        if (diff <= state.trueUncertainty) {
+            const finalString = `${correctRoundedVol.toFixed(state.decimalPlaces)} mL ± ${state.trueUncertainty} mL`;
+            setGlobalFeedback(`Bravo ! <br> ${finalString}`, "success");
+            endLevel();
+        } else {
+            setGlobalFeedback("Incorrect. Regardez bien le bas du ménisque.", "error");
+        }
+    }
+
+    function revealAnswer() {
+        const correctRoundedVol = state.trueVolume.toFixed(state.decimalPlaces);
+        setGlobalFeedback(`Réponse : ${correctRoundedVol} mL ± ${state.trueUncertainty} mL`, "info");
+        document.getElementById('input-vol').value = correctRoundedVol;
+        endLevel();
+    }
+
+    function endLevel() {
+        document.getElementById('btn-next').classList.remove('hidden');
+        document.getElementById('input-vol').disabled = true;
+        document.querySelector('#step2 button').disabled = true;
+        document.getElementById('btn-reveal').disabled = true;
+    }
+
+    function nextLevel() {
+        const nextIdx = (currentLevelIdx + 1) % levels.length;
+        loadLevel(nextIdx);
+    }
+
+    init();
+// Message de signature dans la console
+        (function() {
+            const styles = [
+                'color: #007BFF',
+                'font-size: 1.1em',
+                'font-weight: bold',
+                'background-color: #f0f0f0',
+                'padding: 4px 8px',
+                'border-radius: 4px'
+            ].join(';');
+
+            console.log(
+                '%cApplication créée par Mathieu Dubreuil', 
+                styles
+            );
+            console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+        })();
+</script>
+</body>
+</html>

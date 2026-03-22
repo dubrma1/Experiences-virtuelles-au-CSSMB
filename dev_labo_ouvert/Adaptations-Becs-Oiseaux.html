@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adaptations des Becs d'Oiseaux - Jeu Éducatif</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .food-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .food-section h2 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .flower-display {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .flower-svg {
+            width: 150px;
+            height: 150px;
+        }
+
+        .food-description {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .birds-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 25px;
+            border-radius: 15px;
+            color: white;
+        }
+
+        .birds-section h2 {
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .bird-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .bird-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            color: #333;
+        }
+
+        .bird-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .bird-card.selected {
+            border-color: #27ae60;
+            background: #d5f4e6;
+        }
+
+        .bird-card.wrong {
+            border-color: #e74c3c;
+            background: #fadbd8;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .beak-preview {
+            width: 80px;
+            height: 60px;
+            margin: 10px auto;
+        }
+
+        .bird-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 1em;
+        }
+
+        .bird-latin {
+            font-style: italic;
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        }
+
+        .beak-type {
+            font-size: 0.85em;
+            color: #555;
+        }
+
+        .feedback-section {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 15px;
+            display: none;
+            min-height: 150px;
+        }
+
+        .feedback-section.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback-section.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .feedback-section h3 {
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .feedback-text {
+            line-height: 1.8;
+            font-size: 1.05em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .btn-validate {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-validate:hover {
+            background: #229954;
+            transform: scale(1.05);
+        }
+
+        .btn-validate:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+
+        .btn-next {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-next:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+
+        .btn-screenshot {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .btn-screenshot:hover {
+            background: #8e44ad;
+            transform: scale(1.05);
+        }
+
+        .progress {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .screenshot-preview {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .screenshot-content {
+            text-align: center;
+        }
+
+        .screenshot-bird-head {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        @media (max-width: 768px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+            
+            .bird-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦜 Adaptations des Becs d'Oiseaux</h1>
+        <p class="subtitle">Découvrez la coévolution entre les oiseaux et leur source de nourriture</p>
+        
+        <div class="progress">
+            Niveau <span id="levelNumber">1</span> sur <span id="totalLevels">4</span>
+        </div>
+
+        <div class="game-area">
+            <div class="food-section">
+                <h2>🌺 Source de Nourriture</h2>
+                <div class="flower-display" id="flowerDisplay">
+                    <!-- SVG sera inséré ici -->
+                </div>
+                <div class="food-description" id="foodDescription">
+                    <!-- Description sera insérée ici -->
+                </div>
+            </div>
+
+            <div class="birds-section">
+                <h2>🐦 Sélectionnez l'oiseau adapté</h2>
+                <div class="bird-grid" id="birdGrid">
+                    <!-- Les cartes d'oiseaux seront insérées ici -->
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-validate" id="validateBtn" disabled>Valider ma réponse</button>
+        </div>
+
+        <div class="feedback-section" id="feedbackSection">
+            <h3 id="feedbackTitle"></h3>
+            <div class="feedback-text" id="feedbackText"></div>
+            <div class="button-group">
+                <button class="btn-screenshot" id="screenshotBtn">📸 Capturer l'explication</button>
+                <button class="btn-next" id="nextBtn">Niveau suivant →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gameData = [
+            {
+                food: {
+                    name: "Lobélie cardinale",
+                    latinName: "Lobelia cardinalis",
+                    type: "Fleur tubulaire longue",
+                    description: "Fleur tubulaire rouge vif de 3-4 cm de longueur, produisant du nectar profond dans le tube floral.",
+                    svg: `<svg class="flower-svg" viewBox="0 0 150 150">
+                        <g>
+                            <!-- Tige -->
+                            <line x1="75" y1="150" x2="75" y2="60" stroke="#2d5016" stroke-width="4"/>
+                            <!-- Feuilles -->
+                            <ellipse cx="60" cy="100" rx="15" ry="8" fill="#4a7c2e" transform="rotate(-30 60 100)"/>
+                            <ellipse cx="90" cy="85" rx="15" ry="8" fill="#4a7c2e" transform="rotate(30 90 85)"/>
+                            <!-- Fleur tubulaire -->
+                            <path d="M 75 60 Q 65 50 60 35 Q 62 25 70 20 L 80 20 Q 88 25 90 35 Q 85 50 75 60" fill="#dc143c" stroke="#b71c1c" stroke-width="2"/>
+                            <path d="M 70 20 L 75 10 L 80 20" fill="#ff4757" stroke="#b71c1c" stroke-width="1.5"/>
+                            <ellipse cx="75" cy="15" rx="3" ry="6" fill="#ffd700"/>
+                        </g>
+                    </svg>`
+                },
+                birds: [
+                    {
+                        name: "Colibri à gorge rubis",
+                        latinName: "Archilochus colubris",
+                        beakType: "Long, fin et tubulaire",
+                        correct: true,
+                        explanation: "Le Colibri à gorge rubis possède un bec long (15-20 mm), fin et légèrement incurvé, parfaitement adapté pour atteindre le nectar profond des fleurs tubulaires comme la Lobélie cardinale. Cette coévolution illustre la pression de sélection réciproque : la fleur a évolué une structure tubulaire qui exclut les pollinisateurs moins efficaces, tandis que le colibri a développé un bec spécialisé qui lui donne un accès exclusif à cette ressource énergétique riche. La couleur rouge de la fleur est particulièrement visible pour les colibris, qui sont parmi les rares oiseaux à bien percevoir cette couleur.",
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <!-- Tête -->
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#4a7c2e"/>
+                            <!-- Œil -->
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <!-- Gorge rubis (mâle) -->
+                            <ellipse cx="32" cy="38" rx="8" ry="6" fill="#dc143c"/>
+                            <!-- Bec long et fin -->
+                            <path d="M 45 30 L 75 30 L 75 31 L 45 31 Z" fill="#2c2c2c"/>
+                        </svg>`,
+                        headSvg: `<svg class="screenshot-bird-head" viewBox="0 0 120 120">
+                            <ellipse cx="60" cy="60" rx="35" ry="40" fill="#4a7c2e"/>
+                            <circle cx="55" cy="50" r="6" fill="black"/>
+                            <circle cx="54" cy="48" r="2" fill="white"/>
+                            <ellipse cx="65" cy="75" rx="18" ry="12" fill="#dc143c"/>
+                            <path d="M 90 60 L 115 60 L 115 62 L 90 62 Z" fill="#2c2c2c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Cardinal rouge",
+                        latinName: "Cardinalis cardinalis",
+                        beakType: "Conique et robuste",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#dc143c"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 28 L 58 30 L 45 32 Z" fill="#ff6347"/>
+                            <path d="M 20 18 L 30 12 L 28 20 Z" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Pic mineur",
+                        latinName: "Dryobates pubescens",
+                        beakType: "Droit en forme de ciseau",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#2c2c2c"/>
+                            <ellipse cx="35" cy="35" rx="12" ry="10" fill="white"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 29 L 70 28 L 70 32 L 45 31 Z" fill="#4a4a4a"/>
+                            <rect x="20" y="15" width="8" height="4" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Mésange à tête noire",
+                        latinName: "Poecile atricapillus",
+                        beakType: "Court et pointu",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#d3d3d3"/>
+                            <ellipse cx="30" cy="22" rx="18" ry="15" fill="#2c2c2c"/>
+                            <circle cx="28" cy="20" r="3" fill="white"/>
+                            <circle cx="28" cy="20" r="1.5" fill="black"/>
+                            <ellipse cx="30" cy="40" rx="15" ry="12" fill="white"/>
+                            <path d="M 45 30 L 55 30 L 50 32 Z" fill="#4a4a4a"/>
+                        </svg>`
+                    }
+                ]
+            },
+            {
+                food: {
+                    name: "Graines de tournesol",
+                    latinName: "Helianthus annuus",
+                    type: "Graines à coque dure",
+                    description: "Graines protégées par une coque lignifiée résistante nécessitant une force de cassure importante.",
+                    svg: `<svg class="flower-svg" viewBox="0 0 150 150">
+                        <g>
+                            <circle cx="75" cy="75" r="35" fill="#8B4513"/>
+                            <circle cx="75" cy="75" r="30" fill="#3d2817"/>
+                            <g id="petals">
+                                <ellipse cx="75" cy="35" rx="8" ry="18" fill="#FFD700"/>
+                                <ellipse cx="105" cy="45" rx="8" ry="18" fill="#FFD700" transform="rotate(45 75 75)"/>
+                                <ellipse cx="115" cy="75" rx="8" ry="18" fill="#FFD700" transform="rotate(90 75 75)"/>
+                                <ellipse cx="105" cy="105" rx="8" ry="18" fill="#FFD700" transform="rotate(135 75 75)"/>
+                                <ellipse cx="75" cy="115" rx="8" ry="18" fill="#FFD700" transform="rotate(180 75 75)"/>
+                                <ellipse cx="45" cy="105" rx="8" ry="18" fill="#FFD700" transform="rotate(225 75 75)"/>
+                                <ellipse cx="35" cy="75" rx="8" ry="18" fill="#FFD700" transform="rotate(270 75 75)"/>
+                                <ellipse cx="45" cy="45" rx="8" ry="18" fill="#FFD700" transform="rotate(315 75 75)"/>
+                            </g>
+                            <circle cx="70" cy="70" r="2" fill="#654321"/>
+                            <circle cx="80" cy="70" r="2" fill="#654321"/>
+                            <circle cx="75" cy="78" r="2" fill="#654321"/>
+                            <circle cx="68" cy="78" r="2" fill="#654321"/>
+                            <circle cx="82" cy="78" r="2" fill="#654321"/>
+                        </g>
+                    </svg>`
+                },
+                birds: [
+                    {
+                        name: "Cardinal rouge",
+                        latinName: "Cardinalis cardinalis",
+                        beakType: "Conique et robuste",
+                        correct: true,
+                        explanation: "Le Cardinal rouge possède un bec conique robuste spécialement adapté pour casser les graines à coque dure. La morphologie de son bec présente une base large et une structure musculaire puissante qui génère une force de morsure importante. Cette adaptation illustre la pression de sélection exercée par la disponibilité des graines : les oiseaux avec des becs plus forts ont un meilleur accès aux ressources alimentaires riches en lipides et protéines. Le bec conique agit comme un casse-noix biologique, permettant au cardinal d'exploiter efficacement cette niche alimentaire.",
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#dc143c"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 28 L 58 30 L 45 32 Z" fill="#ff6347"/>
+                            <path d="M 20 18 L 30 12 L 28 20 Z" fill="#dc143c"/>
+                        </svg>`,
+                        headSvg: `<svg class="screenshot-bird-head" viewBox="0 0 120 120">
+                            <ellipse cx="60" cy="60" rx="40" ry="44" fill="#dc143c"/>
+                            <circle cx="55" cy="50" r="6" fill="black"/>
+                            <circle cx="54" cy="48" r="2" fill="white"/>
+                            <path d="M 90 58 L 108 60 L 90 62 Z" fill="#ff6347"/>
+                            <path d="M 35 30 L 50 20 L 48 35 Z" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Colibri à gorge rubis",
+                        latinName: "Archilochus colubris",
+                        beakType: "Long, fin et tubulaire",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#4a7c2e"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <ellipse cx="32" cy="38" rx="8" ry="6" fill="#dc143c"/>
+                            <path d="M 45 30 L 75 30 L 75 31 L 45 31 Z" fill="#2c2c2c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Pic mineur",
+                        latinName: "Dryobates pubescens",
+                        beakType: "Droit en forme de ciseau",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#2c2c2c"/>
+                            <ellipse cx="35" cy="35" rx="12" ry="10" fill="white"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 29 L 70 28 L 70 32 L 45 31 Z" fill="#4a4a4a"/>
+                            <rect x="20" y="15" width="8" height="4" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Bécasse d'Amérique",
+                        latinName: "Scolopax minor",
+                        beakType: "Long et flexible",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="18" fill="#8B7355"/>
+                            <circle cx="28" cy="25" r="4" fill="black"/>
+                            <circle cx="27" cy="24" r="1.5" fill="white"/>
+                            <path d="M 45 30 L 75 29 Q 76 30 75 31 L 45 30 Z" fill="#D2691E"/>
+                        </svg>`
+                    }
+                ]
+            },
+            {
+                food: {
+                    name: "Insectes sous l'écorce",
+                    latinName: "Larves de Coléoptères",
+                    type: "Proies cachées dans le bois",
+                    description: "Larves et insectes xylophages creusant des galeries dans le bois mort, à 2-3 cm sous l'écorce.",
+                    svg: `<svg class="flower-svg" viewBox="0 0 150 150">
+                        <g>
+                            <!-- Tronc d'arbre -->
+                            <rect x="40" y="20" width="70" height="110" fill="#8B4513" rx="5"/>
+                            <rect x="45" y="25" width="60" height="100" fill="#A0522D" rx="3"/>
+                            <!-- Texture d'écorce -->
+                            <line x1="50" y1="30" x2="50" y2="120" stroke="#654321" stroke-width="2"/>
+                            <line x1="65" y1="35" x2="65" y2="115" stroke="#654321" stroke-width="1.5"/>
+                            <line x1="80" y1="30" x2="80" y2="120" stroke="#654321" stroke-width="2"/>
+                            <line x1="95" y1="35" x2="95" y2="115" stroke="#654321" stroke-width="1.5"/>
+                            <!-- Trou avec larve visible -->
+                            <ellipse cx="75" cy="75" rx="12" ry="8" fill="#3d2817"/>
+                            <!-- Larve -->
+                            <ellipse cx="75" cy="75" rx="6" ry="3" fill="#F5DEB3"/>
+                            <circle cx="73" cy="75" r="0.5" fill="#2c2c2c"/>
+                        </g>
+                    </svg>`
+                },
+                birds: [
+                    {
+                        name: "Pic mineur",
+                        latinName: "Dryobates pubescens",
+                        beakType: "Droit en forme de ciseau",
+                        correct: true,
+                        explanation: "Le Pic mineur possède un bec droit, pointu et en forme de ciseau, parfaitement adapté pour forer le bois et extraire les insectes xylophages. Son crâne présente des adaptations uniques : des os épaissis, des muscles cervicaux puissants, et un cerveau entouré d'un liquide céphalo-rachidien qui agit comme amortisseur lors des coups répétés (jusqu'à 20 coups par seconde). Sa langue barbelée peut s'étendre de plusieurs centimètres pour harponner les larves dans leurs galeries. Cette spécialisation morphologique illustre une pression de sélection forte : seuls les pics avec ces adaptations peuvent exploiter cette niche alimentaire abondante mais difficile d'accès.",
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#2c2c2c"/>
+                            <ellipse cx="35" cy="35" rx="12" ry="10" fill="white"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 29 L 70 28 L 70 32 L 45 31 Z" fill="#4a4a4a"/>
+                            <rect x="20" y="15" width="8" height="4" fill="#dc143c"/>
+                        </svg>`,
+                        headSvg: `<svg class="screenshot-bird-head" viewBox="0 0 120 120">
+                            <ellipse cx="60" cy="60" rx="36" ry="40" fill="#2c2c2c"/>
+                            <ellipse cx="68" cy="68" rx="24" ry="20" fill="white"/>
+                            <circle cx="55" cy="50" r="6" fill="black"/>
+                            <circle cx="54" cy="48" r="2" fill="white"/>
+                            <path d="M 90 58 L 118 56 L 118 64 L 90 62 Z" fill="#4a4a4a"/>
+                            <rect x="35" y="25" width="16" height="8" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Colibri à gorge rubis",
+                        latinName: "Archilochus colubris",
+                        beakType: "Long, fin et tubulaire",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#4a7c2e"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <ellipse cx="32" cy="38" rx="8" ry="6" fill="#dc143c"/>
+                            <path d="M 45 30 L 75 30 L 75 31 L 45 31 Z" fill="#2c2c2c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Cardinal rouge",
+                        latinName: "Cardinalis cardinalis",
+                        beakType: "Conique et robuste",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#dc143c"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 28 L 58 30 L 45 32 Z" fill="#ff6347"/>
+                            <path d="M 20 18 L 30 12 L 28 20 Z" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Mésange à tête noire",
+                        latinName: "Poecile atricapillus",
+                        beakType: "Court et pointu",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#d3d3d3"/>
+                            <ellipse cx="30" cy="22" rx="18" ry="15" fill="#2c2c2c"/>
+                            <circle cx="28" cy="20" r="3" fill="white"/>
+                            <circle cx="28" cy="20" r="1.5" fill="black"/>
+                            <ellipse cx="30" cy="40" rx="15" ry="12" fill="white"/>
+                            <path d="M 45 30 L 55 30 L 50 32 Z" fill="#4a4a4a"/>
+                        </svg>`
+                    }
+                ]
+            },
+            {
+                food: {
+                    name: "Vers de terre dans le sol",
+                    latinName: "Lumbricus terrestris",
+                    type: "Proies enfouies dans le sol",
+                    description: "Vers de terre vivant dans les premiers centimètres du sol humide, nécessitant une détection tactile.",
+                    svg: `<svg class="flower-svg" viewBox="0 0 150 150">
+                        <g>
+                            <!-- Sol -->
+                            <rect x="20" y="80" width="110" height="60" fill="#8B4513"/>
+                            <rect x="20" y="80" width="110" height="10" fill="#A0522D"/>
+                            <!-- Herbe -->
+                            <path d="M 30 80 L 28 65 L 32 80" fill="#4a7c2e"/>
+                            <path d="M 50 80 L 48 68 L 52 80" fill="#4a7c2e"/>
+                            <path d="M 70 80 L 68 62 L 72 80" fill="#4a7c2e"/>
+                            <path d="M 90 80 L 88 70 L 92 80" fill="#4a7c2e"/>
+                            <path d="M 110 80 L 108 65 L 112 80" fill="#4a7c2e"/>
+                            <!-- Ver de terre visible partiellement -->
+                            <path d="M 75 90 Q 80 95 75 100 Q 70 105 75 110 Q 78 113 75 115" 
+                                  stroke="#CD5C5C" stroke-width="4" fill="none" stroke-linecap="round"/>
+                            <circle cx="75" cy="90" r="2" fill="#8B4545"/>
+                        </g>
+                    </svg>`
+                },
+                birds: [
+                    {
+                        name: "Bécasse d'Amérique",
+                        latinName: "Scolopax minor",
+                        beakType: "Long et flexible",
+                        correct: true,
+                        explanation: "La Bécasse d'Amérique possède un bec remarquablement long (6-7 cm) et flexible, avec une pointe sensible riche en corpuscules de Herbst permettant la détection tactile des proies sous terre. Son bec peut s'ouvrir à l'extrémité grâce à des muscles spécialisés, lui permettant de saisir les vers sans retirer le bec du sol (technique appelée rhynchokinésie). Cette adaptation neuromusculaire unique illustre la sélection pour l'efficacité de chasse : les bécasses peuvent localiser et capturer des vers dans l'obscurité totale par détection des vibrations. Ses yeux sont également placés très en arrière du crâne, offrant une vision à 360° pour détecter les prédateurs pendant qu'elle se nourrit.",
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="18" fill="#8B7355"/>
+                            <circle cx="28" cy="25" r="4" fill="black"/>
+                            <circle cx="27" cy="24" r="1.5" fill="white"/>
+                            <path d="M 45 30 L 75 29 Q 76 30 75 31 L 45 30 Z" fill="#D2691E"/>
+                        </svg>`,
+                        headSvg: `<svg class="screenshot-bird-head" viewBox="0 0 120 120">
+                            <ellipse cx="60" cy="60" rx="40" ry="36" fill="#8B7355"/>
+                            <circle cx="55" cy="50" r="8" fill="black"/>
+                            <circle cx="53" cy="48" r="3" fill="white"/>
+                            <path d="M 90 60 L 115 58 Q 117 60 115 62 L 90 60 Z" fill="#D2691E"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Cardinal rouge",
+                        latinName: "Cardinalis cardinalis",
+                        beakType: "Conique et robuste",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#dc143c"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 28 L 58 30 L 45 32 Z" fill="#ff6347"/>
+                            <path d="M 20 18 L 30 12 L 28 20 Z" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Pic mineur",
+                        latinName: "Dryobates pubescens",
+                        beakType: "Droit en forme de ciseau",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="18" ry="20" fill="#2c2c2c"/>
+                            <ellipse cx="35" cy="35" rx="12" ry="10" fill="white"/>
+                            <circle cx="28" cy="25" r="3" fill="black"/>
+                            <circle cx="28" cy="24" r="1" fill="white"/>
+                            <path d="M 45 29 L 70 28 L 70 32 L 45 31 Z" fill="#4a4a4a"/>
+                            <rect x="20" y="15" width="8" height="4" fill="#dc143c"/>
+                        </svg>`
+                    },
+                    {
+                        name: "Mésange à tête noire",
+                        latinName: "Poecile atricapillus",
+                        beakType: "Court et pointu",
+                        correct: false,
+                        beakSvg: `<svg class="beak-preview" viewBox="0 0 80 60">
+                            <ellipse cx="30" cy="30" rx="20" ry="22" fill="#d3d3d3"/>
+                            <ellipse cx="30" cy="22" rx="18" ry="15" fill="#2c2c2c"/>
+                            <circle cx="28" cy="20" r="3" fill="white"/>
+                            <circle cx="28" cy="20" r="1.5" fill="black"/>
+                            <ellipse cx="30" cy="40" rx="15" ry="12" fill="white"/>
+                            <path d="M 45 30 L 55 30 L 50 32 Z" fill="#4a4a4a"/>
+                        </svg>`
+                    }
+                ]
+            }
+        ];
+
+        let currentLevel = 0;
+        let selectedBirdIndex = null;
+
+        function initGame() {
+            document.getElementById('totalLevels').textContent = gameData.length;
+            loadLevel();
+        }
+
+        function loadLevel() {
+            const level = gameData[currentLevel];
+            selectedBirdIndex = null;
+            
+            // Mise à jour du numéro de niveau
+            document.getElementById('levelNumber').textContent = currentLevel + 1;
+            
+            // Affichage de la nourriture
+            document.getElementById('flowerDisplay').innerHTML = level.food.svg;
+            document.getElementById('foodDescription').innerHTML = `
+                <strong>${level.food.name}</strong><br>
+                <em>${level.food.latinName}</em><br>
+                ${level.food.description}
+            `;
+            
+            // Affichage des oiseaux
+            const birdGrid = document.getElementById('birdGrid');
+            birdGrid.innerHTML = '';
+            
+            level.birds.forEach((bird, index) => {
+                const card = document.createElement('div');
+                card.className = 'bird-card';
+                card.innerHTML = `
+                    ${bird.beakSvg}
+                    <div class="bird-name">${bird.name}</div>
+                    <div class="bird-latin">${bird.latinName}</div>
+                    <div class="beak-type">Bec : ${bird.beakType}</div>
+                `;
+                card.onclick = () => selectBird(index);
+                birdGrid.appendChild(card);
+            });
+            
+            // Réinitialisation du feedback
+            document.getElementById('feedbackSection').classList.remove('show', 'success');
+            document.getElementById('validateBtn').disabled = true;
+        }
+
+        function selectBird(index) {
+            // Retirer la sélection précédente
+            document.querySelectorAll('.bird-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Sélectionner le nouvel oiseau
+            selectedBirdIndex = index;
+            document.querySelectorAll('.bird-card')[index].classList.add('selected');
+            document.getElementById('validateBtn').disabled = false;
+        }
+
+        function validateAnswer() {
+            const level = gameData[currentLevel];
+            const selectedBird = level.birds[selectedBirdIndex];
+            const feedbackSection = document.getElementById('feedbackSection');
+            
+            if (selectedBird.correct) {
+                feedbackSection.classList.add('success');
+                document.getElementById('feedbackTitle').textContent = '✅ Excellent ! Bonne réponse !';
+                document.getElementById('feedbackText').innerHTML = `
+                    <strong>Coévolution et pression de sélection :</strong><br><br>
+                    ${selectedBird.explanation}
+                `;
+            } else {
+                // Mauvaise réponse
+                document.querySelectorAll('.bird-card')[selectedBirdIndex].classList.add('wrong');
+                setTimeout(() => {
+                    document.querySelectorAll('.bird-card')[selectedBirdIndex].classList.remove('wrong', 'selected');
+                    selectedBirdIndex = null;
+                    document.getElementById('validateBtn').disabled = true;
+                }, 500);
+                return;
+            }
+            
+            feedbackSection.classList.add('show');
+            document.getElementById('validateBtn').style.display = 'none';
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel >= gameData.length) {
+                showCompletion();
+            } else {
+                document.getElementById('validateBtn').style.display = 'block';
+                loadLevel();
+            }
+        }
+
+        function showCompletion() {
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <h1>🎉 Félicitations !</h1>
+                <div style="text-align: center; padding: 50px;">
+                    <h2 style="color: #27ae60; margin-bottom: 30px;">Vous avez complété tous les niveaux !</h2>
+                    <p style="font-size: 1.2em; line-height: 1.8; max-width: 800px; margin: 0 auto;">
+                        Vous avez découvert comment la <strong>coévolution</strong> et la <strong>pression de sélection réciproque</strong> 
+                        façonnent les adaptations morphologiques des oiseaux et de leur environnement. 
+                        Chaque bec raconte l'histoire d'une relation évolutive unique entre une espèce et sa source de nourriture.
+                    </p>
+                    <button class="btn-next" onclick="location.reload()" style="margin-top: 30px;">
+                        🔄 Recommencer le jeu
+                    </button>
+                </div>
+            `;
+        }
+
+        function captureScreenshot() {
+            const level = gameData[currentLevel];
+            const correctBird = level.birds.find(b => b.correct);
+            
+            // Créer une nouvelle section pour l'aperçu de capture
+            const screenshotDiv = document.createElement('div');
+            screenshotDiv.className = 'screenshot-preview';
+            screenshotDiv.innerHTML = `
+                <div class="screenshot-content">
+                    <h3 style="margin-bottom: 20px; color: #2c3e50;">📸 Capture d'écran prête</h3>
+                    ${correctBird.headSvg}
+                    <div style="margin: 20px 0;">
+                        <div style="display: inline-block; vertical-align: middle; margin: 0 20px;">
+                            ${level.food.svg}
+                        </div>
+                    </div>
+                    <div style="text-align: left; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                        <h4 style="color: #2c3e50; margin-bottom: 10px;">${correctBird.name}</h4>
+                        <p style="font-style: italic; color: #7f8c8d; margin-bottom: 15px;">${correctBird.latinName}</p>
+                        <p style="line-height: 1.6; color: #2c3e50;">${correctBird.explanation}</p>
+                    </div>
+                    <p style="margin-top: 20px; color: #7f8c8d; font-size: 0.9em;">
+                        Utilisez l'outil de capture d'écran de votre appareil pour sauvegarder cette explication.
+                    </p>
+                </div>
+            `;
+            
+            // Remplacer temporairement le contenu
+            const originalContent = document.querySelector('.container').innerHTML;
+            document.querySelector('.container').innerHTML = '';
+            document.querySelector('.container').appendChild(screenshotDiv);
+            
+            // Ajouter un bouton pour revenir
+            const backButton = document.createElement('button');
+            backButton.className = 'btn-next';
+            backButton.textContent = '← Retour au jeu';
+            backButton.style.marginTop = '20px';
+            backButton.onclick = () => {
+                document.querySelector('.container').innerHTML = originalContent;
+                reinitializeEventListeners();
+            };
+            screenshotDiv.querySelector('.screenshot-content').appendChild(backButton);
+        }
+
+        function reinitializeEventListeners() {
+            document.getElementById('validateBtn').onclick = validateAnswer;
+            document.getElementById('nextBtn').onclick = nextLevel;
+            document.getElementById('screenshotBtn').onclick = captureScreenshot;
+        }
+
+        // Initialisation
+        document.getElementById('validateBtn').onclick = validateAnswer;
+        document.getElementById('nextBtn').onclick = nextLevel;
+        document.getElementById('screenshotBtn').onclick = captureScreenshot;
+        
+        initGame();
+    </script>
+</body>
+</html>

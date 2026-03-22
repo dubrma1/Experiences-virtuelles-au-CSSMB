@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minigolf Optique - Le Billard Obstrué</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background-color: #eceff1;
+            color: #333;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        h1 { color: #1a237e; margin-bottom: 5px; }
+        p { max-width: 800px; text-align: center; margin-bottom: 15px; line-height: 1.5; }
+        
+        #game-world-container { 
+            position: relative; 
+            width: 800px; 
+            height: 600px; 
+            background-color: #f5f7f8; /* Légèrement plus clair pour faire ressortir le quadrillé */
+            border: 2px solid #90a4ae; 
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        #minigolfCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+        
+        #game-container-ref { 
+            position: absolute; 
+            top: calc(50%); 
+            left: calc(50%); 
+            transform: translate(-50%, -50%); 
+            width: 400px; height: 250px; 
+            box-sizing: border-box; 
+            z-index: 5; opacity: 0; pointer-events: none; 
+        }
+
+        .game-object { position: absolute; border-radius: 50%; z-index: 10; pointer-events: none; }
+        #ball { width: 20px; height: 20px; background-color: white; border: 1px solid #666; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3); transition: none; }
+        #hole { width: 30px; height: 30px; background-color: #111; border: 2px solid #000; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.8); }
+        
+        .hologram { 
+            position: absolute; 
+            border-radius: 50%; 
+            width: 30px; height: 30px; 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: white;
+            cursor: crosshair; 
+            z-index: 15; 
+            box-sizing: border-box;
+            transition: transform 0.2s, opacity 0.3s;
+        }
+        .hologram:hover { transform: scale(1.15); }
+        #hologram-i1 { background-color: rgba(255, 152, 0, 0.6); border: 2px dashed #f57c00; }
+        #hologram-i2 { background-color: rgba(63, 81, 181, 0.6); border: 2px dashed #303f9f; }
+
+        #ui-panel { display: flex; justify-content: space-between; width: 800px; align-items: center; margin-bottom: 15px;}
+        #level-indicator { font-size: 1.2em; font-weight: bold; color: #1a237e; min-width: 120px; }
+        #message { font-size: 1.2em; font-weight: bold; color: #d32f2f; min-height: 1.5em; text-align: center; flex-grow: 1; padding: 0 15px; }
+        
+        button { 
+            padding: 10px 15px; font-size: 1em; font-weight: bold; cursor: pointer; 
+            background-color: #1976d2; color: white; border: none; border-radius: 5px; 
+            transition: background-color 0.3s; margin-left: 10px;
+        }
+        button:hover { background-color: #1565c0; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .controls { display: flex; align-items: center; }
+
+        /* Style de la case à cocher */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #455a64;
+            background: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin-right: 15px;
+            font-size: 0.9em;
+        }
+        .toggle-container input {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minigolf : Le Billard Obstrué</h1>
+    <p>
+        Sers-toi du quadrillé et des prolongements pour imaginer la réflexion géométrique. Tu peux masquer les hologrammes ($I_1$ et $I_2$) pour tester tes propres hypothèses avant de vérifier avec l'outil !
+    </p>
+
+    <div id="ui-panel">
+        <div id="level-indicator">Niveau 1/10</div>
+        <div id="message">Trouve la trajectoire mathématique parfaite.</div>
+        <div class="controls">
+            <label class="toggle-container">
+                <input type="checkbox" id="toggleHolograms" checked>
+                Aides (I1, I2)
+            </label>
+            <button id="resetButton">Replacer</button>
+            <button id="nextLevelButton" style="display:none; background-color: #2e7d32;">Suivant</button>
+        </div>
+    </div>
+
+    <div id="game-world-container">
+        <div id="game-container-ref"></div>
+        <canvas id="minigolfCanvas" width="800" height="600"></canvas>
+        <div id="ball" class="game-object"></div>
+        <div id="hole" class="game-object"></div>
+        <div id="hologram-i1" class="hologram">I1</div>
+        <div id="hologram-i2" class="hologram">I2</div>
+    </div>
+
+    <script>
+        const gameWorldContainer = document.getElementById('game-world-container');
+        const minigolfCanvas = document.getElementById('minigolfCanvas');
+        const ctx = minigolfCanvas.getContext('2d');
+        const gameContainerRef = document.getElementById('game-container-ref'); 
+        const ballElement = document.getElementById('ball');
+        const holeElement = document.getElementById('hole');
+        const messageElement = document.getElementById('message');
+        const levelIndicator = document.getElementById('level-indicator');
+        const resetButton = document.getElementById('resetButton');
+        const nextLevelButton = document.getElementById('nextLevelButton');
+        const toggleHolograms = document.getElementById('toggleHolograms');
+        const hologramI1 = document.getElementById('hologram-i1');
+        const hologramI2 = document.getElementById('hologram-i2');
+        
+        const WORLD_WIDTH = 800, WORLD_HEIGHT = 600, GAME_WIDTH_CSS = 400, GAME_HEIGHT_CSS = 250;
+        let ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y;
+        let walls = []; 
+        let currentObstacles = [];
+
+        let ball = { radius: 10, x: 0, y: 0, vx: 0, vy: 0 };
+        let hole = { radius: 15, x: 0, y: 0 };
+        let shotTrajectory = [];
+        let animationFrameId = null;
+        let isShooting = false;
+        let currentLevelIndex = 0;
+
+        // Définition des 10 niveaux (Coordonnées locales 0-400, 0-250)
+        const levels = [
+            { ball: {x: 340, y: 200}, hole: {x: 60, y: 190}, bounces: [0, 3], obstacles: [ {p1:{x:150, y:100}, p2:{x:250, y:200}}, {p1:{x:220, y:0}, p2:{x:220, y:70}} ] },
+            { ball: {x: 350, y: 50}, hole: {x: 50, y: 50}, bounces: [2], obstacles: [ {p1:{x:200, y:0}, p2:{x:200, y:180}} ] },
+            { ball: {x: 50, y: 200}, hole: {x: 350, y: 150}, bounces: [0, 1], obstacles: [ {p1:{x:150, y:250}, p2:{x:250, y:100}} ] },
+            { ball: {x: 300, y: 50}, hole: {x: 300, y: 200}, bounces: [3], obstacles: [ {p1:{x:150, y:125}, p2:{x:400, y:125}} ] },
+            { ball: {x: 350, y: 50}, hole: {x: 50, y: 150}, bounces: [2, 3], obstacles: [ {p1:{x:200, y:0}, p2:{x:150, y:150}}, {p1:{x:0, y:100}, p2:{x:100, y:100}} ] },
+            { ball: {x: 50, y: 200}, hole: {x: 350, y: 200}, bounces: [0], obstacles: [ {p1:{x:200, y:100}, p2:{x:200, y:250}} ] },
+            { ball: {x: 50, y: 50}, hole: {x: 300, y: 150}, bounces: [1, 2], obstacles: [ {p1:{x:100, y:100}, p2:{x:300, y:100}}, {p1:{x:300, y:100}, p2:{x:300, y:250}} ] },
+            { ball: {x: 50, y: 50}, hole: {x: 50, y: 200}, bounces: [1], obstacles: [ {p1:{x:0, y:125}, p2:{x:250, y:125}} ] },
+            { ball: {x: 300, y: 200}, hole: {x: 150, y: 50}, bounces: [3, 0], obstacles: [ {p1:{x:200, y:100}, p2:{x:400, y:100}}, {p1:{x:100, y:150}, p2:{x:100, y:250}} ] },
+            { ball: {x: 50, y: 125}, hole: {x: 350, y: 125}, bounces: [0, 2], obstacles: [ {p1:{x:200, y:50}, p2:{x:200, y:200}}, {p1:{x:100, y:0}, p2:{x:100, y:100}}, {p1:{x:300, y:150}, p2:{x:300, y:250}} ] }
+        ];
+
+        function distance(p1, p2) { return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)); }
+        
+        function getNormal(p1, p2) {
+            const dx = p2.x - p1.x; const dy = p2.y - p1.y;
+            const mag = Math.sqrt(dx*dx + dy*dy);
+            return { x: -dy/mag, y: dx/mag };
+        }
+
+        function reflectPoint(point, wall) { 
+            const px = point.x - wall.p1.x, py = point.y - wall.p1.y; 
+            const projection = px * wall.normal.x + py * wall.normal.y; 
+            return { x: point.x - 2 * projection * wall.normal.x, y: point.y - 2 * projection * wall.normal.y }; 
+        }
+        
+        function reflectVector(velocity, normal) { 
+            const dot = velocity.x * normal.x + velocity.y * normal.y; 
+            return { x: velocity.x - 2 * dot * normal.x, y: velocity.y - 2 * dot * normal.y }; 
+        }
+        
+        function getLineSegmentIntersectionPoint(ls, le, w1, w2) { 
+            const d = ((ls.x - le.x) * (w1.y - w2.y)) - ((ls.y - le.y) * (w1.x - w2.x)); 
+            if (d === 0) return null; 
+            const t = ((ls.x - w1.x) * (w1.y - w2.y) - (ls.y - w1.y) * (w1.x - w2.x)) / d; 
+            const u = -((ls.x - le.x) * (ls.y - w1.y) - (ls.y - le.y) * (ls.x - w1.x)) / d; 
+            if (t >= -0.001 && t <= 1.001 && u >= -0.001 && u <= 1.001) {
+                return { point: { x: ls.x + t * (le.x - ls.x), y: ls.y + t * (le.y - ls.y) } }; 
+            }
+            return null; 
+        }
+
+        function updateElementPosition(element, centerX, centerY, radius) { 
+            element.style.left = (centerX - radius) + 'px'; 
+            element.style.top = (centerY - radius) + 'px'; 
+        }
+
+        //  Dessin du quadrillé d'arrière-plan ---
+function drawBackgroundGrid() {
+    // 1) Couleur plus foncée (un gris bleuté ou rgba(0,0,0,0.15))
+    ctx.strokeStyle = '#b0bec5'; 
+    ctx.lineWidth = 1;
+    // 2) Quadrillé plus dense (25px au lieu de 50px)
+    const gridSize = 25; 
+    
+    ctx.beginPath();
+    for (let x = 0; x <= WORLD_WIDTH; x += gridSize) {
+        ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_HEIGHT);
+    }
+    for (let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
+        ctx.moveTo(0, y); ctx.lineTo(WORLD_WIDTH, y);
+    }
+    ctx.stroke();
+}
+
+        // --- NOUVEAUTÉ 2 : Lignes de prolongement tiretées ---
+        function drawTableExtensions() {
+            ctx.strokeStyle = '#9e9e9e'; // Gris un peu plus foncé que le quadrillé
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 8]); // Lignes tiretées
+            
+            ctx.beginPath();
+            // Lignes verticales (Gauche et Droite)
+            ctx.moveTo(ACTUAL_GAME_OFFSET_X, 0); ctx.lineTo(ACTUAL_GAME_OFFSET_X, WORLD_HEIGHT);
+            ctx.moveTo(ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, 0); ctx.lineTo(ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, WORLD_HEIGHT);
+            
+            // Lignes horizontales (Haut et Bas)
+            ctx.moveTo(0, ACTUAL_GAME_OFFSET_Y); ctx.lineTo(WORLD_WIDTH, ACTUAL_GAME_OFFSET_Y);
+            ctx.moveTo(0, ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS); ctx.lineTo(WORLD_WIDTH, ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS);
+            
+            ctx.stroke();
+            ctx.setLineDash([]); // Réinitialisation du style de ligne
+        }
+
+        function drawGame() { 
+            ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT); 
+            
+            // Remplissage du terrain (cache le quadrillé en dessous)
+            ctx.fillStyle = '#81c784'; 
+            ctx.fillRect(ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y, GAME_WIDTH_CSS, GAME_HEIGHT_CSS); 
+            
+			// Ordre de dessin pour superposer correctement : Terrain --> Quadrillé -> Lignes
+            drawBackgroundGrid();
+            drawTableExtensions();
+			
+            // Bordures du terrain
+            ctx.strokeStyle = '#2e7d32'; 
+            ctx.lineWidth = 5; 
+            ctx.strokeRect(ACTUAL_GAME_OFFSET_X, ACTUAL_GAME_OFFSET_Y, GAME_WIDTH_CSS, GAME_HEIGHT_CSS); 
+
+            // Dessin des obstacles
+            ctx.strokeStyle = '#b71c1c'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+            currentObstacles.forEach(obs => {
+                ctx.beginPath(); ctx.moveTo(obs.p1.x, obs.p1.y); ctx.lineTo(obs.p2.x, obs.p2.y); ctx.stroke();
+            });
+
+            // Trajectoire
+            if (shotTrajectory.length >= 2) { 
+                ctx.beginPath(); ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)'; ctx.lineWidth = 2; 
+                ctx.moveTo(shotTrajectory[0].x, shotTrajectory[0].y); 
+                for (let i = 1; i < shotTrajectory.length; i++) ctx.lineTo(shotTrajectory[i].x, shotTrajectory[i].y); 
+                ctx.stroke(); 
+            } 
+        }
+
+        function shootTowards(targetX, targetY) {
+            if (isShooting) return;
+            isShooting = true;
+            nextLevelButton.style.display = 'none';
+            messageElement.style.color = "#333";
+            messageElement.innerText = "Balle en mouvement...";
+            shotTrajectory = [{x: ball.x, y: ball.y}];
+            
+            const dx = targetX - ball.x; const dy = targetY - ball.y;
+            const angle = Math.atan2(dy, dx); const speed = 8; 
+            ball.vx = Math.cos(angle) * speed; ball.vy = Math.sin(angle) * speed;
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop() {
+            const dt = 1; const friction = 0.995; 
+            let currentBallCenter = { x: ball.x, y: ball.y }; 
+            let nextBallCenter = { x: ball.x + ball.vx * dt, y: ball.y + ball.vy * dt };
+            let collidedThisFrame = false; let collisionPoint = null; let collisionWall = null; let minT = Infinity;
+            
+            const allColliders = [...walls, ...currentObstacles];
+            for (let i = 0; i < allColliders.length; i++) {
+                const wall = allColliders[i]; 
+                const intersectionInfo = getLineSegmentIntersectionPoint(currentBallCenter, nextBallCenter, wall.p1, wall.p2);
+                if (intersectionInfo && (reflectVector({x:ball.vx, y:ball.vy}, wall.normal).x * ball.vx < 0 || reflectVector({x:ball.vx, y:ball.vy}, wall.normal).y * ball.vy < 0)) { 
+                    const dist = distance(currentBallCenter, intersectionInfo.point);
+                    if (dist < minT) { minT = dist; collisionPoint = intersectionInfo.point; collisionWall = wall; collidedThisFrame = true; } 
+                }
+            }
+
+            if (collidedThisFrame) {
+                ball.x = collisionPoint.x; ball.y = collisionPoint.y;
+                const reflectedVelocity = reflectVector({x:ball.vx, y:ball.vy}, collisionWall.normal);
+                ball.vx = reflectedVelocity.x; ball.vy = reflectedVelocity.y;
+                ball.x += ball.vx * 0.1; ball.y += ball.vy * 0.1; 
+            } else { 
+                ball.x = nextBallCenter.x; ball.y = nextBallCenter.y; 
+            }
+            
+            ball.vx *= friction; ball.vy *= friction;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            shotTrajectory.push({ x: ball.x, y: ball.y });
+            
+            if (distance({ x: ball.x, y: ball.y }, hole) < hole.radius) { 
+                endShot("Superbe ! Niveau complété.", true); return; 
+            }
+            if (ball.x < 0 || ball.x > WORLD_WIDTH || ball.y < 0 || ball.y > WORLD_HEIGHT) { 
+                endShot("Hors limites. Replacer la balle.", false); return; 
+            }
+            if (Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy) < 0.5) { 
+                endShot("Balle arrêtée. Essaie un autre angle !", false); return; 
+            }
+            
+            animationFrameId = requestAnimationFrame(gameLoop);
+            drawGame();
+        }
+
+        function endShot(msg, isWon) {
+            cancelAnimationFrame(animationFrameId);
+            isShooting = false; ball.vx = 0; ball.vy = 0;
+            if (isWon) {
+                ball.x = hole.x; ball.y = hole.y; updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+                messageElement.style.color = "#2e7d32";
+                if(currentLevelIndex < levels.length - 1) nextLevelButton.style.display = 'block';
+                else messageElement.innerText = "Félicitations ! Tu as terminé tous les niveaux.";
+            } else {
+                messageElement.style.color = "#d32f2f";
+            }
+            messageElement.innerText = msg; drawGame();
+        }
+
+        // --- NOUVEAUTÉ 3 : Logique de la case à cocher ---
+        function updateHologramVisibility() {
+            const isVisible = toggleHolograms.checked;
+            const lvl = levels[currentLevelIndex];
+            
+            hologramI1.style.display = (lvl.bounces.length >= 1 && isVisible) ? 'flex' : 'none';
+            hologramI2.style.display = (lvl.bounces.length === 2 && isVisible) ? 'flex' : 'none';
+        }
+
+        toggleHolograms.addEventListener('change', updateHologramVisibility);
+
+        function loadLevel(index) {
+            const lvl = levels[index];
+            levelIndicator.innerText = `Niveau ${index + 1}/${levels.length}`;
+            
+            ball.x = ACTUAL_GAME_OFFSET_X + lvl.ball.x; ball.y = ACTUAL_GAME_OFFSET_Y + lvl.ball.y;
+            hole.x = ACTUAL_GAME_OFFSET_X + lvl.hole.x; hole.y = ACTUAL_GAME_OFFSET_Y + lvl.hole.y;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            updateElementPosition(holeElement, hole.x, hole.y, hole.radius);
+
+            currentObstacles = lvl.obstacles.map(o => {
+                const p1 = { x: ACTUAL_GAME_OFFSET_X + o.p1.x, y: ACTUAL_GAME_OFFSET_Y + o.p1.y };
+                const p2 = { x: ACTUAL_GAME_OFFSET_X + o.p2.x, y: ACTUAL_GAME_OFFSET_Y + o.p2.y };
+                return { p1, p2, normal: getNormal(p1, p2) };
+            });
+
+            // Calcul des positions des hologrammes
+            let i1_pos, i2_pos;
+            if (lvl.bounces.length >= 1) {
+                i1_pos = reflectPoint(hole, walls[lvl.bounces.length === 1 ? lvl.bounces[0] : lvl.bounces[1]]);
+                updateElementPosition(hologramI1, i1_pos.x, i1_pos.y, 15);
+            }
+            if (lvl.bounces.length === 2) {
+                i2_pos = reflectPoint(i1_pos, walls[lvl.bounces[0]]);
+                updateElementPosition(hologramI2, i2_pos.x, i2_pos.y, 15);
+            }
+
+            // Met à jour l'affichage en tenant compte de la case à cocher
+            updateHologramVisibility();
+            resetState();
+        }
+
+        function resetState() {
+            const lvl = levels[currentLevelIndex];
+            ball.x = ACTUAL_GAME_OFFSET_X + lvl.ball.x; ball.y = ACTUAL_GAME_OFFSET_Y + lvl.ball.y;
+            updateElementPosition(ballElement, ball.x, ball.y, ball.radius);
+            isShooting = false; shotTrajectory = [];
+            messageElement.style.color = "#333";
+            messageElement.innerText = "Trouve la trajectoire mathématique parfaite.";
+            nextLevelButton.style.display = 'none';
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            drawGame();
+        }
+
+        function initGame() {
+            const worldRect = gameWorldContainer.getBoundingClientRect();
+            const refRect = gameContainerRef.getBoundingClientRect();
+            ACTUAL_GAME_OFFSET_X = refRect.left - worldRect.left;
+            ACTUAL_GAME_OFFSET_Y = refRect.top - worldRect.top;
+            
+            walls = [ 
+                { p1: {x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y}, p2: {x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y}, normal: {x: 0, y: 1} }, 
+                { p1: {x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y}, p2: {x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS}, normal: {x: -1, y: 0} }, 
+                { p1: {x: ACTUAL_GAME_OFFSET_X + GAME_WIDTH_CSS, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS}, p2: {x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS}, normal: {x: 0, y: -1} }, 
+                { p1: {x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y + GAME_HEIGHT_CSS}, p2: {x: ACTUAL_GAME_OFFSET_X, y: ACTUAL_GAME_OFFSET_Y}, normal: {x: 1, y: 0} } 
+            ];
+            
+            gameWorldContainer.addEventListener('click', (e) => {
+                if(isShooting) return;
+                const rect = gameWorldContainer.getBoundingClientRect();
+                shootTowards(e.clientX - rect.left, e.clientY - rect.top);
+            });
+
+            loadLevel(0);
+        }
+
+        resetButton.addEventListener('click', resetState);
+        nextLevelButton.addEventListener('click', () => { currentLevelIndex++; loadLevel(currentLevelIndex); });
+        window.addEventListener('load', initGame);
+ (function() {
+        const styles = ['color: #007BFF','font-size: 1.1em','font-weight: bold','background-color: #f0f0f0','padding: 4px 8px','border-radius: 4px'].join(';');
+
+        console.log('%cApplication créée par Mathieu Dubreuil', styles);
+        console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+  })();
+    </script>
+</body>
+</html>

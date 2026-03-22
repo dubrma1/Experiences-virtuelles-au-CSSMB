@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<title>Leuco War</title>
+	<meta charset="utf-8">
+	<meta name="author" content="Philippe COSENTINO" />
+	<META name="description" CONTENT="Un serious game sur la réponse immunitaire.">
+	<meta name="keywords" content="leucocytes,lymphocytes,réponse immunitaire,SVT,serious game, jeu sérieux" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+	
+	
+	<link rel="icon" type="image/png" href="images/favicon.png" />
+	
+	
+	<script type="text/javascript" src="scripts/clic.js"></script>
+	<script type="text/javascript" src="scripts/survol.js"></script>
+	<script type="text/javascript" src="scripts/anim.js"></script>
+	<script type="text/javascript" src="scripts/bacilles.js"></script>
+	<script type="text/javascript" src="scripts/vaisseaux.js"></script>
+	<script type="text/javascript" src="scripts/masto.js"></script>
+	<script type="text/javascript" src="scripts/communes.js"></script>
+	<script type="text/javascript" src="scripts/etapes.js"></script>
+	<script type="text/javascript" src="scripts/info.js"></script>
+	<script type="text/javascript" src="scripts/antibio.js"></script>
+
+</head>
+
+
+<body scroll="no" style="margin:0; padding:0">
+	<div id="divcanvas" style="display:block">
+		<canvas id="canv" style="position:absolute;left:0px;top:0px;z-index: 1;pointer-events: none;"></canvas>
+		<canvas id="canvF" style="position:absolute;left:0px;top:0px;z-index: 2;pointer-events: none;"></canvas>
+		<canvas id="canvM" style="position:absolute;left:0px;top:0px;z-index: 3;pointer-events: none;"></canvas>
+		<canvas id="canvClic" style="position:absolute;left:0px;top:0px;z-index: 4;"></canvas>
+		<canvas id="canvT" style="position:absolute;left:0px;top:0px;z-index: 10;display:none;"></canvas>
+		<canvas id="canvD" style="position:absolute;left:0px;top:0px;z-index: 6;pointer-events: none;"></canvas>
+		<canvas id="canvA" style="position:absolute;left:0px;top:0px;z-index: 6;display:none;"></canvas>
+		<canvas id="canvI" style="position:absolute;left:0px;top:0px;z-index: 6;pointer-events: none;display:none;"></canvas>
+		<canvas id="canvAuteur" style="position:absolute;z-index: 10;pointer-events: none;"></canvas>
+	</div>
+	<div id="divnocanvas" style="display:none">
+		<p>Leuco War est un serious game dans lequel vous prenez le contrôle de leucocytes (globules blancs) afin d'aider l'organisme à lutter contre une infection bactérienne.</p>
+		<p>Cette application utilise les fonctionnalités les plus récentes de HTML5. Il semble que votre navigateur ne les supporte pas. Utilisez un navigateur plus récent.</p>
+	</div>
+	
+	<script type="text/javascript" src="scripts/canvas.js"></script>
+	<script type="text/javascript" src="scripts/objets.js"></script>
+	<script type="text/javascript" src="scripts/fleches.js"></script>
+	<script type="text/javascript" src="scripts/douleur.js"></script>
+	<script type="text/javascript" src="scripts/plasmo.js"></script>
+	
+	<script type="module" src="scripts/main.js"></script>
+		
+</body>
+</html>

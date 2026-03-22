@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minigolf Optique - Le Laser Révélateur (Double Réflexion)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background-color: #0b0c10;
+            color: #c5c6c7;
+            padding: 20px;
+            overflow-x: hidden;
+            transition: background-color 0.5s ease;
+        }
+        body.illuminated { background-color: #1f2833; }
+        
+        h1 { color: #66fcf1; margin-bottom: 5px; text-shadow: 0 0 10px rgba(102, 252, 241, 0.3); }
+        p { max-width: 1000px; text-align: center; margin-bottom: 15px; line-height: 1.5; font-size: 1.1em; }
+        
+        #game-world-container { 
+            position: relative; 
+            width: 1000px; 
+            height: 800px; 
+            background-color: #111; 
+            border: 2px solid #45a29e; 
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(69, 162, 158, 0.2);
+            cursor: crosshair; 
+        }
+        #minigolfCanvas { position: absolute; top: 0; left: 0; }
+        
+        #ui-panel { display: flex; justify-content: space-between; width: 1000px; align-items: center; margin-bottom: 15px;}
+        #level-indicator { font-size: 1.2em; font-weight: bold; color: #45a29e; min-width: 150px; }
+        #message { font-size: 1.2em; font-weight: bold; color: #66fcf1; min-height: 1.5em; text-align: center; flex-grow: 1; padding: 0 15px; text-shadow: 0 0 5px rgba(102, 252, 241, 0.5); }
+        #freeze-status { font-size: 1em; font-weight: bold; color: #f03a47; min-width: 150px; text-align: right; }
+        
+        button { 
+            padding: 10px 15px; font-size: 1em; font-weight: bold; cursor: pointer; 
+            background-color: #45a29e; color: #0b0c10; border: none; border-radius: 5px; 
+            transition: all 0.3s; margin-left: 10px;
+        }
+        button:hover { background-color: #66fcf1; box-shadow: 0 0 10px #66fcf1; }
+        .controls { display: flex; align-items: center; }
+    </style>
+</head>
+<body>
+    <h1>Optique : Le Laser Révélateur</h1>
+    <p>
+        Déplace la souris pour pivoter le laser. Vise la cible finale ($I_1$ ou $I_2$) pour illuminer le trou !<br>
+        <strong>Clique n'importe où sur l'aire de jeu pour figer (ou défiger) le laser.</strong>
+    </p>
+
+    <div id="ui-panel">
+        <div id="level-indicator">Laboratoire 1/20</div>
+        <div id="message">Cherche l'alignement géométrique parfait...</div>
+        <div id="freeze-status">Mode : Actif</div>
+        <div class="controls">
+            <button id="nextLevelButton" style="display:none;">Prochaine configuration</button>
+        </div>
+    </div>
+
+    <div id="game-world-container">
+        <canvas id="minigolfCanvas" width="1000" height="800"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('minigolfCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('game-world-container');
+        const messageElement = document.getElementById('message');
+        const levelIndicator = document.getElementById('level-indicator');
+        const nextLevelButton = document.getElementById('nextLevelButton');
+        const freezeStatus = document.getElementById('freeze-status');
+        
+        const WORLD_WIDTH = 1000, WORLD_HEIGHT = 800;
+        
+        let cannon = { x: 0, y: 0, radius: 8 };
+        let hole = { x: 0, y: 0, radius: 8 };
+        let currentMirrors = []; 
+        let virtualImages = []; // Contient I1, I2...
+        
+        let mouseX = WORLD_WIDTH / 2, mouseY = WORLD_HEIGHT / 2;
+        let isIlluminated = false;
+        let isFrozen = false;
+        let currentLevelIndex = 0;
+
+        // Fonction utilitaire pour créer un miroir et calculer sa normale
+        // L'ordre (p1 -> p2) est crucial pour que la normale pointe vers l'intérieur du jeu.
+        function createMirror(x1, y1, x2, y2) {
+            const dx = x2 - x1; const dy = y2 - y1;
+            const mag = Math.sqrt(dx*dx + dy*dy);
+            return { p1: {x: x1, y: y1}, p2: {x: x2, y: y2}, normal: {x: -dy/mag, y: dx/mag} };
+        }
+
+        // 20 Laboratoires : 1 à 10 (Réflexion Simple), 11 à 20 (Réflexion Double)
+        const levels = [
+            // --- 10 NIVEAUX : RÉFLEXION SIMPLE ---
+            { cannon: {x:500,y:600}, hole: {x:300,y:300}, mirrors: [createMirror(200,200, 800,200)] }, // 1. Nord
+            { cannon: {x:200,y:400}, hole: {x:650,y:300}, mirrors: [createMirror(800,200, 800,600)] }, // 2. Est
+            { cannon: {x:300,y:200}, hole: {x:700,y:500}, mirrors: [createMirror(800,600, 200,600)] }, // 3. Sud
+            { cannon: {x:800,y:500}, hole: {x:350,y:250}, mirrors: [createMirror(200,600, 200,200)] }, // 4. Ouest
+            { cannon: {x:400,y:700}, hole: {x:600,y:400}, mirrors: [createMirror(200,300, 800,300)] }, // 5. Nord abaissé
+            { cannon: {x:200,y:500}, hole: {x:500,y:250}, mirrors: [createMirror(700,200, 700,600)] }, // 6. Est rapproché
+            { cannon: {x:500,y:200}, hole: {x:300,y:500}, mirrors: [createMirror(800,700, 200,700)] }, // 7. Sud abaissé
+            { cannon: {x:700,y:300}, hole: {x:500,y:500}, mirrors: [createMirror(300,600, 300,200)] }, // 8. Ouest rapproché
+            { cannon: {x:700,y:600}, hole: {x:200,y:300}, mirrors: [createMirror(100,100, 900,100)] }, // 9. Nord (Grand écart)
+            { cannon: {x:200,y:300}, hole: {x:800,y:400}, mirrors: [createMirror(900,650, 100,650)] }, // 10. Sud (Grand écart)
+
+            // --- 10 NIVEAUX : RÉFLEXION DOUBLE ---
+            { cannon: {x:300,y:500}, hole: {x:600,y:300}, mirrors: [createMirror(200,100,800,100), createMirror(800,100,800,700)] }, // 11. Nord puis Est
+            { cannon: {x:300,y:300}, hole: {x:600,y:500}, mirrors: [createMirror(800,100,800,700), createMirror(800,700,200,700)] }, // 12. Est puis Sud
+            { cannon: {x:700,y:400}, hole: {x:300,y:500}, mirrors: [createMirror(800,700,200,700), createMirror(200,700,200,100)] }, // 13. Sud puis Ouest
+            { cannon: {x:600,y:600}, hole: {x:300,y:300}, mirrors: [createMirror(200,700,200,100), createMirror(200,100,800,100)] }, // 14. Ouest puis Nord
+            { cannon: {x:300,y:400}, hole: {x:700,y:400}, mirrors: [createMirror(200,200,800,200), createMirror(800,600,200,600)] }, // 15. Zigzag : Nord puis Sud
+            { cannon: {x:500,y:300}, hole: {x:500,y:600}, mirrors: [createMirror(800,200,800,700), createMirror(200,700,200,200)] }, // 16. Zigzag : Est puis Ouest
+            { cannon: {x:700,y:500}, hole: {x:300,y:300}, mirrors: [createMirror(200,200,800,200), createMirror(200,700,200,100)] }, // 17. Nord puis Ouest
+            { cannon: {x:300,y:300}, hole: {x:600,y:500}, mirrors: [createMirror(800,600,200,600), createMirror(800,200,800,700)] }, // 18. Sud puis Est
+            { cannon: {x:500,y:300}, hole: {x:400,y:500}, mirrors: [createMirror(300,700,300,200), createMirror(800,700,200,700)] }, // 19. Ouest puis Sud
+            { cannon: {x:300,y:600}, hole: {x:600,y:300}, mirrors: [createMirror(700,200,700,700), createMirror(200,200,800,200)] }  // 20. Est puis Nord
+        ];
+
+        // --- Géométrie de base ---
+        function distanceSq(p1, p2) { return (p2.x - p1.x)**2 + (p2.y - p1.y)**2; }
+        
+        function distToSegmentSquared(p, v, w) {
+            let l2 = distanceSq(v, w);
+            if (l2 === 0) return distanceSq(p, v);
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return distanceSq(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+        }
+
+        function getRaySegmentIntersection(rayOrigin, rayDir, p1, p2) {
+            const v1 = rayOrigin.x - p1.x; const v2 = rayOrigin.y - p1.y;
+            const v3 = p2.x - p1.x; const v4 = p2.y - p1.y;
+            const det = v4 * rayDir.x - v3 * rayDir.y;
+            if (det === 0) return null; 
+            
+            const t1 = (v3 * v2 - v4 * v1) / det; 
+            const t2 = (rayDir.x * v2 - rayDir.y * v1) / det; 
+            
+            if (t1 > 0.001 && t2 >= 0 && t2 <= 1) {
+                return { point: { x: rayOrigin.x + rayDir.x * t1, y: rayOrigin.y + rayDir.y * t1 }, dist: t1 };
+            }
+            return null;
+        }
+
+        function reflectPoint(point, wall) { 
+            const px = point.x - wall.p1.x, py = point.y - wall.p1.y; 
+            const projection = px * wall.normal.x + py * wall.normal.y; 
+            return { x: point.x - 2 * projection * wall.normal.x, y: point.y - 2 * projection * wall.normal.y }; 
+        }
+
+        function reflectVector(dir, normal) { 
+            const dot = dir.x * normal.x + dir.y * normal.y; 
+            return { x: dir.x - 2 * dot * normal.x, y: dir.y - 2 * dot * normal.y }; 
+        }
+
+        // --- Logique du Laser ---
+        function drawScene() {
+            ctx.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+            // 1. Dessin des miroirs
+            currentMirrors.forEach(mirror => {
+                ctx.beginPath();
+                ctx.moveTo(mirror.p1.x, mirror.p1.y);
+                ctx.lineTo(mirror.p2.x, mirror.p2.y);
+                ctx.strokeStyle = '#66fcf1';
+                ctx.lineWidth = 4;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#66fcf1';
+                ctx.stroke();
+                ctx.shadowBlur = 0; 
+            });
+
+            // 2. Dessin du trou réel
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, hole.radius, 0, Math.PI * 2);
+            if (isIlluminated) {
+                ctx.fillStyle = '#66fcf1'; ctx.shadowBlur = 30; ctx.shadowColor = '#66fcf1';
+                ctx.fill(); ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = '#111'; ctx.strokeStyle = '#45a29e'; ctx.lineWidth = 2;
+                ctx.fill(); ctx.stroke();
+            }
+
+            // 3. Dessin des images virtuelles (I1, I2)
+            virtualImages.forEach(vi => {
+                ctx.beginPath();
+                ctx.arc(vi.pos.x, vi.pos.y, hole.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(102, 252, 241, 0.4)';
+                ctx.setLineDash([4, 4]); ctx.lineWidth = 2; ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(102, 252, 241, 0.1)'; ctx.fill();
+                
+                ctx.fillStyle = 'rgba(102, 252, 241, 0.8)';
+                ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(vi.label, vi.pos.x, vi.pos.y - 18);
+            });
+
+            // 4. Moteur de Raycasting
+            const dx = mouseX - cannon.x; const dy = mouseY - cannon.y;
+            const mag = Math.sqrt(dx*dx + dy*dy);
+            let rayDir = mag === 0 ? {x:0, y:-1} : {x: dx/mag, y: dy/mag};
+            let rayOrigin = {x: cannon.x, y: cannon.y};
+            
+            let laserColor = isIlluminated ? '#66fcf1' : '#f03a47'; 
+            ctx.strokeStyle = laserColor; ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = laserColor;
+
+            let maxBounces = currentMirrors.length;
+            let wasIlluminatedThisFrame = false;
+
+            for(let step = 0; step <= maxBounces; step++) {
+                // Trouver le miroir le plus proche
+                let closestHit = null;
+                let minT = Infinity;
+                
+                // On cherche une collision si on n'a pas encore atteint la fin des rebonds
+                if (step < maxBounces) {
+                    currentMirrors.forEach(mirror => {
+                        let hit = getRaySegmentIntersection(rayOrigin, rayDir, mirror.p1, mirror.p2);
+                        if (hit && hit.dist < minT) {
+                            minT = hit.dist; closestHit = { ...hit, mirror: mirror };
+                        }
+                    });
+                }
+
+                if (closestHit) {
+                    // Tracer le laser jusqu'au miroir
+                    ctx.beginPath();
+                    ctx.moveTo(rayOrigin.x, rayOrigin.y);
+                    ctx.lineTo(closestHit.point.x, closestHit.point.y);
+                    ctx.stroke();
+
+                    // Tracer la ligne de visée virtuelle si on touche le BON miroir de la séquence
+                    if (closestHit.mirror === currentMirrors[step]) {
+                        let vTarget = virtualImages[step];
+                        if (vTarget) {
+                            ctx.beginPath();
+                            ctx.moveTo(closestHit.point.x, closestHit.point.y);
+                            // Ligne pointillée qui se prolonge derrière le miroir vers l'image visée
+                            ctx.lineTo(vTarget.pos.x, vTarget.pos.y);
+                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.setLineDash([5, 5]); ctx.stroke();
+                            ctx.setLineDash([]); ctx.strokeStyle = laserColor; // Reset
+                        }
+                    }
+
+                    // Préparer le prochain rebond
+                    rayOrigin = closestHit.point;
+                    rayDir = reflectVector(rayDir, closestHit.mirror.normal);
+
+                } else {
+                    // Le laser part dans le vide ou vers le trou
+                    let rayEnd = { x: rayOrigin.x + rayDir.x * 2000, y: rayOrigin.y + rayDir.y * 2000 };
+                    
+                    // Vérifier si le DERNIER segment touche le trou
+                    if (step === maxBounces) {
+                        if (distToSegmentSquared(hole, rayOrigin, rayEnd) <= hole.radius * hole.radius) {
+                            wasIlluminatedThisFrame = true;
+                            rayEnd = {x: hole.x, y: hole.y}; // Arrêter le laser au centre du trou
+                        }
+                    }
+
+                    ctx.beginPath();
+                    ctx.moveTo(rayOrigin.x, rayOrigin.y);
+                    ctx.lineTo(rayEnd.x, rayEnd.y);
+                    ctx.stroke();
+                    break; // Fin du raycast
+                }
+            }
+            
+            ctx.shadowBlur = 0;
+
+            // 5. Dessin du Canon
+            ctx.beginPath();
+            ctx.arc(cannon.x, cannon.y, cannon.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#1f2833'; ctx.strokeStyle = '#c5c6c7'; ctx.lineWidth = 3;
+            ctx.fill(); ctx.stroke();
+
+            // Gestion de la Victoire
+            if (wasIlluminatedThisFrame && !isIlluminated) {
+                isIlluminated = true;
+                document.body.classList.add('illuminated');
+                messageElement.innerText = "Alignement parfait !";
+                messageElement.style.color = "#66fcf1";
+                if(currentLevelIndex < levels.length - 1) nextLevelButton.style.display = 'block';
+            } else if (!wasIlluminatedThisFrame && isIlluminated) {
+                isIlluminated = false;
+                document.body.classList.remove('illuminated');
+                messageElement.innerText = "Cherche l'alignement géométrique parfait...";
+                messageElement.style.color = "#c5c6c7";
+                nextLevelButton.style.display = 'none';
+            }
+        }
+
+        // --- Contrôles de la Souris ---
+        gameContainer.addEventListener('mousemove', (e) => {
+            if (isFrozen) return; // Ne met pas à jour la position si figé
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            drawScene(); 
+        });
+
+        // NOUVEAUTÉ : Figer / Défiger au clic
+        gameContainer.addEventListener('click', () => {
+            isFrozen = !isFrozen;
+            if (isFrozen) {
+                freezeStatus.innerText = "Mode : Figé";
+                freezeStatus.style.color = "#66fcf1";
+                gameContainer.style.cursor = "default";
+            } else {
+                freezeStatus.innerText = "Mode : Actif";
+                freezeStatus.style.color = "#f03a47";
+                gameContainer.style.cursor = "crosshair";
+            }
+            drawScene(); // Redessiner pour s'assurer que tout est propre
+        });
+
+        // --- Gestion des Niveaux ---
+        function loadLevel(index) {
+            const lvl = levels[index];
+            cannon.x = lvl.cannon.x; cannon.y = lvl.cannon.y;
+            hole.x = lvl.hole.x; hole.y = lvl.hole.y;
+            currentMirrors = lvl.mirrors;
+            
+            // Calculer les images virtuelles dynamiquement selon le nombre de miroirs
+            virtualImages = [];
+            if (currentMirrors.length === 1) {
+                // Réflexion simple : I1
+                let i1 = reflectPoint(hole, currentMirrors[0]);
+                virtualImages.push({ pos: i1, label: 'I1' });
+            } else if (currentMirrors.length === 2) {
+                // Réflexion double : l'image finale I1 (rebond 2), et l'image visée initialement I2 (rebond 1)
+                let i1 = reflectPoint(hole, currentMirrors[1]); 
+                let i2 = reflectPoint(i1, currentMirrors[0]); 
+                // Ordre dans le tableau : Ce qu'on vise en premier, puis en deuxième
+                virtualImages.push({ pos: i2, label: 'I2' });
+                virtualImages.push({ pos: i1, label: 'I1' });
+            }
+            
+            levelIndicator.innerText = `Laboratoire ${index + 1}/${levels.length}`;
+            isIlluminated = false;
+            document.body.classList.remove('illuminated');
+            messageElement.innerText = "Cherche l'alignement géométrique parfait...";
+            messageElement.style.color = "#c5c6c7";
+            nextLevelButton.style.display = 'none';
+            
+            drawScene();
+        }
+
+        nextLevelButton.addEventListener('click', () => {
+            currentLevelIndex++;
+            isFrozen = false; // Toujours défiger quand on passe au niveau suivant
+            freezeStatus.innerText = "Mode : Actif";
+            freezeStatus.style.color = "#f03a47";
+            gameContainer.style.cursor = "crosshair";
+            loadLevel(currentLevelIndex);
+        });
+
+        window.addEventListener('load', () => {
+            loadLevel(0);
+            drawScene();
+        });
+
+    </script>
+</body>
+</html>

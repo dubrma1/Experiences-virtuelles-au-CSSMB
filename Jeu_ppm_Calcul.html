@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeu ppm Calcul</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #2c3e50;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .conteneur-app {
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    width: 950px;
+    max-width: 100%;
+    padding: 40px;
+    box-sizing: border-box;
+  }
+
+  h1 {
+    margin-top: 0;
+    font-size: 28px;
+    color: #2980b9;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+  }
+
+  /* Boîte d'alerte moderne */
+  .alerte-box {
+    background-color: #fdf2f2;
+    border-left: 5px solid #e74c3c;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    color: #c0392b;
+  }
+
+  .alerte-entete {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .donnee-cle {
+    font-weight: bold;
+    background-color: rgba(231, 76, 60, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #c0392b;
+  }
+
+  /* Disposition en 2 colonnes */
+  .zone-travail {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .colonne-etapes {
+    flex: 1;
+  }
+
+  .colonne-calculatrice {
+    width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 20px;
+  }
+
+  /* Styles des Étapes */
+  .etape {
+    margin-bottom: 25px;
+    opacity: 0.4;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    border-left: 4px solid #ecf0f1;
+    padding-left: 20px;
+  }
+
+  .etape.active {
+    opacity: 1;
+    pointer-events: auto;
+    border-left-color: #3498db;
+    background-color: #f0f8ff;
+    padding: 15px 15px 15px 20px;
+    border-radius: 0 8px 8px 0;
+  }
+
+  .etape.terminee {
+    opacity: 0.8;
+    border-left-color: #2ecc71;
+  }
+
+  .etape-titre {
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 16px;
+    color: #34495e;
+  }
+
+  .saisie-groupe {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="number"] {
+    background-color: #fff;
+    color: #2c3e50;
+    border: 1px solid #bdc3c7;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 16px;
+    width: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="number"]:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  }
+
+  button.btn-valider {
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+  }
+
+  button.btn-valider:hover { background-color: #2980b9; }
+  button.btn-valider:active { transform: scale(0.98); }
+  button.btn-valider:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; }
+
+  .feedback { font-weight: bold; font-size: 14px; margin-top: 10px; display: block; }
+  .feedback.erreur { color: #e74c3c; }
+  .feedback.succes { color: #27ae60; }
+
+  /* Boutons de décision */
+  .zone-decision { display: flex; gap: 10px; margin-top: 15px; }
+  
+  .btn-decision {
+    flex: 1;
+    padding: 15px;
+    font-size: 15px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.2s;
+    color: white;
+  }
+  
+  .btn-securitaire { background-color: #27ae60; }
+  .btn-danger { background-color: #e74c3c; }
+  .btn-decision:hover { filter: brightness(1.1); }
+  .btn-decision:active { transform: scale(0.98); }
+
+  #btn-nouveau {
+    display: none;
+    margin-top: 30px;
+    background-color: #2c3e50;
+    color: white;
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #btn-nouveau:hover { background-color: #1a252f; }
+
+  /* Styles de la Calculatrice Moderne */
+  .calculatrice {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+
+  .calc-titre {
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #95a5a6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .calc-ecran {
+    background-color: #ffffff;
+    color: #2c3e50;
+    border: 1px solid #dcdde1;
+    border-radius: 8px;
+    padding: 15px;
+    font-size: 24px;
+    text-align: right;
+    margin-bottom: 20px;
+    height: 30px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+
+  .calc-grille {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .calc-btn {
+    background-color: #ffffff;
+    color: #2c3e50;
+    border: 1px solid #dcdde1;
+    border-radius: 8px;
+    padding: 15px 0;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.02);
+  }
+  
+  .calc-btn:hover { background-color: #f1f2f6; }
+  .calc-btn:active { transform: translateY(2px); box-shadow: none; }
+  
+  .calc-btn.op { background-color: #e3f2fd; color: #1976d2; font-size: 20px; font-weight: bold; border-color: #bbdefb; }
+  .calc-btn.op:hover { background-color: #bbdefb; }
+  
+  .calc-btn.action { background-color: #ffebee; color: #c62828; border-color: #ffcdd2; }
+  .calc-btn.action:hover { background-color: #ffcdd2; }
+  
+  .calc-btn.egal { grid-column: span 3; background-color: #2ecc71; color: white; font-weight: bold; border: none; box-shadow: 0 3px 0 #27ae60; margin-top: 5px;}
+  .calc-btn.egal:hover { background-color: #27ae60; }
+  .calc-btn.egal:active { box-shadow: none; transform: translateY(3px); }
+/* Conteneur pour centrer les icônes */
+  .zone-decision { 
+    display: flex; 
+    gap: 30px; 
+    margin-top: 20px; 
+    justify-content: center;
+  }
+  
+  /* Style des boutons SVG invisibles */
+  .btn-icône {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 8px; /* Correspond au rx/ry de vos SVG */
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease;
+  }
+
+  /* L'effet interactif (Hover) */
+  .btn-icône:hover { 
+    transform: scale(1.15); /* Zoom de 15% */
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15)); /* Ombre douce */
+  }
+
+  /* L'effet de clic (Active) */
+  .btn-icône:active { 
+    transform: scale(0.95); /* Se compresse au clic */
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }
+</style>
+</head>
+<body>
+
+  <div class="conteneur-app">
+    <h1>Station de production d'eau potable Des Baillets - Terminal d'Analyse</h1>
+    
+    <div class="alerte-box" id="boite-alerte">
+      <div class="alerte-entete">⚠️ Analyse requise de l'échantillon d'eau</div>
+      Substance détectée : <span class="donnee-cle" id="txt-substance">Plomb (Pb)</span><br><br>
+      Échantillon prélevé : <span class="donnee-cle" id="txt-masse">0.05</span> <span class="donnee-cle" id="txt-unite-masse">g</span> détectés dans <span class="donnee-cle" id="txt-volume">2000</span> <span class="donnee-cle" id="txt-unite-volume">L</span> d'eau.<br><br>
+      Norme de sécurité : <span class="donnee-cle" style="background: rgba(44, 62, 80, 0.1); color: #2c3e50;">Concentration &lt; <span id="txt-norme">0.01</span> ppm</span>
+	<br><br><b>La concentration de l'échantillon est-elle sécuritaire ou toxique?</b>
+	</div>
+
+    <div class="zone-travail">
+      <div class="colonne-etapes">
+        
+        <div id="etape-1" class="etape active">
+          <div class="etape-titre">ÉTAPE 1 : Standardisation de la masse en mg</div>
+          <div class="saisie-groupe">
+            <input type="number" id="input-masse" step="any" placeholder="Masse en mg">
+            <button class="btn-valider" id="btn-valider-1" onclick="validerEtape1()">Valider</button>
+          </div>
+          <span id="feedback-1" class="feedback"></span>
+        </div>
+
+        <div id="etape-2" class="etape">
+          <div class="etape-titre">ÉTAPE 2 : Standardisation du volume en L</div>
+          <div class="saisie-groupe">
+            <input type="number" id="input-volume" step="any" placeholder="Volume en L">
+            <button class="btn-valider" id="btn-valider-2" onclick="validerEtape2()">Valider</button>
+          </div>
+          <span id="feedback-2" class="feedback"></span>
+        </div>
+
+        <div id="etape-3" class="etape">
+          <div class="etape-titre">ÉTAPE 3 : Calcul de la concentration (ppm)</div>
+          <div class="saisie-groupe">
+            <input type="number" id="input-ppm" step="any" placeholder="Concentration (ppm)">
+            <button class="btn-valider" id="btn-valider-3" onclick="validerEtape3()">Valider</button>
+          </div>
+          <span id="feedback-3" class="feedback"></span>
+        </div>
+
+        <div id="etape-4" class="etape">
+          <div class="etape-titre">ÉTAPE 4 : Jugement professionnel</div>
+          <div>Le réseau d'aqueduc est-il sécuritaire pour la population ?</div>
+          <div class="zone-decision">
+            
+            <button class="btn-icône" onclick="validerDecision(true)" title="Déclarer Sécuritaire">
+              <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                <title>Bouton Eau Potable</title>
+                <desc>Un bouton avec une icône de verre d'eau propre pour indiquer que l'eau est potable.</desc>
+                <rect width="51" height="50" rx="8" ry="8" fill="#d5f5e3" stroke="#27ae60" stroke-width="2"/>
+                <g transform="translate(10, 10) scale(0.6)">
+                  <circle cx="25" cy="25" r="23" fill="white" stroke="#2c3e50" stroke-width="1"/>
+                  <circle cx="25" cy="25" r="18" fill="none" stroke="#27ae60" stroke-width="3"/>
+                  <polygon points="17,16 22,34 28,34 33,16" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+                  <polygon points="18,17 22,33 28,33 32,17" fill="#81ecec"/>
+                </g>
+              </svg>
+            </button>
+
+            <button class="btn-icône" onclick="validerDecision(false)" title="Déclarer Danger Toxique">
+              <svg width="50" height="50" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                <title>Bouton Eau Non Potable</title>
+                <desc>Un bouton avec une icône de verre barré pour indiquer que l'eau n'est pas potable.</desc>
+                <rect width="50" height="50" rx="8" ry="8" fill="#fdf2f2" stroke="#e74c3c" stroke-width="2"/>
+                <g transform="translate(10, 10) scale(0.6)">
+                  <circle cx="25" cy="25" r="23" fill="white" stroke="#2c3e50" stroke-width="1"/>
+                  <circle cx="25" cy="25" r="18" fill="none" stroke="#e74c3c" stroke-width="3"/>
+                  <polygon points="18,17 22,33 28,33 32,17" fill="#3498db"/>
+                  <polygon points="17,16 22,34 28,34 33,16" fill="none" stroke="#2c3e50" stroke-width="1.5"/>
+                  <line x1="12" y1="38" x2="38" y2="12" stroke="#e74c3c" stroke-width="3"/>
+                </g>
+              </svg>
+            </button>
+
+          </div>
+          <span id="feedback-4" class="feedback"></span>
+        </div>
+        
+        <button id="btn-nouveau" onclick="genererNouveauScénario()">Traiter une nouvelle analyse ➔</button>
+
+      </div>
+
+      <div class="colonne-calculatrice">
+        <div class="calculatrice">
+          <div class="calc-titre">Calculatrice (×, ÷)</div>
+          <div class="calc-ecran" id="calc-ecran">0</div>
+          
+          <div class="calc-grille">
+            <button class="calc-btn op" onclick="calcSaisie('*')">×</button>
+            <button class="calc-btn op" onclick="calcSaisie('/')">÷</button>
+            <button class="calc-btn action" onclick="calcSupprimer()">⌫</button>
+
+            <button class="calc-btn" onclick="calcSaisie('7')">7</button>
+            <button class="calc-btn" onclick="calcSaisie('8')">8</button>
+            <button class="calc-btn" onclick="calcSaisie('9')">9</button>
+            
+            <button class="calc-btn" onclick="calcSaisie('4')">4</button>
+            <button class="calc-btn" onclick="calcSaisie('5')">5</button>
+            <button class="calc-btn" onclick="calcSaisie('6')">6</button>
+            
+            <button class="calc-btn" onclick="calcSaisie('1')">1</button>
+            <button class="calc-btn" onclick="calcSaisie('2')">2</button>
+            <button class="calc-btn" onclick="calcSaisie('3')">3</button>
+            
+            <button class="calc-btn action" onclick="calcReset()">C</button>
+            <button class="calc-btn" onclick="calcSaisie('0')">0</button>
+            <button class="calc-btn" onclick="calcSaisie('.')">.</button>
+
+            <button class="calc-btn egal" onclick="calcResoudre()">= RÉSOUDRE =</button>
+          </div>
+        </div>
+      </div>
+
+    </div> </div> <script>
+  // --- LOGIQUE DU JEU (Scénario et Validation) ---
+  let scenarioActuel = {};
+
+function genererNouveauScénario() {
+    const substances = [
+      { nom: "Plomb (Pb)", norme: 0.01 },
+      { nom: "Arsenic (As)", norme: 0.01 },
+      { nom: "Fluorures (F)", norme: 1.5 },
+      { nom: "Cuivre (Cu)", norme: 1.0 }
+    ];
+
+    const sub = substances[Math.floor(Math.random() * substances.length)];
+    const isMasseKg = Math.random() > 0.5;
+    const isVolumeMl = Math.random() > 0.5;
+
+    const multiplicateur = Math.random() * 2; 
+    const ppmCible = Number((sub.norme * multiplicateur).toFixed(3)) || 0.005; 
+
+    let volL = Math.floor(Math.random() * 4000) + 1000; 
+    let masseMg = ppmCible * volL;
+
+    // 1. Calculer la masse affichée (ce que l'élève voit)
+    let masseAfficheeBrute = isMasseKg ? masseMg / 1000000 : masseMg / 1000;
+    let masseAffichee = Number(masseAfficheeBrute.toPrecision(3)); 
+    let uniteMasse = isMasseKg ? "kg" : "g";
+    
+    // CORRECTIF : Calculer la masse attendue EN FONCTION du chiffre affiché
+    let reponseMasseAttendue = isMasseKg ? masseAffichee * 1000000 : masseAffichee * 1000;
+    
+    // 2. Calculer le volume affiché (ce que l'élève voit)
+    let volumeAffiche = isVolumeMl ? volL * 1000 : volL;
+    let uniteVolume = isVolumeMl ? "mL" : "L";
+    
+    // CORRECTIF : Calculer le volume attendu EN FONCTION du chiffre affiché
+    let reponseVolumeAttendu = isVolumeMl ? volumeAffiche / 1000 : volumeAffiche;
+
+    // 3. CORRECTIF : Recalculer le vrai PPM exact avec les nombres de l'élève
+    let reponsePpmAttendu = reponseMasseAttendue / reponseVolumeAttendu;
+    let estSecuritaire = reponsePpmAttendu <= sub.norme;
+
+    scenarioActuel = {
+      substance: sub.nom,
+      norme: sub.norme,
+      masseAffichee: masseAffichee,
+      uniteMasse: uniteMasse,
+      volumeAffiche: volumeAffiche,
+      uniteVolume: uniteVolume,
+      masseMgExacte: reponseMasseAttendue, // Utilise la réponse corrigée
+      volLExact: reponseVolumeAttendu,     // Utilise la réponse corrigée
+      ppmExact: reponsePpmAttendu,         // Utilise la réponse corrigée
+      estSecuritaire: estSecuritaire
+    };
+
+    mettreAJourInterface();
+    reinitialiserEtapes();
+  }
+
+  function mettreAJourInterface() {
+    document.getElementById('txt-substance').innerText = scenarioActuel.substance;
+    document.getElementById('txt-masse').innerText = scenarioActuel.masseAffichee;
+    document.getElementById('txt-unite-masse').innerText = scenarioActuel.uniteMasse;
+    document.getElementById('txt-volume').innerText = scenarioActuel.volumeAffiche;
+    document.getElementById('txt-unite-volume').innerText = scenarioActuel.uniteVolume;
+    document.getElementById('txt-norme').innerText = scenarioActuel.norme;
+  }
+
+  function reinitialiserEtapes() {
+    for(let i=1; i<=3; i++) {
+      document.getElementById(`input-${i === 1 ? 'masse' : i === 2 ? 'volume' : 'ppm'}`).value = '';
+      document.getElementById(`input-${i === 1 ? 'masse' : i === 2 ? 'volume' : 'ppm'}`).disabled = false;
+      document.getElementById(`btn-valider-${i}`).disabled = false;
+      document.getElementById(`feedback-${i}`).innerText = '';
+    }
+    document.getElementById('feedback-4').innerText = '';
+
+    document.getElementById('etape-1').className = 'etape active';
+    document.getElementById('etape-2').className = 'etape';
+    document.getElementById('etape-3').className = 'etape';
+    document.getElementById('etape-4').className = 'etape';
+
+    document.getElementById('btn-nouveau').style.display = 'none';
+    calcReset();
+  }
+
+  function validerEtape1() {
+    const valeurSaisie = parseFloat(document.getElementById('input-masse').value);
+    if (Math.abs(valeurSaisie - scenarioActuel.masseMgExacte) < 0.1) {
+      franchirEtape(1);
+    } else {
+      afficherErreur(1, "Incorrect. (1 g = 1000 mg | 1 kg = 1 000 000 mg)");
+    }
+  }
+
+  function validerEtape2() {
+    const valeurSaisie = parseFloat(document.getElementById('input-volume').value);
+    if (Math.abs(valeurSaisie - scenarioActuel.volLExact) < 0.1) {
+      franchirEtape(2);
+    } else {
+      afficherErreur(2, "Incorrect. (1 L = 1000 mL)");
+    }
+  }
+
+  function validerEtape3() {
+    const valeurSaisie = parseFloat(document.getElementById('input-ppm').value);
+    if (Math.abs(valeurSaisie - scenarioActuel.ppmExact) < 0.01) {
+      franchirEtape(3);
+    } else {
+      afficherErreur(3, "Erreur de calcul.");
+    }
+  }
+
+  function validerDecision(choixSecuritaire) {
+    if (choixSecuritaire === scenarioActuel.estSecuritaire) {
+      document.getElementById('feedback-4').innerText = "✓ JUGEMENT VALIDÉ. Excellent travail.";
+      document.getElementById('feedback-4').className = "feedback succes";
+      document.getElementById('btn-nouveau').style.display = 'block';
+    } else {
+      document.getElementById('feedback-4').innerText = "❌ ERREUR GRAVE. Révisez votre norme.";
+      document.getElementById('feedback-4').className = "feedback erreur";
+    }
+  }
+
+  function franchirEtape(numEtape) {
+    document.getElementById(`input-${numEtape === 1 ? 'masse' : numEtape === 2 ? 'volume' : 'ppm'}`).disabled = true;
+    document.getElementById(`btn-valider-${numEtape}`).disabled = true;
+    document.getElementById(`feedback-${numEtape}`).innerText = "✓ Validé";
+    document.getElementById(`feedback-${numEtape}`).className = "feedback succes";
+    
+    document.getElementById(`etape-${numEtape}`).classList.remove('active');
+    document.getElementById(`etape-${numEtape}`).classList.add('terminee');
+
+    const etapeSuivante = document.getElementById(`etape-${numEtape + 1}`);
+    if (etapeSuivante) {
+      etapeSuivante.classList.add('active');
+    }
+  }
+
+  function afficherErreur(numEtape, message) {
+    const fb = document.getElementById(`feedback-${numEtape}`);
+    fb.innerText = message;
+    fb.className = "feedback erreur";
+  }
+
+  // --- LOGIQUE DE LA CALCULATRICE ---
+  const ecranCalc = document.getElementById('calc-ecran');
+  let expressionActuelle = "";
+
+  function calcSaisie(valeur) {
+    if (ecranCalc.innerText === "0" || ecranCalc.innerText === "Erreur") {
+      if (valeur !== '*' && valeur !== '/' && valeur !== '.') {
+        expressionActuelle = valeur;
+      } else {
+        expressionActuelle = "0" + valeur;
+      }
+    } else {
+      expressionActuelle += valeur;
+    }
+    mettreAJourEcranCalc();
+  }
+
+  function calcSupprimer() {
+    if (expressionActuelle.length > 1 && ecranCalc.innerText !== "Erreur") {
+      expressionActuelle = expressionActuelle.slice(0, -1);
+    } else {
+      expressionActuelle = "0";
+    }
+    mettreAJourEcranCalc();
+  }
+
+  function calcReset() {
+    expressionActuelle = "0";
+    mettreAJourEcranCalc();
+  }
+
+  function calcResoudre() {
+    try {
+      const expressionNettoyee = expressionActuelle.replace(/[^0-9\.\*\/]/g, '');
+      if (expressionNettoyee === "") return;
+      
+      let resultat = new Function('return ' + expressionNettoyee)();
+      resultat = Math.round(resultat * 100000) / 100000;
+      
+      if (!isFinite(resultat) || isNaN(resultat)) {
+        expressionActuelle = "Erreur";
+      } else {
+        expressionActuelle = resultat.toString();
+      }
+    } catch (e) {
+      expressionActuelle = "Erreur";
+    }
+    mettreAJourEcranCalc();
+  }
+
+  function mettreAJourEcranCalc() {
+    let affichageVisuel = expressionActuelle.replace(/\*/g, '×').replace(/\//g, '÷');
+    ecranCalc.innerText = affichageVisuel;
+  }
+
+  // Démarrage
+  genererNouveauScénario();
+
+    // Signature
+    (function() {
+        const styles = ['color: #007BFF','font-size: 1.1em', 'font-weight: bold', 'background-color: #f0f0f0','padding: 4px 8px', 'border-radius: 4px'].join(';');
+        console.log('%cApplication créée par Mathieu Dubreuil', styles );
+        console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+    })();
+</script>
+</body>
+</html>

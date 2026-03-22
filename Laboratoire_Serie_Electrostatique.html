@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire Virtuel : Série Électrostatique</title>
+    <style>
+        :root {
+            --bg-light: #f8f9fa;
+            --container-bg: #ffffff;
+            --border-color: #dee2e6;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --accent-blue: #007bff;
+            --accent-green: #28a745;
+            --accent-red: #dc3545;
+            --material-color-1: #ffc107;
+            --material-color-2: #17a2b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr); /* Grille de 12 colonnes */
+            gap: 20px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .app-section {
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- Zone Gauche : Simulation (7 colonnes) --- */
+        #simulation-section {
+            grid-column: 1 / span 7;
+            display: flex;
+            flex-direction: column;
+            height: 550px;
+        }
+        
+        /* --- Zone Droite : Contrôles (5 colonnes) --- */
+        #controls-section {
+            grid-column: 8 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: fit-content;
+        }
+
+        /* --- Zone Bas : Résultats (Toute la largeur) --- */
+        #results-section {
+            grid-column: 1 / -1;
+            margin-top: 10px;
+        }
+
+        h1, h2, h3 {
+            color: var(--text-primary);
+            margin-top: 0;
+        }
+
+        /* --- Styles de la Simulation --- */
+        #simulation-area {
+            flex-grow: 1;
+            background: #e9ecef;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Frottement */
+        .rubbing-zone {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .material-rep {
+            width: 120px;
+            height: 180px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: absolute;
+            transition: transform 0.5s ease-in-out;
+        }
+        #material-rep-1 { background-color: var(--material-color-1); transform: translateX(-70px); }
+        #material-rep-2 { background-color: var(--material-color-2); transform: translateX(70px); }
+
+        .rubbing-zone.rub-animation #material-rep-1 { animation: rub1 1.5s ease-in-out forwards; }
+        .rubbing-zone.rub-animation #material-rep-2 { animation: rub2 1.5s ease-in-out forwards; }
+        
+        @keyframes rub1 {
+            0% { transform: translate(-70px, 0); }
+            25% { transform: translate(-30px, -30px); }
+            50% { transform: translate(-70px, 0); }
+            75% { transform: translate(-30px, 30px); }
+            100% { transform: translate(-200px, 0) scale(0.8); }
+        }
+        @keyframes rub2 {
+            0% { transform: translate(70px, 0); }
+            25% { transform: translate(30px, 30px); }
+            50% { transform: translate(70px, 0); }
+            75% { transform: translate(30px, -30px); }
+            100% { transform: translate(200px, 0) scale(0.8); }
+        }
+
+        /* Pendule */
+        .pendulum-zone {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        #pendulum-pivot {
+            width: 80px;
+            height: 15px;
+            background: #6c757d;
+            border-radius: 0 0 5px 5px;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #pendulum-arm {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            width: 2px;
+            height: 150px;
+            background: #343a40;
+            transform-origin: top center;
+            transition: transform 0.5s ease-in-out;
+        }
+        #pendulum-ball {
+            position: absolute;
+            bottom: -15px;
+            left: -14px;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 10px 10px, #a5d8ff, #007bff);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .pendulum-zone.attract #pendulum-arm { animation: attract 1s ease-in-out forwards; }
+        .pendulum-zone.repel #pendulum-arm { animation: repel 1s ease-in-out forwards; }
+
+        @keyframes attract {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-25deg); }
+        }
+        @keyframes repel {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(25deg); }
+        }
+        
+        /* Matériau de test */
+        #test-material-zone { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #test-material-rep {
+            width: 60px;
+            height: 150px;
+            position: absolute;
+            top: 130px;
+            left: 20px;
+            opacity: 0;
+            transition: opacity 0.3s, left 0.8s;
+        }
+        #test-material-rep.active {
+            opacity: 1;
+            left: calc(50% - 130px);
+        }
+
+        /* --- Contrôles --- */
+        .control-group {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            background: #fff;
+        }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+        button {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .test-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        #observation-buttons { text-align: center; }
+
+        /* Tableau d'observations */
+        .observation-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .observation-table th, .observation-table td { border: 1px solid var(--border-color); padding: 12px; text-align: center; vertical-align: middle; }
+        .observation-table th { background-color: #e9ecef; }
+        
+        /* Style du select dans le tableau */
+        .charge-select {
+            padding: 5px;
+            width: auto;
+            min-width: 80px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .select-correct {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background-color: #e8f5e9;
+        }
+        .select-wrong {
+            border-color: var(--accent-red);
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header class="header">
+            <h1>Laboratoire de Série Électrostatique</h1>
+            <p>Découvrez quels matériaux ont tendance à donner ou à recevoir des électrons.</p>
+        </header>
+
+        <section id="simulation-section" class="app-section">
+            <h3>Zone d'expérimentation</h3>
+            <div id="simulation-area">
+                <div id="rubbing-zone" class="rubbing-zone">
+                    <div id="material-rep-1" class="material-rep"></div>
+                    <div id="material-rep-2" class="material-rep"></div>
+                </div>
+                <div id="pendulum-zone" class="pendulum-zone hidden">
+                    <div id="pendulum-pivot"></div>
+                    <div id="pendulum-arm"><div id="pendulum-ball">-</div></div>
+                </div>
+                <div id="test-material-zone">
+                     <div id="test-material-rep" class="material-rep"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="controls-section">
+            <div id="step-1-selection" class="app-section">
+                <h3>Étape 1 : Sélection</h3>
+                <div>
+                    <label for="material-1-select">Premier matériau :</label>
+                    <select id="material-1-select"></select>
+                </div>
+                <div>
+                    <label for="material-2-select">Deuxième matériau :</label>
+                    <select id="material-2-select"></select>
+                </div>
+                <button id="rub-button">Frotter les matériaux</button>
+            </div>
+
+            <div id="step-2-testing" class="app-section hidden">
+                <h3>Étape 2 : Test</h3>
+                <p>Les matériaux ont été frottés. Approchez-les du pendule pour tester leur charge.</p>
+                <div class="test-buttons">
+                    <button id="test-material-1-button"></button>
+                    <button id="test-material-2-button"></button>
+                </div>
+                <div id="observation-buttons" class="hidden">
+                    <p>Qu'observez-vous ?</p>
+                    <div class="test-buttons">
+                        <button id="observe-attraction">Attraction</button>
+                        <button id="observe-repulsion">Répulsion</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="results-section" class="app-section">
+            <h3>Étape 3 : Tableau des observations</h3>
+            <table class="observation-table">
+                <thead>
+                    <tr>
+                        <th>Paire Frottée</th>
+                        <th>Matériau Testé</th>
+                        <th>Interaction avec la boule négative</th>
+                        <th>Charge du matériau (Déduite)</th>
+                    </tr>
+                </thead>
+                <tbody id="observations-tbody"></tbody>
+            </table>
+             <button id="reset-button" style="margin-top: 20px; background-color: #6c757d; width: auto; padding: 10px 30px;">Réinitialiser la simulation (Nouvelle expérience)</button>
+        </section>
+    </div>
+
+<script>
+/*
+ * =============================================================
+ * Application Éducative : Laboratoire Série Électrostatique
+ * Auteur: Mathieu Dubreuil
+ * GitHub: [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]
+ * Licence: MIT 
+ * Description: Frotter des matériaux isolants deux à deux pour déduire une série électrostatique
+ * =============================================================
+*/
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- BASE DE DONNÉES ---
+    const materials = [
+        { id: 'fourrure_lapin', nom: 'Fourrure de lapin', power: 10, color: 'var(--material-color-1)' },
+        { id: 'verre', nom: 'Verre', power: 20, color: '#f8c471' },
+        { id: 'cheveux', nom: 'Cheveux humains', power: 30, color: '#d35400' },
+        { id: 'nylon', nom: 'Nylon', power: 40, color: '#8e44ad' },
+        { id: 'laine', nom: 'Laine', power: 50, color: '#2980b9' },
+        { id: 'soie', nom: 'Soie', power: 60, color: '#27ae60' },
+        { id: 'coton', nom: 'Coton', power: 70, color: '#f1c40f' },
+        { id: 'caoutchouc', nom: 'Caoutchouc', power: 80, color: '#e67e22' },
+        { id: 'polyester', nom: 'Polyester', power: 90, color: '#e74c3c' },
+        { id: 'vinyle', nom: 'Vinyle (PVC)', power: 100, color: '#95a5a6' },
+        { id: 'ebonite', nom: 'Ébonite', power: 110, color: '#34495e' },
+    ];
+
+    // --- RÉFÉRENCES AUX ÉLÉMENTS DU DOM ---
+    const select1 = document.getElementById('material-1-select');
+    const select2 = document.getElementById('material-2-select');
+    const rubButton = document.getElementById('rub-button');
+    const rubbingZone = document.getElementById('rubbing-zone');
+    const pendulumZone = document.getElementById('pendulum-zone');
+    const materialRep1 = document.getElementById('material-rep-1');
+    const materialRep2 = document.getElementById('material-rep-2');
+    const testMaterialRep = document.getElementById('test-material-rep');
+
+    const step1Div = document.getElementById('step-1-selection');
+    const step2Div = document.getElementById('step-2-testing');
+    const testMat1Button = document.getElementById('test-material-1-button');
+    const testMat2Button = document.getElementById('test-material-2-button');
+    const observationButtonsDiv = document.getElementById('observation-buttons');
+    const observeAttractionBtn = document.getElementById('observe-attraction');
+    const observeRepulsionBtn = document.getElementById('observe-repulsion');
+    const observationsTbody = document.getElementById('observations-tbody');
+    const resetButton = document.getElementById('reset-button');
+    
+    // --- ÉTAT GLOBAL ---
+    let state = {
+        material1: null,
+        material2: null,
+        charge1: 'neutral',
+        charge2: 'neutral',
+        testingMaterial: null
+    };
+
+    // --- INITIALISATION ---
+    function init() {
+        materials.forEach(material => {
+            select1.innerHTML += `<option value="${material.id}">${material.nom}</option>`;
+            select2.innerHTML += `<option value="${material.id}">${material.nom}</option>`;
+        });
+        select2.selectedIndex = 1;
+
+        rubButton.addEventListener('click', handleRub);
+        testMat1Button.addEventListener('click', () => prepareTest(1));
+        testMat2Button.addEventListener('click', () => prepareTest(2));
+        observeAttractionBtn.addEventListener('click', () => recordObservation('Attraction'));
+        observeRepulsionBtn.addEventListener('click', () => recordObservation('Répulsion'));
+        resetButton.addEventListener('click', resetSimulation);
+        
+        resetSimulation();
+    }
+
+    // --- LOGIQUE PRINCIPALE ---
+    function handleRub() {
+        const id1 = select1.value;
+        const id2 = select2.value;
+
+        if (id1 === id2) {
+            alert("Veuillez sélectionner deux matériaux différents.");
+            return;
+        }
+
+        state.material1 = materials.find(m => m.id === id1);
+        state.material2 = materials.find(m => m.id === id2);
+
+        if (state.material1.power < state.material2.power) {
+            state.charge1 = 'positive';
+            state.charge2 = 'negative';
+        } else {
+            state.charge1 = 'negative';
+            state.charge2 = 'positive';
+        }
+
+        updateUIForRubbing();
+        playRubbingAnimation();
+    }
+    
+    function prepareTest(materialNumber) {
+        state.testingMaterial = materialNumber;
+        const material = (materialNumber === 1) ? state.material1 : state.material2;
+        
+        testMaterialRep.textContent = material.nom;
+        testMaterialRep.style.backgroundColor = material.color;
+        
+        testMat1Button.classList.add('hidden');
+        testMat2Button.classList.add('hidden');
+        
+        testMaterialRep.classList.add('active');
+        
+        setTimeout(() => {
+            const charge = (materialNumber === 1) ? state.charge1 : state.charge2;
+            if (charge === 'positive') {
+                pendulumZone.classList.add('attract'); 
+            } else if (charge === 'negative') {
+                pendulumZone.classList.add('repel'); 
+            }
+            observationButtonsDiv.classList.remove('hidden');
+        }, 1000);
+    }
+    
+    function recordObservation(interaction) {
+        const material = (state.testingMaterial === 1) ? state.material1 : state.material2;
+        
+        let correctCharge = '';
+        if (interaction === 'Attraction') {
+            correctCharge = '+'; 
+        } else if (interaction === 'Répulsion') {
+            correctCharge = '-'; 
+        }
+
+        // CRUCIAL : Utilisation de insertAdjacentHTML au lieu de innerHTML +=
+        // Cela empêche le navigateur de redessiner tout le tableau et donc de 
+        // réinitialiser les sélections faites dans les lignes précédentes.
+        const newRow = `
+            <tr>
+                <td>${state.material1.nom} & ${state.material2.nom}</td>
+                <td>${material.nom}</td>
+                <td>${interaction}</td>
+                <td>
+                    <select class="charge-select" onchange="validateCharge(this, '${correctCharge}')">
+                        <option value="?">?</option>
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                    </select>
+                </td>
+            </tr>
+        `;
+        observationsTbody.insertAdjacentHTML('beforeend', newRow);
+        
+        const testedButton = (state.testingMaterial === 1) ? testMat1Button : testMat2Button;
+        testedButton.disabled = true;
+
+        resetAfterTest();
+    }
+
+    // --- VALIDATION ---
+    window.validateCharge = function(selectElement, correctVal) {
+        const selectedVal = selectElement.value;
+
+        if (selectedVal === '?') return;
+
+        if (selectedVal === correctVal) {
+            selectElement.classList.add('select-correct');
+            selectElement.classList.remove('select-wrong');
+        } else {
+            selectElement.classList.add('select-wrong');
+            setTimeout(() => {
+                selectElement.value = '?';
+                selectElement.classList.remove('select-wrong');
+            }, 400);
+        }
+    };
+
+    // --- ANIMATIONS ET UI ---
+    function playRubbingAnimation() {
+        rubbingZone.classList.add('rub-animation');
+        setTimeout(() => {
+            updateUIForTesting();
+        }, 1500);
+    }
+    
+    function updateUIForRubbing() {
+        rubButton.disabled = true;
+        materialRep1.textContent = state.material1.nom;
+        materialRep1.style.backgroundColor = state.material1.color;
+        materialRep2.textContent = state.material2.nom;
+        materialRep2.style.backgroundColor = state.material2.color;
+    }
+
+    function updateUIForTesting() {
+        // Step 1 reste visible (Demande 2)
+        step2Div.classList.remove('hidden'); // Step 2 apparaît sous Step 1
+        
+        rubbingZone.classList.add('hidden');
+        pendulumZone.classList.remove('hidden');
+        
+        testMat1Button.textContent = `Tester ${state.material1.nom}`;
+        testMat2Button.textContent = `Tester ${state.material2.nom}`;
+    }
+    
+    function resetAfterTest() {
+        pendulumZone.classList.remove('attract', 'repel');
+        testMaterialRep.classList.remove('active');
+        observationButtonsDiv.classList.add('hidden');
+        
+        if(testMat1Button.disabled && testMat2Button.disabled) {
+             // Fin de la paire
+        } else {
+             testMat1Button.classList.remove('hidden');
+             testMat2Button.classList.remove('hidden');
+        }
+    }
+    
+    function resetSimulation() {
+        state = { material1: null, material2: null, charge1: 'neutral', charge2: 'neutral', testingMaterial: null };
+        
+        // Step 2 est caché, mais Step 1 reste là pour la prochaine sélection
+        step2Div.classList.add('hidden');
+        
+        rubbingZone.classList.remove('hidden', 'rub-animation');
+        pendulumZone.classList.add('hidden');
+        pendulumZone.classList.remove('attract', 'repel');
+        
+        materialRep1.style.transform = 'translateX(-70px)';
+        materialRep2.style.transform = 'translateX(70px)';
+        materialRep1.textContent = '';
+        materialRep2.textContent = '';
+        
+        testMaterialRep.classList.remove('active');
+        
+        testMat1Button.classList.remove('hidden');
+        testMat2Button.classList.remove('hidden');
+        testMat1Button.disabled = false;
+        testMat2Button.disabled = false;
+        rubButton.disabled = false;
+    }
+
+    init();
+});
+
+(function() {
+    const styles = 'color: #007BFF; font-size: 1.1em; font-weight: bold; background-color: #f0f0f0; padding: 4px 8px; border-radius: 4px';
+    console.log('%cApplication créée par Mathieu Dubreuil', styles);
+    console.log('Code source disponible sur GitHub : [https://github.com/dubrma1/Experiences-virtuelles-au-CSSMB]');
+})();
+</script>
+
+</body>
+</html>
