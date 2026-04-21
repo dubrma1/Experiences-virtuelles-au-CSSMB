@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu Sérieux : L'Électricien de la Maison Intelligente</title>
+    <style>
+        :root {
+            --primary: #2C3E50;
+            --secondary: #3498DB;
+            --accent: #E74C3C;
+            --success: #2ECC71;
+            --bg-color: #ECF0F1;
+            --card-bg: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #game-container {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            max-width: 900px;
+            width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-top: 0;
+        }
+
+        .header-stats {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--bg-color);
+        }
+
+        .layout {
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Panneau de gauche : Mission et Visualisation */
+        .mission-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .mission-text {
+            background-color: #D6EAF8;
+            padding: 15px;
+            border-left: 5px solid var(--secondary);
+            border-radius: 4px;
+        }
+
+        .scene-container {
+            background-color: var(--bg-color);
+            height: 250px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #BDC3C7;
+        }
+
+        /* Panneau de droite : Coffre à outils */
+        .toolbox-panel {
+            flex: 1;
+            background-color: #F8F9F9;
+            border: 1px solid #D5D8DC;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .toolbox-title {
+            text-align: center;
+            margin-top: 0;
+            font-size: 1.2em;
+            color: var(--primary);
+        }
+
+        .switch-option {
+            background-color: var(--card-bg);
+            border: 2px solid #BDC3C7;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .switch-option:hover {
+            border-color: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        .switch-option.selected {
+            border-color: var(--secondary);
+            background-color: #EBF5FB;
+            box-shadow: 0 0 0 2px var(--secondary);
+        }
+
+        .switch-option svg {
+            width: 80px;
+            height: 50px;
+        }
+
+        .switch-label {
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* Contrôles et Feedback */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #2980B9; }
+        button:disabled { background-color: #BDC3C7; cursor: not-allowed; }
+        
+        #btn-next { background-color: var(--success); display: none; }
+        #btn-next:hover { background-color: #27AE60; }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            font-weight: bold;
+        }
+
+        .feedback.success {
+            background-color: #D5F5E3;
+            color: #1E8449;
+            border-left: 5px solid var(--success);
+            display: block;
+        }
+
+        .feedback.error {
+            background-color: #FADBD8;
+            color: #943126;
+            border-left: 5px solid var(--accent);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>L'Électricien de la Maison</h1>
+    
+    <div class="header-stats">
+        <span id="level-indicator">Mission 1 / 3</span>
+        <span>Apprenti Électricien</span>
+    </div>
+
+    <div class="layout">
+        <div class="mission-panel">
+            <div class="mission-text">
+                <h3 id="mission-title" style="margin-top:0;">Chargement...</h3>
+                <p id="mission-desc">Veuillez patienter.</p>
+            </div>
+            
+            <div class="scene-container" id="scene-container">
+                </div>
+        </div>
+
+        <div class="toolbox-panel">
+            <h3 class="toolbox-title">Coffre à outils</h3>
+            
+            <div class="switch-option" data-type="unipolaire-uni" onclick="selectSwitch(this)">
+                <svg viewBox="0 0 100 50">
+                    <circle cx="20" cy="25" r="4" fill="none" stroke="black" stroke-width="2"/>
+                    <circle cx="80" cy="25" r="4" fill="none" stroke="black" stroke-width="2"/>
+                    <line x1="0" y1="25" x2="16" y2="25" stroke="black" stroke-width="2"/>
+                    <line x1="84" y1="25" x2="100" y2="25" stroke="black" stroke-width="2"/>
+                    <line x1="22" y1="23" x2="75" y2="10" stroke="black" stroke-width="2"/>
+                </svg>
+                <div class="switch-label">Unipolaire<br>Unidirectionnel</div>
+            </div>
+
+            <div class="switch-option" data-type="unipolaire-bi" onclick="selectSwitch(this)">
+                <svg viewBox="0 0 100 50">
+                    <circle cx="20" cy="25" r="4" fill="none" stroke="black" stroke-width="2"/>
+                    <circle cx="80" cy="15" r="4" fill="none" stroke="black" stroke-width="2"/>
+                    <circle cx="80" cy="35" r="4" fill="none" stroke="black" stroke-width="2"/>
+                    <line x1="0" y1="25" x2="16" y2="25" stroke="black" stroke-width="2"/>
+                    <line x1="84" y1="15" x2="100" y2="15" stroke="black" stroke-width="2"/>
+                    <line x1="84" y1="35" x2="100" y2="35" stroke="black" stroke-width="2"/>
+                    <line x1="22" y1="23" x2="75" y2="15" stroke="black" stroke-width="2"/>
+                </svg>
+                <div class="switch-label">Unipolaire<br>Bidirectionnel</div>
+            </div>
+
+            <div class="switch-option" data-type="bipolaire-uni" onclick="selectSwitch(this)">
+                <svg viewBox="0 0 100 50">
+                    <circle cx="20" cy="15" r="3" fill="none" stroke="black" stroke-width="2"/>
+                    <circle cx="80" cy="15" r="3" fill="none" stroke="black" stroke-width="2"/>
+                    <line x1="0" y1="15" x2="17" y2="15" stroke="black" stroke-width="2"/>
+                    <line x1="83" y1="15" x2="100" y2="15" stroke="black" stroke-width="2"/>
+                    <line x1="22" y1="14" x2="75" y2="5" stroke="black" stroke-width="2"/>
+                    
+                    <circle cx="20" cy="35" r="3" fill="none" stroke="black" stroke-width="2"/>
+                    <circle cx="80" cy="35" r="3" fill="none" stroke="black" stroke-width="2"/>
+                    <line x1="0" y1="35" x2="17" y2="35" stroke="black" stroke-width="2"/>
+                    <line x1="83" y1="35" x2="100" y2="35" stroke="black" stroke-width="2"/>
+                    <line x1="22" y1="34" x2="75" y2="25" stroke="black" stroke-width="2"/>
+                    
+                    <line x1="50" y1="10" x2="50" y2="30" stroke="red" stroke-width="2" stroke-dasharray="4"/>
+                </svg>
+                <div class="switch-label">Bipolaire<br>Unidirectionnel</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedback-area" class="feedback"></div>
+    
+    <div class="controls">
+        <button id="btn-validate" onclick="validateAnswer()">Installer l'interrupteur</button>
+        <button id="btn-next" onclick="nextLevel()">Mission Suivante ➔</button>
+    </div>
+</div>
+
+<script>
+    // --- BANQUE DE SCÈNES SVG ---
+    const svgChambre = `
+        <svg width="200" height="150" viewBox="0 0 200 150">
+            <rect x="10" y="10" width="180" height="130" fill="#F4F6F6" stroke="#7F8C8D" stroke-width="4"/>
+            <rect x="20" y="70" width="80" height="60" fill="#AED6F1" rx="5"/>
+            <rect x="25" y="75" width="30" height="20" fill="#FFFFFF" rx="3"/>
+            <circle cx="100" cy="40" r="15" fill="#F1C40F"/>
+            <line x1="100" y1="10" x2="100" y2="25" stroke="#7F8C8D" stroke-width="2"/>
+            <rect x="160" y="10" width="30" height="8" fill="#E67E22"/>
+            <circle cx="150" cy="20" r="8" fill="none" stroke="#E74C3C" stroke-width="2" stroke-dasharray="2"/>
+        </svg>
+    `;
+
+    const svgEscalier = `
+        <svg width="200" height="150" viewBox="0 0 200 150">
+            <polyline points="20,140 20,20 180,20" fill="none" stroke="#7F8C8D" stroke-width="4"/>
+            <polyline points="20,140 60,140 60,100 100,100 100,60 140,60 140,20" fill="none" stroke="#95A5A6" stroke-width="6"/>
+            <circle cx="100" cy="40" r="15" fill="#F1C40F"/>
+            <circle cx="160" cy="40" r="8" fill="none" stroke="#E74C3C" stroke-width="2" stroke-dasharray="2"/>
+            <circle cx="40" cy="120" r="8" fill="none" stroke="#E74C3C" stroke-width="2" stroke-dasharray="2"/>
+        </svg>
+    `;
+
+    const svgChauffeEau = `
+        <svg width="200" height="150" viewBox="0 0 200 150">
+            <rect x="70" y="40" width="60" height="100" fill="#D5D8DC" rx="10" stroke="#7F8C8D" stroke-width="3"/>
+            <polygon points="100,60 90,80 100,80 95,100 110,75 100,75" fill="#E74C3C"/>
+            <line x1="20" y1="50" x2="70" y2="50" stroke="#C0392B" stroke-width="4"/>
+            <line x1="20" y1="70" x2="70" y2="70" stroke="#27AE60" stroke-width="4"/>
+            <text x="20" y="45" font-size="10" fill="#333">Phase 1 (120V)</text>
+            <text x="20" y="85" font-size="10" fill="#333">Phase 2 (120V)</text>
+            <rect x="35" y="40" width="20" height="40" fill="none" stroke="#E74C3C" stroke-width="2" stroke-dasharray="2"/>
+        </svg>
+    `;
+
+    // --- DONNÉES DES MISSIONS ---
+    const missions = [
+        {
+            title: "La Chambre à Coucher",
+            desc: "Le client souhaite une installation basique. Il veut pouvoir allumer et éteindre la lumière principale du plafond en entrant dans la pièce. Quel interrupteur choisis-tu ?",
+            svg: svgChambre,
+            correctAnswer: "unipolaire-uni",
+            successMsg: "Excellent ! L'interrupteur <b>unipolaire unidirectionnel</b> contrôle un seul circuit (unipolaire) et n'a qu'un seul chemin pour fermer le circuit (unidirectionnel). C'est parfait pour une commande simple.",
+            errorMsg: "Ce n'est pas le bon choix. Tu cherches l'interrupteur le plus simple possible : un seul circuit à contrôler, une seule façon de l'allumer."
+        },
+        {
+            title: "La Cage d'Escalier",
+            desc: "Le client veut pouvoir allumer la lumière au bas de l'escalier, monter, puis éteindre cette même lumière une fois arrivé en haut. C'est ce qu'on appelle un circuit 'va-et-vient'.",
+            svg: svgEscalier,
+            correctAnswer: "unipolaire-bi",
+            successMsg: "Bravo ! Pour un va-et-vient, il faut utiliser deux interrupteurs <b>unipolaires bidirectionnels</b>. Ils permettent de diriger le courant vers l'un ou l'autre des fils voyageurs, permettant d'allumer ou d'éteindre de deux endroits différents.",
+            errorMsg: "Mauvais choix. Réfléchis : le courant doit pouvoir emprunter deux chemins différents (deux directions) pour que l'interrupteur du haut et celui du bas puissent interagir."
+        },
+        {
+            title: "Le Chauffe-eau 240V",
+            desc: "Ce chauffe-eau fonctionne sur du 240 volts. Il est alimenté par deux fils de phase distincts de 120V chacun. Pour l'entretien, l'électricien doit pouvoir couper le courant des DEUX fils en même temps pour travailler en sécurité.",
+            svg: svgChauffeEau,
+            correctAnswer: "bipolaire-uni",
+            successMsg: "Mission accomplie ! Un interrupteur <b>bipolaire unidirectionnel</b> est muni d'un lien mécanique qui ouvre ou ferme deux circuits indépendants simultanément. C'est essentiel pour sécuriser un appareil 240V.",
+            errorMsg: "Attention au danger ! Si tu utilises un interrupteur unipolaire, un des deux fils restera sous tension (120V) ! Il te faut un interrupteur capable de couper les deux phases en un seul mouvement."
+        }
+    ];
+
+    // --- LOGIQUE DU JEU ---
+    let currentLevel = 0;
+    let selectedSwitchType = null;
+
+    // Initialisation
+    window.onload = () => {
+        loadLevel(currentLevel);
+    };
+
+    function loadLevel(levelIndex) {
+        const mission = missions[levelIndex];
+        
+        // Mise à jour de l'UI
+        document.getElementById('level-indicator').innerText = `Mission ${levelIndex + 1} / ${missions.length}`;
+        document.getElementById('mission-title').innerText = mission.title;
+        document.getElementById('mission-desc').innerText = mission.desc;
+        document.getElementById('scene-container').innerHTML = mission.svg;
+        
+        // Reset l'état
+        selectedSwitchType = null;
+        document.querySelectorAll('.switch-option').forEach(el => el.classList.remove('selected'));
+        
+        // Reset UI des boutons/feedback
+        const feedbackArea = document.getElementById('feedback-area');
+        feedbackArea.className = 'feedback';
+        feedbackArea.innerHTML = '';
+        document.getElementById('btn-validate').style.display = 'block';
+        document.getElementById('btn-next').style.display = 'none';
+    }
+
+    function selectSwitch(element) {
+        // Enlève la classe selected de tous les interrupteurs
+        document.querySelectorAll('.switch-option').forEach(el => el.classList.remove('selected'));
+        // Ajoute la classe au cliqué
+        element.classList.add('selected');
+        // Sauvegarde le choix
+        selectedSwitchType = element.getAttribute('data-type');
+    }
+
+    function validateAnswer() {
+        if (!selectedSwitchType) {
+            alert("Veuillez sélectionner un interrupteur dans le coffre à outils avant de valider.");
+            return;
+        }
+
+        const mission = missions[currentLevel];
+        const feedbackArea = document.getElementById('feedback-area');
+
+        if (selectedSwitchType === mission.correctAnswer) {
+            // Bonne réponse
+            feedbackArea.className = 'feedback success';
+            feedbackArea.innerHTML = mission.successMsg;
+            document.getElementById('btn-validate').style.display = 'none';
+            
+            // Si c'est la dernière mission, afficher un message de fin
+            if (currentLevel === missions.length - 1) {
+                document.getElementById('btn-next').innerText = "Terminer la simulation";
+                document.getElementById('btn-next').onclick = () => {
+                    alert("Félicitations ! Vous avez terminé la simulation avec succès. Vous maîtrisez les fonctions de commande !");
+                    currentLevel = 0;
+                    loadLevel(currentLevel);
+                    document.getElementById('btn-next').innerText = "Mission Suivante ➔";
+                    document.getElementById('btn-next').onclick = nextLevel;
+                };
+            }
+            document.getElementById('btn-next').style.display = 'block';
+        } else {
+            // Mauvaise réponse
+            feedbackArea.className = 'feedback error';
+            feedbackArea.innerHTML = mission.errorMsg;
+        }
+    }
+
+    function nextLevel() {
+        currentLevel++;
+        if (currentLevel < missions.length) {
+            loadLevel(currentLevel);
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermomètre Web</title>
+    <style type="text/css">
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column; /* Empile les éléments verticalement */
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #ffffff;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .thermometer-container {
+            display: flex;
+            flex-direction: column; /* Empile thermomètre et contrôles */
+            align-items: center;
+        }
+
+        .thermometer {
+            position: relative; /* Permet de positionner les éléments enfants en absolu */
+            width: 60px; /* Largeur totale du thermomètre visuel */
+            height: 350px; /* Hauteur totale du thermomètre visuel */
+            display: flex;
+            justify-content: center; /* Centre le tube et le bulbe horizontalement */
+            margin-bottom: 20px; /* Espace avant les contrôles */
+        }
+
+        /* Styles pour le conteneur de l'échelle (peu de changements) */
+        .thermometer-scale {
+            position: absolute;
+            left: 65px; /* Positionne le conteneur à droite du tube */
+            top: 10px;  /* Aligne avec le haut du tube */
+            height: 300px; /* Hauteur du tube */
+            width: 50px;  /* Espace pour les chiffres et les marques */
+            font-size: 10px;
+            color: #555;
+            /* pointer-events: none; */ /* Décommentez si l'échelle masque des éléments cliquables */
+        }
+
+        /* Style de BASE pour TOUTES les marques (communes) */
+        .scale-mark {
+            position: absolute;
+            height: 1px; /* Épaisseur de la marque */
+            /* Positionnement horizontal : la marque part de la droite du conteneur */
+            right: 100%; /* Aligne le côté droit de la marque avec le côté droit du conteneur */
+            /* La 'width' déterminera sa longueur vers la gauche */
+        }
+
+        /* Style SPÉCIFIQUE pour les marques PRINCIPALES */
+        .scale-mark--major {
+            width: 15px; /* Marques plus longues */
+            background-color: #333; /* Couleur plus foncée */
+        }
+
+        /* Style SPÉCIFIQUE pour les marques SECONDAIRES (sous-graduations) */
+        .scale-mark--minor {
+            width: 8px; /* Marques plus courtes */
+            background-color: #999; /* Couleur plus claire */
+        }
+
+        /* Style pour les chiffres (labels), ne s'appliquera qu'aux spans dans les marques principales */
+        .scale-mark span {
+            position: absolute;
+            /* Positionne le texte à droite de la marque principale */
+            left: 20px; /* Ajustez cette valeur pour l'espacement texte <-> marque */
+            top: -6px; /* Centrage vertical du texte par rapport à la marque */
+            white-space: nowrap; /* Empêche le retour à la ligne */
+            color: #333; /* Couleur du texte des graduations */
+        }
+
+        .thermometer-tube {
+            width: 20px; /* Largeur du tube */
+            height: 300px; /* Hauteur du tube */
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 10px 10px 0 0; /* Arrondi en haut */
+            position: relative; /* Pour positionner le liquide */
+            top: 10px; /* Laisse de l'espace en haut */
+            overflow: hidden; /* Cache le liquide qui dépasse */
+            z-index: 1; /* S'assure que le tube est devant l'échelle si chevauchement */
+        }
+
+        .thermometer-liquid {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #ff4500; /* Couleur orange-rouge */
+            border-radius: 0 0 8px 8px; /* Arrondi en bas (correspond au tube) */
+            height: 0; /* Hauteur initiale, sera définie par JS */
+            transition: height 0.3s ease-out; /* Animation douce */
+        }
+
+        .thermometer-bulb {
+            width: 40px; /* Diamètre du bulbe */
+            height: 40px; /* Diamètre du bulbe */
+            background-color: #ff4500; /* Même couleur que le liquide */
+            border-radius: 50%; /* Cercle parfait */
+            position: absolute;
+            bottom: 0; /* Tout en bas */
+            left: 50%; /* Centre horizontalement */
+            transform: translateX(-50%); /* Ajustement fin du centrage */
+            border: 1px solid #cc3700; /* Bordure légère */
+            z-index: 2; /* S'assure que le bulbe est devant le tube */
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .controls label {
+            margin-right: 10px;
+        }
+
+        .controls input[type="number"] {
+            padding: 8px;
+            width: 80px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        #currentTempValue {
+            display: inline-block; /* Pour appliquer le margin */
+            margin-left: 15px;
+            font-weight: bold;
+            min-width: 50px; /* Empêche le texte de sauter */
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Thermomètre Interactif</h1>
+
+    <div class="thermometer-container">
+        <div class="thermometer">
+            <div class="thermometer-scale">
+            </div>
+            <div class="thermometer-tube">
+                <div class="thermometer-liquid"></div>
+            </div>
+            <div class="thermometer-bulb"></div>
+        </div>
+
+        <div class="controls">
+            <label for="temperatureInput">Température (°C): </label>
+            <input type="number" id="temperatureInput" min="-20" max="120" value="20">
+            <span id="currentTempValue">20°C</span>
+        </div>
+    </div>
+
+    <script> // L'attribut src a été enlevé pour intégrer le code directement
+        document.addEventListener('DOMContentLoaded', () => {
+            // Éléments du DOM
+            const temperatureInput = document.getElementById('temperatureInput');
+            const liquid = document.querySelector('.thermometer-liquid');
+            const currentTempValueDisplay = document.getElementById('currentTempValue');
+            const scaleContainer = document.querySelector('.thermometer-scale');
+
+            // Constantes du thermomètre
+            const MIN_TEMP = 10; // Température minimale de l'échelle visuelle du thermomètre
+            const MAX_TEMP = 30; // Température maximale de l'échelle visuelle du thermomètre
+            const TEMP_RANGE = MAX_TEMP - MIN_TEMP;
+
+            // Hauteur du tube en pixels (doit correspondre au CSS .thermometer-tube height)
+            const TUBE_HEIGHT_PX = 300; // Non utilisé directement dans ce script, mais bon à savoir
+
+            // Fonction pour mettre à jour l'affichage du thermomètre
+            function updateThermometer(tempCelsius) {
+                // 1. Valider et contraindre la température par rapport à l'échelle visuelle
+                let currentTemp = parseFloat(tempCelsius);
+                if (isNaN(currentTemp)) {
+                    currentTemp = parseFloat(temperatureInput.min); // Ou une valeur par défaut appropriée
+                }
+                
+                // Contrainte par rapport aux limites de l'input, pas forcément celles du thermomètre visuel
+                const inputMin = parseFloat(temperatureInput.min);
+                const inputMax = parseFloat(temperatureInput.max);
+                currentTemp = Math.max(inputMin, Math.min(inputMax, currentTemp));
+
+
+                // 2. Calculer la hauteur du liquide en pourcentage PAR RAPPORT A L'ECHELLE DU THERMOMETRE (MIN_TEMP, MAX_TEMP)
+                let percentage = 0;
+                if (currentTemp <= MIN_TEMP) {
+                    percentage = 0;
+                } else if (currentTemp >= MAX_TEMP) {
+                    percentage = 100;
+                } else {
+                    percentage = ((currentTemp - MIN_TEMP) / TEMP_RANGE) * 100;
+                }
+                
+
+                // 3. Appliquer la hauteur au liquide
+                liquid.style.height = `${Math.min(100, Math.max(0, percentage))}%`;
+
+                // 4. Mettre à jour l'affichage textuel de la température
+                currentTempValueDisplay.textContent = `${parseFloat(tempCelsius).toFixed(1)}°C`; // Afficher la valeur entrée, pas la contrainte
+
+                // 5. (Optionnel) Mettre à jour la valeur de l'input si elle a été contrainte
+                //    et que vous voulez que l'utilisateur voit cette contrainte.
+                // if (parseFloat(temperatureInput.value) !== currentTemp) {
+                //     temperatureInput.value = currentTemp.toFixed(1);
+                // }
+            }
+
+            // Fonction pour générer l'échelle de graduation
+            function generateScale() {
+                scaleContainer.innerHTML = ''; // Vide l'échelle existante
+
+                const majorStep = 5; 
+                const subdivisions = 5; // 5 subdivisions -> marques à chaque degré pour un majorStep de 5
+                const minorStep = majorStep / subdivisions; 
+
+                for (let temp = MIN_TEMP; temp <= MAX_TEMP; temp += minorStep) {
+                    const percentageFromBottom = ((temp - MIN_TEMP) / TEMP_RANGE) * 100;
+
+                    if (percentageFromBottom >= 0 && percentageFromBottom <= 100) {
+                        const markElement = document.createElement('div');
+                        markElement.classList.add('scale-mark'); 
+                        markElement.style.bottom = `${percentageFromBottom}%`;
+
+                        const tolerance = 0.001;
+                        if (Math.abs(temp % majorStep) < tolerance || Math.abs((temp % majorStep) - majorStep) < tolerance || temp === MIN_TEMP || temp === MAX_TEMP) {
+                            markElement.classList.add('scale-mark--major');
+                            const labelElement = document.createElement('span');
+                            labelElement.textContent = `${Math.round(temp)}°`;
+                            markElement.appendChild(labelElement);
+                        } else {
+                            markElement.classList.add('scale-mark--minor');
+                        }
+                        scaleContainer.appendChild(markElement);
+                    }
+                }
+            }
+
+            // Écouteur d'événement pour l'input de température
+            temperatureInput.addEventListener('input', (event) => {
+                updateThermometer(event.target.value);
+            });
+
+             // Gestion du changement de valeur par les flèches ou la validation du navigateur
+            temperatureInput.addEventListener('change', (event) => {
+                updateThermometer(event.target.value);
+            });
+
+            // Initialisation au chargement
+            generateScale(); // Crée les graduations
+            updateThermometer(temperatureInput.value); // Met à jour avec la valeur initiale
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire de Thermométrie Interactif</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 30px 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .description {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #555;
+            max-width: 700px;
+            line-height: 1.5;
+        }
+
+        .global-controls {
+            margin-bottom: 40px;
+            background-color: #fff;
+            padding: 20px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .toggle-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .toggle-btn:hover { background-color: #2980b9; transform: translateY(-2px); }
+        .toggle-btn.ste-active { background-color: #8e44ad; }
+        .toggle-btn.ste-active:hover { background-color: #732d91; }
+
+        .parallax-container {
+            background: #ecf0f1;
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .parallax-container label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .parallax-container input[type="range"] {
+            width: 80%;
+            max-width: 400px;
+        }
+
+        .thermometers-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .thermometer-box {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 280px;
+        }
+
+        .thermometer-box h2 {
+            font-size: 18px;
+            color: #34495e;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+            height: 40px;
+        }
+
+        .thermometer-container-relative {
+            position: relative;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        .thermometer {
+            position: relative;
+            width: 60px;
+            height: 350px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .thermometer-scale {
+            position: absolute;
+            left: 65px;
+            top: 11px;
+            height: 300px;
+            width: 50px;
+            font-size: 11px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .scale-mark { position: absolute; height: 1px; right: 100%; }
+        .scale-mark--major { width: 15px; background-color: #2c3e50; }
+        .scale-mark--minor { width: 8px; background-color: #95a5a6; }
+
+        .scale-mark span {
+            position: absolute;
+            left: 20px;
+            top: -6px;
+            white-space: nowrap;
+            color: #2c3e50;
+        }
+
+        .thermometer-tube {
+            width: 20px;
+            height: 300px;
+            background-color: #f8f9fa;
+            border: 1px solid #bdc3c7;
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            top: 10px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .thermometer-liquid {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #e74c3c;
+            border-radius: 0 0 8px 8px;
+            height: 0;
+            transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .thermometer-bulb {
+            width: 40px;
+            height: 40px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid #c0392b;
+            z-index: 2;
+        }
+
+        /* --- STYLES DE L'OEIL D'OBSERVATEUR --- */
+        .parallax-eye {
+            position: absolute;
+            left: -80px; 
+            height: 35px;
+            display: flex;
+            align-items: center;
+            transform-origin: left center; 
+            transition: top 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 5;
+            pointer-events: none; 
+        }
+
+        .eye-svg {
+            flex-shrink: 0;
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.15));
+        }
+
+        .line-of-sight {
+            flex-grow: 1;
+            height: 1px;
+            border-bottom: 2px dashed rgba(231, 76, 60, 0.7);
+            margin-left: 2px;
+        }
+
+        /* --- STYLES DE LA LOUPE MAGIQUE --- */
+        .loupe {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            background-color: #ffffff;
+            pointer-events: none; 
+            overflow: hidden;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        .loupe-inner {
+            position: absolute;
+            transform-origin: 0 0;
+            transform: scale(2.5); /* Synchroniser cette valeur avec celle de scale du JS */
+            width: 60px; 
+            height: 350px;
+        }
+
+        .loupe-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: rgba(231, 76, 60, 0.6);
+            z-index: 10;
+        }
+
+        /* --- STYLES DE CONTRÔLES DU JEU --- */
+        .controls {
+            text-align: center;
+            width: 100%;
+        }
+
+        .btn-generate {
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: background-color 0.2s;
+        }
+        .btn-generate:hover { background-color: #e67e22; }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .input-group input[type="number"] {
+            padding: 8px;
+            width: 80px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .btn-validate {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 9px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-validate:hover { background-color: #2ecc71; }
+
+        .reading-display {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #2c3e50;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.4;
+        }
+
+        .reading-display.correct {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .reading-display.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Laboratoire de Thermométrie</h1>
+    <p class="description">
+        <strong>Mission :</strong> Lisez la température affichée sur chaque thermomètre. Utilisez la loupe en survolant le tube pour plus de précision. Attention à votre position (parallaxe) !
+    </p>
+
+    <div class="global-controls">
+        <button id="toggleModeBtn" class="toggle-btn">Mode Évaluation : Sans Incertitudes (ST)</button>
+        
+        <div class="parallax-container">
+            <label for="parallaxSlider">
+                Angle de vue (Erreur de Parallaxe) : <span id="parallaxLabel">De face (0°)</span>
+            </label>
+            <input type="range" id="parallaxSlider" min="-30" max="30" value="0">
+            <p style="font-size: 13px; color: #7f8c8d; margin: 5px 0 0 0;">
+                Regarder d'en haut ou d'en bas décale visuellement le liquide par rapport aux graduations !
+            </p>
+        </div>
+    </div>
+
+    <div class="thermometers-wrapper" id="thermometers-wrapper">
+        <!-- Généré par JS -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const thermoConfigs = [
+                { id: 'thermo1', title: 'Thermomètre Général', min: -20, max: 120, majorStep: 20, minorStep: 5 },
+                { id: 'thermo2', title: 'Thermomètre Ambiant', min: 10, max: 30, majorStep: 5, minorStep: 0.5 }, // Résolution augmentée à 0.5°C
+                { id: 'thermo3', title: 'Thermomètre de Précision', min: 10, max: 60, majorStep: 10, minorStep: 1 }
+            ];
+
+            
+	// --- ÉTAT GLOBAL ---
+            let isSTEMode = false; 
+            let parallaxAngle = 0; 
+            let thermoState = {};  
+
+            const wrapper = document.getElementById('thermometers-wrapper');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+            const parallaxSlider = document.getElementById('parallaxSlider');
+            const parallaxLabel = document.getElementById('parallaxLabel');
+
+            // --- 1. GÉNÉRATION DE L'INTERFACE HTML ---
+            thermoConfigs.forEach(config => {
+                thermoState[config.id] = { trueTemp: 0 };
+
+                const box = document.createElement('div');
+                box.classList.add('thermometer-box');
+                
+                box.innerHTML = `
+                    <h2>${config.title}<br><small style="font-size:12px; font-weight:normal;">Graduation: ${config.minorStep}°C</small></h2>
+                    
+                    <div class="thermometer-container-relative" 
+                         onmousemove="window.handleLoupeMove(event, '${config.id}')" 
+                         onmouseenter="window.showLoupe('${config.id}')" 
+                         onmouseleave="window.hideLoupe('${config.id}')">
+                         
+                        <!-- Oeil Parallaxe Animé avec le SVG mis à jour -->
+                        <div class="parallax-eye" id="eye-${config.id}">
+                            <svg viewBox="0 0 100 100" width="35" height="35" class="eye-svg" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M 5,50 Q 35,35 60,25 Q 75,50 60,75 Q 35,65 5,50 Z" fill="#fff" />
+                                <ellipse cx="60" cy="50" rx="10" ry="25" fill="#2c3e50" />
+                                <path d="M 60,25 Q 75,50 60,75" fill="none" stroke="#2c3e50" stroke-width="3" stroke-linecap="round"/>
+                                <path d="M 5,50 Q 35,35 85,15" fill="none" stroke="#2c3e50" stroke-width="3" stroke-linecap="round"/>
+                                <path d="M 5,50 Q 35,65 85,85" fill="none" stroke="#2c3e50" stroke-width="3" stroke-linecap="round"/>
+                                <circle cx="66" cy="45" r="2.5" fill="white" />
+                            </svg>
+                            <div class="line-of-sight"></div>
+                        </div>
+
+                        <!-- Thermomètre Principal -->
+                        <div class="thermometer" id="thermo-base-${config.id}">
+                            <div class="thermometer-scale" id="scale-${config.id}"></div>
+                            <div class="thermometer-tube">
+                                <div class="thermometer-liquid" id="liquid-${config.id}"></div>
+                            </div>
+                            <div class="thermometer-bulb"></div>
+                        </div>
+                        
+                        <!-- Loupe Magique -->
+                        <div class="loupe" id="loupe-${config.id}">
+                            <div class="loupe-inner" id="loupe-inner-${config.id}">
+                                <div class="thermometer">
+                                    <div class="thermometer-scale" id="scale-loupe-${config.id}"></div>
+                                    <div class="thermometer-tube">
+                                        <div class="thermometer-liquid" id="liquid-loupe-${config.id}"></div>
+                                    </div>
+                                    <div class="thermometer-bulb"></div>
+                                </div>
+                            </div>
+                            <div class="loupe-crosshair"></div>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button class="btn-generate" onclick="window.generateNewTemp('${config.id}')">Nouvelle Expérience</button>
+                        <label for="input-${config.id}">Votre lecture (°C) :</label>
+                        <div class="input-group">
+                            <input type="number" id="input-${config.id}" step="0.1" placeholder="Ex: 25.5">
+                            <button class="btn-validate" onclick="window.validateTemp('${config.id}')">Valider</button>
+                        </div>
+                        <div class="reading-display" id="feedback-${config.id}">En attente de votre lecture...</div>
+                    </div>
+                `;
+                wrapper.appendChild(box);
+            });
+
+            // --- 2. LOGIQUE MÉTIER & RENDU ---
+						// Initialisation aléatoire de la parallaxe ---
+			function initRandomParallax() {
+				// Génère un entier aléatoire entre -30 et 30 inclus
+				const randomAngle = Math.floor(Math.random() * 61) - 30;
+				parallaxAngle = randomAngle;
+				
+				// Met à jour la position du slider HTML
+				parallaxSlider.value = randomAngle;
+				
+				// Met à jour le libellé textuel et sa couleur
+				if (parallaxAngle === 0) {
+					parallaxLabel.textContent = "De face (0°)";
+					parallaxLabel.style.color = "#27ae60";
+				} else if (parallaxAngle > 0) {
+					parallaxLabel.textContent = `Vue plongeante (haut) (+${parallaxAngle}°)`;
+					parallaxLabel.style.color = "#e74c3c";
+				} else {
+					parallaxLabel.textContent = `Contre-plongée (bas) (${parallaxAngle}°)`;
+					parallaxLabel.style.color = "#e74c3c";
+				}
+			}
+
+
+            function initThermometers() {
+                thermoConfigs.forEach(config => {
+                    generateScales(config);
+                    window.generateNewTemp(config.id); 
+                });
+            }
+
+            function generateScales(config) {
+                const scaleMain = document.getElementById(`scale-${config.id}`);
+                const scaleLoupe = document.getElementById(`scale-loupe-${config.id}`);
+                scaleMain.innerHTML = '';
+                scaleLoupe.innerHTML = '';
+                
+                const range = config.max - config.min;
+                const steps = Math.round(range / config.minorStep);
+
+                // Boucle basée sur un entier `i` pour éviter les erreurs d'arrondis des flottants
+                for (let i = 0; i <= steps; i++) {
+                    const temp = config.min + i * config.minorStep;
+                    const percent = ((temp - config.min) / range) * 100;
+                    
+                    if (percent >= -0.01 && percent <= 100.01) {
+                        const mark = document.createElement('div');
+                        mark.classList.add('scale-mark');
+                        mark.style.bottom = `${Math.max(0, Math.min(100, percent))}%`;
+
+                        // Vérification robuste pour les graduations majeures
+                        const distFromMin = temp - config.min;
+                        const isMajor = Math.abs(Math.round(distFromMin / config.majorStep) * config.majorStep - distFromMin) < 0.001;
+
+                        if (isMajor) {
+                            mark.classList.add('scale-mark--major');
+                            const label = document.createElement('span');
+                            label.textContent = `${Math.round(temp)}°`;
+                            mark.appendChild(label);
+                        } else {
+                            mark.classList.add('scale-mark--minor');
+                        }
+                        
+                        scaleMain.appendChild(mark.cloneNode(true));
+                        scaleLoupe.appendChild(mark.cloneNode(true));
+                    }
+                }
+            }
+
+            window.generateNewTemp = function(id) {
+                const config = thermoConfigs.find(c => c.id === id);
+                let rawTemp = config.min + Math.random() * (config.max - config.min);
+                thermoState[id].trueTemp = parseFloat(rawTemp.toFixed(1));
+                
+                document.getElementById(`input-${id}`).value = '';
+                const feedback = document.getElementById(`feedback-${id}`);
+                feedback.className = 'reading-display';
+                feedback.innerHTML = 'En attente de votre lecture...';
+                
+                updateVisuals(id);
+            };
+
+            function updateVisuals(id) {
+                const config = thermoConfigs.find(c => c.id === id);
+                const trueTemp = thermoState[id].trueTemp;
+                const range = config.max - config.min;
+                
+                const truePercent = ((trueTemp - config.min) / range) * 100;
+                
+                const tubeBottomY = 310;
+                const tubeHeight = 300;
+                const trueMeniscusY = tubeBottomY - (truePercent / 100) * tubeHeight;
+                
+                let visualPercent = truePercent + (parallaxAngle * -0.15);
+                visualPercent = Math.max(0, Math.min(100, visualPercent));
+                const visualMeniscusY = tubeBottomY - (visualPercent / 100) * tubeHeight;
+                
+                document.getElementById(`liquid-${id}`).style.height = `${visualPercent}%`;
+                document.getElementById(`liquid-loupe-${id}`).style.height = `${visualPercent}%`;
+
+                const eyeEl = document.getElementById(`eye-${id}`);
+                if (eyeEl) {
+                    const eyeOffsetY = -parallaxAngle * 2.5; 
+                    const eyeY = trueMeniscusY + eyeOffsetY;
+                    
+                    const deltaX = 100; 
+                    const deltaY = visualMeniscusY - eyeY;
+                    const angleRad = Math.atan2(deltaY, deltaX);
+                    const angleDeg = angleRad * (180 / Math.PI);
+                    
+                    const hypotenuse = Math.sqrt(deltaX*deltaX + deltaY*deltaY);
+                    
+                    eyeEl.style.top = `${eyeY - 5}px`; // Centrage par rapport à la hauteur du SVG (35/2 = 17.5px)
+                    eyeEl.style.width = `${hypotenuse}px`;
+                    eyeEl.style.transform = `rotate(${angleDeg}deg)`;
+                }
+            }
+
+            function updateAllVisuals() {
+                thermoConfigs.forEach(config => updateVisuals(config.id));
+            }
+
+            window.validateTemp = function(id) {
+                const config = thermoConfigs.find(c => c.id === id);
+                const inputEl = document.getElementById(`input-${id}`);
+                const feedbackEl = document.getElementById(`feedback-${id}`);
+                const studentVal = parseFloat(inputEl.value);
+                const trueTemp = thermoState[id].trueTemp;
+                
+                if (isNaN(studentVal)) {
+                    feedbackEl.className = 'reading-display incorrect';
+                    feedbackEl.innerHTML = "Veuillez saisir une valeur.";
+                    return;
+                }
+
+                let isCorrect = false;
+                let message = "";
+
+                if (isSTEMode) {
+                    const uncertainty = config.minorStep / 2;
+                    if (Math.abs(studentVal - trueTemp) <= uncertainty + 0.05) { 
+                        isCorrect = true;
+                        message = `<b>Excellent !</b><br>Valeur exacte : ${trueTemp.toFixed(1)}°C.<br>Votre lecture est validée (marge ±${uncertainty}°C).`;
+                    } else {
+                        isCorrect = false;
+                        message = `<b>Incorrect.</b><br>Rappelez-vous, l'incertitude est de ±${uncertainty}°C. Êtes-vous bien placé "de face" (0°) ?`;
+                    }
+                } else {
+                    const expectedRounded = Math.round(trueTemp / config.minorStep) * config.minorStep;
+                    if (Math.abs(studentVal - expectedRounded) < 0.05) {
+                        isCorrect = true;
+                        message = `<b>Parfait !</b><br>La graduation la plus proche est bien ${expectedRounded}°C. (Température secrète : ${trueTemp.toFixed(1)}°C)`;
+                    } else {
+                        isCorrect = false;
+                        message = `<b>Incorrect.</b><br>En mode ST, lisez la graduation la plus proche (${config.minorStep}°C). Attention à l'erreur de parallaxe !`;
+                    }
+                }
+                
+                feedbackEl.className = `reading-display ${isCorrect ? 'correct' : 'incorrect'}`;
+                feedbackEl.innerHTML = message;
+            };
+
+            // --- 3. LOUPE DYNAMIQUE ---
+            window.showLoupe = function(id) {
+                document.getElementById(`loupe-${id}`).style.display = 'block';
+            };
+
+            window.hideLoupe = function(id) {
+                document.getElementById(`loupe-${id}`).style.display = 'none';
+            };
+
+            window.handleLoupeMove = function(e, id) {
+                const container = e.currentTarget;
+                const rect = container.getBoundingClientRect();
+                
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const loupe = document.getElementById(`loupe-${id}`);
+                const loupeInner = document.getElementById(`loupe-inner-${id}`);
+
+                loupe.style.left = `${x + 20}px`;
+                loupe.style.top = `${y - 90}px`; 
+
+                const scale = 2.5; /* Synchroniser cette valeur avec celle de loupe css */
+                loupeInner.style.left = `${90 - (30 * scale)}px`; 
+                loupeInner.style.top = `${90 - ((y-10) * scale)}px`;   
+            };
+
+            // --- 4. ÉVÉNEMENTS GLOBAUX ---
+            toggleBtn.addEventListener('click', () => {
+                isSTEMode = !isSTEMode;
+                if (isSTEMode) {
+                    toggleBtn.textContent = "Mode Évaluation : Avec Incertitudes (STE)";
+                    toggleBtn.classList.add('ste-active');
+                } else {
+                    toggleBtn.textContent = "Mode Évaluation : Sans Incertitudes (ST)";
+                    toggleBtn.classList.remove('ste-active');
+                }
+                thermoConfigs.forEach(config => {
+                    const feedback = document.getElementById(`feedback-${config.id}`);
+                    feedback.className = 'reading-display';
+                    feedback.innerHTML = 'Mode de lecture modifié. En attente...';
+                });
+            });
+
+            parallaxSlider.addEventListener('input', (e) => {
+                parallaxAngle = parseInt(e.target.value);
+                if (parallaxAngle === 0) {
+                    parallaxLabel.textContent = "De face (0°)";
+                    parallaxLabel.style.color = "#27ae60";
+                } else if (parallaxAngle > 0) {
+                    parallaxLabel.textContent = `Vue plongeante (haut) (+${parallaxAngle}°)`;
+                    parallaxLabel.style.color = "#e74c3c";
+                } else {
+                    parallaxLabel.textContent = `Contre-plongée (bas) (${parallaxAngle}°)`;
+                    parallaxLabel.style.color = "#e74c3c";
+                }
+                updateAllVisuals();
+            });
+
+            // Démarrage
+			initRandomParallax();
+			initThermometers();
+        });
+    </script>
+</body>
+</html>

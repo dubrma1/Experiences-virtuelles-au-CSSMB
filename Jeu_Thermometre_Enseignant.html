@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratoire de Thermométrie</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 30px 20px;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .description {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #555;
+            max-width: 600px;
+        }
+
+        .global-controls {
+            margin-bottom: 40px;
+            background-color: #fff;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .toggle-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .toggle-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .toggle-btn.ste-active {
+            background-color: #8e44ad; /* Couleur différente pour le mode STE */
+        }
+        .toggle-btn.ste-active:hover {
+            background-color: #732d91;
+        }
+
+        .thermometers-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 50px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .thermometer-box {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 250px;
+        }
+
+        .thermometer-box h2 {
+            font-size: 18px;
+            color: #34495e;
+            margin-bottom: 30px;
+            text-align: center;
+            height: 40px;
+        }
+
+        .thermometer {
+            position: relative;
+            width: 60px;
+            height: 350px;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .thermometer-scale {
+            position: absolute;
+            left: 65px;
+            top: 10px;
+            height: 300px;
+            width: 50px;
+            font-size: 11px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .scale-mark {
+            position: absolute;
+            height: 1px;
+            right: 100%;
+        }
+
+        .scale-mark--major {
+            width: 15px;
+            background-color: #2c3e50;
+        }
+
+        .scale-mark--minor {
+            width: 8px;
+            background-color: #95a5a6;
+        }
+
+        .scale-mark span {
+            position: absolute;
+            left: 20px;
+            top: -6px;
+            white-space: nowrap;
+            color: #2c3e50;
+        }
+
+        .thermometer-tube {
+            width: 20px;
+            height: 300px;
+            background-color: #f8f9fa;
+            border: 1px solid #bdc3c7;
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            top: 10px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .thermometer-liquid {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #e74c3c;
+            border-radius: 0 0 8px 8px;
+            height: 0;
+            transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .thermometer-bulb {
+            width: 40px;
+            height: 40px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid #c0392b;
+            z-index: 2;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .controls input[type="number"] {
+            padding: 8px;
+            width: 80px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .reading-display {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #2c3e50;
+            min-height: 20px;
+        }
+        
+        .uncertainty {
+            color: #8e44ad;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Laboratoire de Thermométrie</h1>
+    <p class="description">
+        Observez comment une même température s'affiche sur des thermomètres ayant des échelles et des précisions différentes.
+    </p>
+
+    <div class="global-controls">
+        <button id="toggleModeBtn" class="toggle-btn">Mode Lecture : Sans Incertitudes (ST)</button>
+    </div>
+
+    <div class="thermometers-wrapper" id="thermometers-wrapper">
+        <!-- Les thermomètres seront générés ici par JavaScript -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configuration des 3 thermomètres
+            const thermoConfigs = [
+                {
+                    id: 'thermo1',
+                    title: 'Thermomètre Général',
+                    min: -20,
+                    max: 120,
+                    majorStep: 20,
+                    minorStep: 5,
+                    initialValue: 20
+                },
+                {
+                    id: 'thermo2',
+                    title: 'Thermomètre Ambiant',
+                    min: 10,
+                    max: 30,
+                    majorStep: 5,
+                    minorStep: 1,
+                    initialValue: 20
+                },
+                {
+                    id: 'thermo3',
+                    title: 'Thermomètre de Précision',
+                    min: 10,
+                    max: 60,
+                    majorStep: 10,
+                    minorStep: 1,
+                    initialValue: 20
+                }
+            ];
+
+            let isSTEMode = false; // ST par défaut (Sans Incertitudes)
+            const wrapper = document.getElementById('thermometers-wrapper');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+
+            // 1. Génération du HTML pour chaque thermomètre
+            thermoConfigs.forEach(config => {
+                const box = document.createElement('div');
+                box.classList.add('thermometer-box');
+                
+                box.innerHTML = `
+                    <h2>${config.title}<br><small style="font-size:12px; font-weight:normal;">Graduation: ${config.minorStep}°C</small></h2>
+                    <div class="thermometer">
+                        <div class="thermometer-scale" id="scale-${config.id}"></div>
+                        <div class="thermometer-tube">
+                            <div class="thermometer-liquid" id="liquid-${config.id}"></div>
+                        </div>
+                        <div class="thermometer-bulb"></div>
+                    </div>
+                    <div class="controls">
+                        <label for="input-${config.id}">Fixer la température réelle (°C):</label>
+                        <input type="number" id="input-${config.id}" min="${config.min}" max="${config.max}" value="${config.initialValue}" step="0.1">
+                        <div class="reading-display" id="reading-${config.id}"></div>
+                    </div>
+                `;
+                wrapper.appendChild(box);
+            });
+
+            // 2. Logique de rendu et de mise à jour
+            function initThermometers() {
+                thermoConfigs.forEach(config => {
+                    generateScale(config);
+                    const inputEl = document.getElementById(`input-${config.id}`);
+                    
+                    // Écouteur pour la saisie
+                    inputEl.addEventListener('input', (e) => {
+                        updateThermometer(config, e.target.value);
+                    });
+                    
+                    // Initialisation du visuel
+                    updateThermometer(config, config.initialValue);
+                });
+            }
+
+            function generateScale(config) {
+                const scaleContainer = document.getElementById(`scale-${config.id}`);
+                scaleContainer.innerHTML = '';
+                const range = config.max - config.min;
+
+                for (let temp = config.min; temp <= config.max; temp += config.minorStep) {
+                    const percent = ((temp - config.min) / range) * 100;
+                    
+                    if (percent >= -0.01 && percent <= 100.01) {
+                        const mark = document.createElement('div');
+                        mark.classList.add('scale-mark');
+                        mark.style.bottom = `${Math.max(0, Math.min(100, percent))}%`;
+
+                        const isMajor = Math.abs(temp % config.majorStep) < 0.001 || 
+                                        Math.abs((temp % config.majorStep) - config.majorStep) < 0.001 || 
+                                        temp === config.min || temp === config.max;
+
+                        if (isMajor) {
+                            mark.classList.add('scale-mark--major');
+                            const label = document.createElement('span');
+                            label.textContent = `${Math.round(temp)}°`;
+                            mark.appendChild(label);
+                        } else {
+                            mark.classList.add('scale-mark--minor');
+                        }
+                        scaleContainer.appendChild(mark);
+                    }
+                }
+            }
+
+            function updateThermometer(config, inputValue) {
+                let temp = parseFloat(inputValue);
+                if (isNaN(temp)) temp = config.min;
+                
+                // Contrainte visuelle
+                temp = Math.max(config.min, Math.min(config.max, temp));
+
+                // Calcul hauteur liquide
+                const range = config.max - config.min;
+                const percentage = ((temp - config.min) / range) * 100;
+                document.getElementById(`liquid-${config.id}`).style.height = `${percentage}%`;
+
+                // Affichage de la lecture simulée
+                const readingDisplay = document.getElementById(`reading-${config.id}`);
+                
+                if (isSTEMode) {
+                    // Mode STE : Avec incertitude absolue (moitié de la plus petite graduation)
+                    const uncertainty = config.minorStep / 2;
+                    readingDisplay.innerHTML = `Lecture : ${temp.toFixed(1)} <span class="uncertainty">± ${uncertainty} °C</span>`;
+                } else {
+                    // Mode ST : Sans incertitude, l'élève lit "à la ligne près" (arrondi à la graduation la plus proche)
+                    const roundedReading = Math.round(temp / config.minorStep) * config.minorStep;
+                    readingDisplay.textContent = `Lecture : ~ ${roundedReading} °C`;
+                }
+            }
+
+            function updateAllDisplays() {
+                thermoConfigs.forEach(config => {
+                    const inputEl = document.getElementById(`input-${config.id}`);
+                    updateThermometer(config, inputEl.value);
+                });
+            }
+
+            // 3. Gestion du bouton Toggle
+            toggleBtn.addEventListener('click', () => {
+                isSTEMode = !isSTEMode;
+                if (isSTEMode) {
+                    toggleBtn.textContent = "Mode Lecture : Avec Incertitudes (STE)";
+                    toggleBtn.classList.add('ste-active');
+                } else {
+                    toggleBtn.textContent = "Mode Lecture : Sans Incertitudes (ST)";
+                    toggleBtn.classList.remove('ste-active');
+                }
+                updateAllDisplays();
+            });
+
+            // Lancement
+            initThermometers();
+        });
+    </script>
+</body>
+</html>
